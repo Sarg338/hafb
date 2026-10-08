@@ -15,3 +15,6 @@ apps/desktop/src-tauri/gen/
 
 .DS_Store
 Thumbs.db
+
+# YNAB screenshots for design reference: copyrighted, local only
+docs/ui-references/ynab/
