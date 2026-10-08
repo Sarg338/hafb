@@ -390,12 +390,7 @@ Mark phase status here when it changes:
 - Phase 0: done. Validated on Sarg's machine 2026-10-08 (ADR 0001 §7). The spike screens (`apps/desktop/src/spike/`, `src-tauri/src/spike/`) stay until S3.3 replaces them.
 - Phase 1: done, signed off by Sarg 2026-10-08. Verified against two real YNAB sources (budget-math §12): the public export (98.4% exact, every regular category exact) and Sarg's YNAB trial plan (every value YNAB showed matches after 9 rule corrections; mortgage interest within $0.50). Age of Money and the weekly-target rule were confirmed by follow-up checks. Fresh Start was confirmed too. Remaining open items are in budget-math §13: mortgage interest cents, the public sample's converted card, Credit Card Interest (rolling out) and recurrence edge cases.
 - Phase 2: done, signed off by Sarg 2026-10-08 (ADR 0002). Tests: 537 TS + 25 Rust. Validated by driving the release build on Sarg's PC: import, edit, undo/redo, reopen, second-window lock, backup restore, save a copy, new plan; the empty `-wal` left after quitting was found and fixed. Carried into Phase 3: replace the browser `confirm()` box with an in-app dialog.
-- Phase 3: in progress. S3.1 mockups are built at `#/design`, with the spec in `DESIGN.md` and themes as data (ADR 0003). All five sprints are built and validated on Sarg's PC; waiting for Sarg's sign-off.
-  - S3.1 was approved by Sarg on 2026-10-08.
-  - S3.2: components in `src/ui` with the gallery at `#/gallery` (ADR 0004).
-  - S3.3: the app shell in `src/shell`, which replaced the spike and Phase 2 screens.
-  - S3.4: `DataGrid`; its 50k-row benchmark missed 0 frames in WebView2.
-  - S3.5: the shortcut registry with the `?` overlay, error surfacing, and the `pnpm smoke` end-to-end suite (ADR 0005). Themes can be whole-UI skins (colour, type, shape, density, ornament) over a fixed layout (ADR 0003 amendment). Only the plumbing ships: the approved look stays and no new themes are added until Sarg asks.
+- Phase 3: done, signed off by Sarg 2026-10-08. S3.1 design direction (approved look; DESIGN.md; themes as data, ADR 0003). S3.2 component library in `src/ui` with gallery `#/gallery` (ADR 0004). S3.3 app shell in `src/shell` (spike and Phase 2 screens retired). S3.4 `DataGrid` (50k-row benchmark: 0 missed frames in WebView2; cells exposed to Narrator via UIA). S3.5 shortcut registry, `?` overlay, error surfacing, `pnpm smoke` (9 tests, ADR 0005). Launch to first paint 812 ms.
 - Phase 4: todo
 - Phase 5: todo
 - Phase 6: todo

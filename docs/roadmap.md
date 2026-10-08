@@ -111,7 +111,7 @@ The 2026-10-08 research (YNAB What's New and help center) found that CLAUDE.md w
 
 **Goal:** a cohesive, Windows-native design language and the reusable pieces every screen is built from, *before* building screens.
 
-**Status (2026-10-08):** every Phase 3 sprint is built and validated on Sarg's PC by driving the release build. Phase 3 is waiting for Sarg's sign-off.
+**Status: done, signed off by Sarg 2026-10-08.** Every Phase 3 sprint was built and validated on Sarg's PC by driving the release build.
 - **S3.3:**
   - The app shell replaces the Phase 0 spike and Phase 2 screens: welcome screen, sidebar with plan menu and rail, routing, resizable inspector, prefs, theme switching (Match Windows follows contrast themes too), window title, window state restore, `--open`.
   - The approved S3.1 screens render the real plan.
