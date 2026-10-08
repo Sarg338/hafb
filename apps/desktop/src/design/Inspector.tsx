@@ -55,7 +55,7 @@ function MonthSummary({ model, money }: { model: PlanModel; money: (m: Minor) =>
       </div>
       <div className="hd-line">
         <span>Activity</span>
-        <span className={`num${model.ms.totals.activity < 0 ? ' neg' : ''}`}>{money(model.ms.totals.activity)}</span>
+        <span className="num">{money(model.ms.totals.activity)}</span>
       </div>
       <div className="hd-line total">
         <span>Available</span>
@@ -157,7 +157,7 @@ function CostToBeMe({ model, money }: { model: PlanModel; money: (m: Minor) => s
         <strong>{money(cost.targets)}</strong>
         <span className="muted">of {money(income)} expected income</span>
       </div>
-      <div className="hd-meter" role="img" aria-label={`Targets use ${String(Math.round(pct))}% of expected income`}>
+      <div className={`hd-meter${cost.difference < 0 ? ' short' : ''}`} role="img" aria-label={`Targets use ${String(Math.round(pct))}% of expected income`}>
         <span style={{ transform: `scaleX(${String(pct / 100)})` }} />
       </div>
       <p className="hd-note">
@@ -184,7 +184,7 @@ function CategoryDetail({ model, id, actions, money }: { model: PlanModel; id: I
         <h2>{category.name}</h2>
         <div className="hd-big">
           <span className="muted">Available</span>
-          <Pill view={view} amount={money(cm.available)} />
+          <Pill view={view} value={cm.available} money={money} />
         </div>
         <div className="hd-line">
           <span>Cash left over from {prev}</span>
@@ -196,11 +196,11 @@ function CategoryDetail({ model, id, actions, money }: { model: PlanModel; id: I
         </div>
         <div className="hd-line">
           <span>Cash spending</span>
-          <span className={`num${cm.cashActivity < 0 ? ' neg' : ''}`}>{money(cm.cashActivity)}</span>
+          <span className="num">{money(cm.cashActivity)}</span>
         </div>
         <div className="hd-line">
           <span>Credit spending</span>
-          <span className={`num${cm.creditActivity < 0 ? ' neg' : ''}`}>{money(cm.creditActivity)}</span>
+          <span className="num">{money(cm.creditActivity)}</span>
         </div>
         <div className="hd-line total">
           <span>Available</span>

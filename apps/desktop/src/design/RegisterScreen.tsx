@@ -1,7 +1,7 @@
 // S3.1 Register mockup: YNAB's register structure in HAFB's look, on the sample household.
 // Balances come from the engine; rows are the plan's records; edits go through real commands.
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
-import { READY_TO_ASSIGN, type CategoryRef, type ClearedState, type FlagColor, type Id } from '@hafb/engine';
+import { READY_TO_ASSIGN, type CategoryRef, type ClearedState, type FlagColor, type Id, CASH_ACCOUNT_TYPES } from '@hafb/engine';
 import { asISODate, dateParts, formatMoney, isISODate, minor, neg, parseDecimal, ZERO, type ISODate, type Minor } from '@hafb/shared';
 import {
   addTransaction,
@@ -260,7 +260,8 @@ export function RegisterScreen({ plan, today, accountId, actions }: { plan: Plan
   };
 
   const showAccount = accountId === null;
-  const columns = showAccount ? 11 : 10;
+  // check, flag, [account], date, payee, category, memo, outflow, inflow, cleared
+  const columns = showAccount ? 10 : 9;
   const onBudgetView = account?.onBudget ?? true;
   const daysSince = account?.lastReconciledAt === undefined ? null : Math.max(0, Math.round((Date.parse(today) - Date.parse(account.lastReconciledAt.slice(0, 10))) / 86_400_000));
 
@@ -276,7 +277,7 @@ export function RegisterScreen({ plan, today, accountId, actions }: { plan: Plan
           </div>
           <div className="rg-balances" aria-label="Balances">
             <div>
-              <strong className={`num${total('cleared') < 0 ? ' neg' : ''}`}>{money(total('cleared'))}</strong>
+              <strong className="num">{money(total('cleared'))}</strong>
               <span>
                 <Icon name="cleared" className="rg-ok" /> Cleared Balance
               </span>
@@ -285,7 +286,7 @@ export function RegisterScreen({ plan, today, accountId, actions }: { plan: Plan
               +
             </span>
             <div>
-              <strong className={`num${total('uncleared') < 0 ? ' neg' : ''}`}>{money(total('uncleared'))}</strong>
+              <strong className="num">{money(total('uncleared'))}</strong>
               <span>
                 <Icon name="uncleared" /> Uncleared Balance
               </span>
@@ -294,7 +295,8 @@ export function RegisterScreen({ plan, today, accountId, actions }: { plan: Plan
               =
             </span>
             <div className="rg-working">
-              <strong className={`num${total('working') < 0 ? ' neg' : ''}`}>{money(total('working'))}</strong>
+              {/* Red only for an overdrawn cash account; a card or loan balance below zero is normal debt. */}
+              <strong className={`num${account !== undefined && CASH_ACCOUNT_TYPES.includes(account.type) && total('working') < 0 ? ' neg' : ''}`}>{money(total('working'))}</strong>
               <span>Working Balance</span>
             </div>
           </div>
@@ -519,7 +521,7 @@ export function RegisterScreen({ plan, today, accountId, actions }: { plan: Plan
                         <span className="rg-payee">
                           {t.approved === false && <span className="rg-dot" title="Needs approval" />}
                           {t.transferAccountId !== undefined && <Icon name="transfer" className="rg-transfer" />}
-                          {payee}
+                          <span className="rg-payeetext">{payee}</span>
                         </span>
                       </td>
                       <td className={`ellipsis${cat.muted ? ' muted' : ''}`}>

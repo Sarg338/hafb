@@ -23,6 +23,6 @@ STORY: Open the plan → see at a glance what's ready to assign and which catego
 
 FIRST VIEWPORT: Title bar; left sidebar (plan menu, Plan / Reflect / All Accounts, account groups with balances); main: month header with Ready to Assign banner top-centre and its Assign button, Focused View chips, then the dense category grid (Category, Assigned, Activity, Available) with segmented progress bars under names; right: Inspector with month summary, Auto-Assign, Cost to Be Me. Primary action: the Assign button in the banner.
 
-FORM: Category standard (canon), chosen by Sarg over the roll's Till Roll and the pick Columnar Ledger; seed d24513fb. Signature interaction: assigning animates the Ready to Assign figure and the category's pill and bar together (one 180 ms ease-out), so cause and effect are visible.
+FORM: Category standard (canon), chosen by Sarg over the roll's Till Roll and the pick Columnar Ledger; seed d24513fb (printed by `impeccable concept-seed --scope direction --mode operate`, assigned index 7; the choice was recorded with `concept-seed --kind canon --from d24513fb`. Sarg answered by phone from rendered sketches, so the decision page itself holds no answer). Signature interaction: assigning animates the Ready to Assign figure and the category's pill and bar together (one 180 ms ease-out), so cause and effect are visible.
 
 FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance

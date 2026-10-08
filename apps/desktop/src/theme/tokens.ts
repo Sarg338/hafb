@@ -59,6 +59,9 @@ export const COLOR_TOKENS = [
   'rtaNegativeFg',
   // Plain negative money in tables (not a pill)
   'negative',
+  // Status text drawn on ordinary surfaces (target messages): never a pill's fg off its own bg
+  'warnText',
+  'badText',
   // Charts (Reflect): eight distinguishable series plus income/expense/net
   'chart1',
   'chart2',

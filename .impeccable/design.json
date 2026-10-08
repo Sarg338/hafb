@@ -1,0 +1,1693 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-08T18:45:25.725Z",
+  "title": "Design System: HAFB",
+  "extensions": {
+    "source": {
+      "tokens": "apps/desktop/src/theme/tokens.ts",
+      "themes": "apps/desktop/src/theme/themes.ts",
+      "contrastTest": "apps/desktop/src/theme/theme.test.ts",
+      "css": [
+        "apps/desktop/src/design/design.css",
+        "apps/desktop/src/design/register.css",
+        "apps/desktop/src/design/reflect.css"
+      ],
+      "adr": "docs/decisions/0003-theming.md"
+    },
+    "themes": [
+      {
+        "id": "light",
+        "name": "Light",
+        "scheme": "light"
+      },
+      {
+        "id": "dark",
+        "name": "Dark",
+        "scheme": "dark"
+      },
+      {
+        "id": "high-contrast",
+        "name": "High contrast",
+        "scheme": "dark",
+        "system": true,
+        "note": "Windows system colours; exempt from computed contrast checks; forces differentiate-without-colour on."
+      }
+    ],
+    "colorMeta": {
+      "app": {
+        "role": "neutral",
+        "displayName": "Window Mist",
+        "canonical": "#F3F4F6",
+        "cssVar": "--c-app",
+        "dark": "#1B1C1F",
+        "highContrast": "Canvas",
+        "tonalRamp": [
+          "#21242C",
+          "#393F4C",
+          "#515A6C",
+          "#69758C",
+          "#8A94A8",
+          "#ADB4C2",
+          "#D0D4DC",
+          "#F0F2F4"
+        ]
+      },
+      "titlebar": {
+        "role": "neutral",
+        "displayName": "Sidebar Fog (title bar)",
+        "canonical": "#EBEDF0",
+        "cssVar": "--c-titlebar",
+        "dark": "#202124",
+        "highContrast": "Canvas",
+        "tonalRamp": [
+          "#21252C",
+          "#39404C",
+          "#515C6C",
+          "#69778C",
+          "#8A96A8",
+          "#ADB6C2",
+          "#D0D5DC",
+          "#F0F2F4"
+        ]
+      },
+      "sidebar": {
+        "role": "neutral",
+        "displayName": "Sidebar Fog",
+        "canonical": "#EBEDF0",
+        "cssVar": "--c-sidebar",
+        "dark": "#202124",
+        "highContrast": "Canvas",
+        "tonalRamp": [
+          "#21252C",
+          "#39404C",
+          "#515C6C",
+          "#69778C",
+          "#8A96A8",
+          "#ADB6C2",
+          "#D0D5DC",
+          "#F0F2F4"
+        ]
+      },
+      "sidebar-hover": {
+        "role": "neutral",
+        "displayName": "sidebarHover",
+        "canonical": "#E0E3E7",
+        "cssVar": "--c-sidebar-hover",
+        "dark": "#2A2C30",
+        "highContrast": "Canvas",
+        "tonalRamp": [
+          "#21262B",
+          "#3A414B",
+          "#525D6A",
+          "#6B788A",
+          "#8C97A6",
+          "#AFB6C1",
+          "#D1D5DB",
+          "#F1F2F4"
+        ]
+      },
+      "sidebar-selected": {
+        "role": "neutral",
+        "displayName": "sidebarSelected",
+        "canonical": "#D5ECE5",
+        "cssVar": "--c-sidebar-selected",
+        "dark": "#21403A",
+        "highContrast": "Highlight",
+        "tonalRamp": [
+          "#18352C",
+          "#295B4C",
+          "#3B826C",
+          "#4CA98C",
+          "#73BFA8",
+          "#9DD3C2",
+          "#C7E6DC",
+          "#EDF7F4"
+        ]
+      },
+      "sidebar-text": {
+        "role": "neutral",
+        "displayName": "sidebarText",
+        "canonical": "#1B1D21",
+        "cssVar": "--c-sidebar-text",
+        "dark": "#ECEEF1",
+        "highContrast": "CanvasText",
+        "tonalRamp": [
+          "#22252A",
+          "#3C4049",
+          "#555B68",
+          "#6E7687",
+          "#8F96A3",
+          "#B0B5BF",
+          "#D2D5DA",
+          "#F1F2F4"
+        ]
+      },
+      "sidebar-muted": {
+        "role": "neutral",
+        "displayName": "sidebarMuted",
+        "canonical": "#555B64",
+        "cssVar": "--c-sidebar-muted",
+        "dark": "#A3A9B1",
+        "highContrast": "CanvasText",
+        "tonalRamp": [
+          "#232629",
+          "#3D4148",
+          "#575D66",
+          "#707884",
+          "#9197A1",
+          "#B2B6BD",
+          "#D3D6DA",
+          "#F1F2F3"
+        ]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Paper",
+        "canonical": "#FFFFFF",
+        "cssVar": "--c-surface",
+        "dark": "#25272B",
+        "highContrast": "Canvas",
+        "tonalRamp": [
+          "#262626",
+          "#424242",
+          "#5E5E5E",
+          "#7A7A7A",
+          "#999999",
+          "#B8B8B8",
+          "#D6D6D6",
+          "#F2F2F2"
+        ]
+      },
+      "surface-alt": {
+        "role": "neutral",
+        "displayName": "Paper Shade",
+        "canonical": "#F6F7F9",
+        "cssVar": "--c-surface-alt",
+        "dark": "#2B2E33",
+        "highContrast": "Canvas",
+        "tonalRamp": [
+          "#1F242E",
+          "#353E50",
+          "#4B5871",
+          "#627293",
+          "#8592AD",
+          "#A9B3C6",
+          "#CED3DE",
+          "#F0F1F5"
+        ]
+      },
+      "raised": {
+        "role": "neutral",
+        "displayName": "Raised",
+        "canonical": "#FFFFFF",
+        "cssVar": "--c-raised",
+        "dark": "#2E3136",
+        "highContrast": "Canvas",
+        "tonalRamp": [
+          "#262626",
+          "#424242",
+          "#5E5E5E",
+          "#7A7A7A",
+          "#999999",
+          "#B8B8B8",
+          "#D6D6D6",
+          "#F2F2F2"
+        ]
+      },
+      "hover": {
+        "role": "neutral",
+        "displayName": "Row Hover",
+        "canonical": "#F1F3F5",
+        "cssVar": "--c-hover",
+        "dark": "#2F3237",
+        "highContrast": "Canvas",
+        "tonalRamp": [
+          "#20262D",
+          "#37424D",
+          "#4F5E6E",
+          "#667A8F",
+          "#8899AA",
+          "#ACB8C4",
+          "#CFD6DD",
+          "#F0F2F4"
+        ]
+      },
+      "selected": {
+        "role": "primary",
+        "displayName": "Selection",
+        "canonical": "#E2F2ED",
+        "cssVar": "--c-selected",
+        "dark": "#1E3D36",
+        "highContrast": "Highlight",
+        "tonalRamp": [
+          "#18352C",
+          "#295C4C",
+          "#3A826C",
+          "#4CA98C",
+          "#72C0A8",
+          "#9CD3C2",
+          "#C7E6DC",
+          "#EDF7F4"
+        ]
+      },
+      "selected-border": {
+        "role": "primary",
+        "displayName": "Selection Edge",
+        "canonical": "#0E7C66",
+        "cssVar": "--c-selected-border",
+        "dark": "#4FD1B0",
+        "highContrast": "Highlight",
+        "tonalRamp": [
+          "#084539",
+          "#0D7762",
+          "#13AA8B",
+          "#19DCB5",
+          "#48EACA",
+          "#7FF1DA",
+          "#B6F7EA",
+          "#E8FCF8"
+        ]
+      },
+      "selected-text": {
+        "role": "primary",
+        "displayName": "Selection Ink",
+        "canonical": "#1B1D21",
+        "cssVar": "--c-selected-text",
+        "dark": "#ECEEF1",
+        "highContrast": "HighlightText",
+        "tonalRamp": [
+          "#22252A",
+          "#3C4049",
+          "#555B68",
+          "#6E7687",
+          "#8F96A3",
+          "#B0B5BF",
+          "#D2D5DA",
+          "#F1F2F4"
+        ]
+      },
+      "input": {
+        "role": "neutral",
+        "displayName": "Field",
+        "canonical": "#FFFFFF",
+        "cssVar": "--c-input",
+        "dark": "#1E2024",
+        "highContrast": "Field",
+        "tonalRamp": [
+          "#262626",
+          "#424242",
+          "#5E5E5E",
+          "#7A7A7A",
+          "#999999",
+          "#B8B8B8",
+          "#D6D6D6",
+          "#F2F2F2"
+        ]
+      },
+      "input-border": {
+        "role": "neutral",
+        "displayName": "Field Edge",
+        "canonical": "#8A919B",
+        "cssVar": "--c-input-border",
+        "dark": "#7D848D",
+        "highContrast": "FieldText",
+        "tonalRamp": [
+          "#232629",
+          "#3D4147",
+          "#575D66",
+          "#717984",
+          "#9198A1",
+          "#B2B7BD",
+          "#D3D6D9",
+          "#F1F2F3"
+        ]
+      },
+      "border": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "canonical": "#E4E7EB",
+        "cssVar": "--c-border",
+        "dark": "#363A40",
+        "highContrast": "CanvasText",
+        "tonalRamp": [
+          "#21252C",
+          "#38414C",
+          "#505C6C",
+          "#68788D",
+          "#8A97A8",
+          "#ADB6C2",
+          "#D0D5DC",
+          "#F0F2F4"
+        ]
+      },
+      "border-strong": {
+        "role": "neutral",
+        "displayName": "Hairline Strong",
+        "canonical": "#C9CED5",
+        "cssVar": "--c-border-strong",
+        "dark": "#4A4F57",
+        "highContrast": "CanvasText",
+        "tonalRamp": [
+          "#21252B",
+          "#3A414B",
+          "#535C6A",
+          "#6B788A",
+          "#8C97A6",
+          "#AFB6C1",
+          "#D1D5DB",
+          "#F1F2F4"
+        ]
+      },
+      "text": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "#1B1D21",
+        "cssVar": "--c-text",
+        "dark": "#ECEEF1",
+        "highContrast": "CanvasText",
+        "tonalRamp": [
+          "#22252A",
+          "#3C4049",
+          "#555B68",
+          "#6E7687",
+          "#8F96A3",
+          "#B0B5BF",
+          "#D2D5DA",
+          "#F1F2F4"
+        ]
+      },
+      "text-muted": {
+        "role": "neutral",
+        "displayName": "Ink Muted",
+        "canonical": "#555B64",
+        "cssVar": "--c-text-muted",
+        "dark": "#B3B9C1",
+        "highContrast": "CanvasText",
+        "tonalRamp": [
+          "#232629",
+          "#3D4148",
+          "#575D66",
+          "#707884",
+          "#9197A1",
+          "#B2B6BD",
+          "#D3D6DA",
+          "#F1F2F3"
+        ]
+      },
+      "text-subtle": {
+        "role": "neutral",
+        "displayName": "Ink Subtle",
+        "canonical": "#646B74",
+        "cssVar": "--c-text-subtle",
+        "dark": "#A0A7B0",
+        "highContrast": "CanvasText",
+        "tonalRamp": [
+          "#232629",
+          "#3D4247",
+          "#575D65",
+          "#717983",
+          "#9198A1",
+          "#B2B7BD",
+          "#D3D6D9",
+          "#F1F2F3"
+        ]
+      },
+      "text-on-accent": {
+        "role": "neutral",
+        "displayName": "textOnAccent",
+        "canonical": "#FFFFFF",
+        "cssVar": "--c-text-on-accent",
+        "dark": "#0A1F1A",
+        "highContrast": "HighlightText",
+        "tonalRamp": [
+          "#262626",
+          "#424242",
+          "#5E5E5E",
+          "#7A7A7A",
+          "#999999",
+          "#B8B8B8",
+          "#D6D6D6",
+          "#F2F2F2"
+        ]
+      },
+      "link": {
+        "role": "primary",
+        "displayName": "Teal Ink",
+        "canonical": "#0B6B58",
+        "cssVar": "--c-link",
+        "dark": "#6FDCC0",
+        "highContrast": "LinkText",
+        "tonalRamp": [
+          "#074539",
+          "#0C7863",
+          "#12AB8D",
+          "#17DEB7",
+          "#46ECCB",
+          "#7EF2DB",
+          "#B5F7EA",
+          "#E8FDF9"
+        ]
+      },
+      "accent": {
+        "role": "primary",
+        "displayName": "Ledger Teal",
+        "canonical": "#0E7C66",
+        "cssVar": "--c-accent",
+        "dark": "#4FD1B0",
+        "highContrast": "Highlight",
+        "tonalRamp": [
+          "#084539",
+          "#0D7762",
+          "#13AA8B",
+          "#19DCB5",
+          "#48EACA",
+          "#7FF1DA",
+          "#B6F7EA",
+          "#E8FCF8"
+        ]
+      },
+      "accent-hover": {
+        "role": "primary",
+        "displayName": "Ledger Teal Deep",
+        "canonical": "#0A6653",
+        "cssVar": "--c-accent-hover",
+        "dark": "#6FDCC0",
+        "highContrast": "Highlight",
+        "tonalRamp": [
+          "#074639",
+          "#0C7962",
+          "#11AC8C",
+          "#16DFB5",
+          "#45EDCA",
+          "#7DF2DA",
+          "#B5F8EA",
+          "#E8FDF8"
+        ]
+      },
+      "accent-soft": {
+        "role": "primary",
+        "displayName": "Teal Wash",
+        "canonical": "#DDF1EB",
+        "cssVar": "--c-accent-soft",
+        "dark": "#1F3F37",
+        "highContrast": "Canvas",
+        "tonalRamp": [
+          "#16362D",
+          "#275E4D",
+          "#37866E",
+          "#47AD8F",
+          "#6FC3AA",
+          "#9AD5C3",
+          "#C5E7DD",
+          "#EDF8F4"
+        ]
+      },
+      "focus": {
+        "role": "primary",
+        "displayName": "Focus",
+        "canonical": "#0E7C66",
+        "cssVar": "--c-focus",
+        "dark": "#6FDCC0",
+        "highContrast": "Highlight",
+        "tonalRamp": [
+          "#084539",
+          "#0D7762",
+          "#13AA8B",
+          "#19DCB5",
+          "#48EACA",
+          "#7FF1DA",
+          "#B6F7EA",
+          "#E8FCF8"
+        ]
+      },
+      "funded-bg": {
+        "role": "secondary",
+        "displayName": "Spring Ledger Green (pill)",
+        "canonical": "#C9EFD6",
+        "cssVar": "--c-funded-bg",
+        "dark": "#1D4A33",
+        "highContrast": "Canvas",
+        "tonalRamp": [
+          "#113B20",
+          "#1E6637",
+          "#2B924E",
+          "#38BD65",
+          "#62D088",
+          "#91DEAB",
+          "#C0ECCF",
+          "#EBF9F0"
+        ]
+      },
+      "funded-fg": {
+        "role": "secondary",
+        "displayName": "Spring Ledger Green Ink",
+        "canonical": "#0B4F2E",
+        "cssVar": "--c-funded-fg",
+        "dark": "#B5EECB",
+        "highContrast": "CanvasText",
+        "tonalRamp": [
+          "#094327",
+          "#107444",
+          "#17A660",
+          "#1ED77D",
+          "#4CE69B",
+          "#82EEB9",
+          "#B7F5D7",
+          "#E9FCF3"
+        ]
+      },
+      "underfunded-bg": {
+        "role": "secondary",
+        "displayName": "Harvest Amber (pill)",
+        "canonical": "#FCE6A4",
+        "cssVar": "--c-underfunded-bg",
+        "dark": "#4D3D0E",
+        "highContrast": "Canvas",
+        "tonalRamp": [
+          "#4A3802",
+          "#806104",
+          "#B78B06",
+          "#EDB408",
+          "#F8C93A",
+          "#FAD975",
+          "#FCE9B0",
+          "#FEF8E6"
+        ]
+      },
+      "underfunded-fg": {
+        "role": "secondary",
+        "displayName": "Harvest Amber Ink",
+        "canonical": "#5A3F00",
+        "cssVar": "--c-underfunded-fg",
+        "dark": "#F7DE8E",
+        "highContrast": "CanvasText",
+        "tonalRamp": [
+          "#4D3600",
+          "#855D00",
+          "#BD8400",
+          "#F5AB00",
+          "#FFC233",
+          "#FFD470",
+          "#FFE7AD",
+          "#FFF7E5"
+        ]
+      },
+      "overspent-bg": {
+        "role": "secondary",
+        "displayName": "Signal Coral (pill)",
+        "canonical": "#FBD1CD",
+        "cssVar": "--c-overspent-bg",
+        "dark": "#5A221E",
+        "highContrast": "Mark",
+        "tonalRamp": [
+          "#470B06",
+          "#7B140A",
+          "#AF1C0E",
+          "#E32412",
+          "#F05142",
+          "#F4857B",
+          "#F9B9B3",
+          "#FDE9E7"
+        ]
+      },
+      "overspent-fg": {
+        "role": "secondary",
+        "displayName": "Signal Coral Ink",
+        "canonical": "#8E150E",
+        "cssVar": "--c-overspent-fg",
+        "dark": "#FFBDB5",
+        "highContrast": "MarkText",
+        "tonalRamp": [
+          "#460A07",
+          "#79120C",
+          "#AC1911",
+          "#DF2116",
+          "#ED4E45",
+          "#F2837D",
+          "#F8B8B5",
+          "#FDE9E8"
+        ]
+      },
+      "zero-bg": {
+        "role": "secondary",
+        "displayName": "Slate (pill)",
+        "canonical": "#ECEEF1",
+        "cssVar": "--c-zero-bg",
+        "dark": "#33363B",
+        "highContrast": "Canvas",
+        "tonalRamp": [
+          "#20252C",
+          "#38404C",
+          "#505B6D",
+          "#68778D",
+          "#8A96A8",
+          "#ADB5C2",
+          "#D0D5DC",
+          "#F0F2F4"
+        ]
+      },
+      "zero-fg": {
+        "role": "secondary",
+        "displayName": "Slate Ink",
+        "canonical": "#4C525A",
+        "cssVar": "--c-zero-fg",
+        "dark": "#C3C8CF",
+        "highContrast": "CanvasText",
+        "tonalRamp": [
+          "#232629",
+          "#3D4248",
+          "#565D66",
+          "#707985",
+          "#9098A2",
+          "#B2B7BE",
+          "#D3D6DA",
+          "#F1F2F3"
+        ]
+      },
+      "bar-track": {
+        "role": "secondary",
+        "displayName": "barTrack",
+        "canonical": "#E4E7EB",
+        "cssVar": "--c-bar-track",
+        "dark": "#3A3D43",
+        "highContrast": "Canvas",
+        "tonalRamp": [
+          "#21252C",
+          "#38414C",
+          "#505C6C",
+          "#68788D",
+          "#8A97A8",
+          "#ADB6C2",
+          "#D0D5DC",
+          "#F0F2F4"
+        ]
+      },
+      "bar-funded": {
+        "role": "secondary",
+        "displayName": "barFunded",
+        "canonical": "#24884C",
+        "cssVar": "--c-bar-funded",
+        "dark": "#43B873",
+        "highContrast": "CanvasText",
+        "tonalRamp": [
+          "#103C22",
+          "#1C693B",
+          "#279553",
+          "#33C26C",
+          "#5ED48D",
+          "#8EE1AF",
+          "#BEEED1",
+          "#EBFAF1"
+        ]
+      },
+      "bar-funded-spent": {
+        "role": "secondary",
+        "displayName": "barFundedSpent",
+        "canonical": "#A6DDB9",
+        "cssVar": "--c-bar-funded-spent",
+        "dark": "#2C6B47",
+        "highContrast": "GrayText",
+        "tonalRamp": [
+          "#153721",
+          "#256039",
+          "#348951",
+          "#44B169",
+          "#6BC78B",
+          "#98D8AE",
+          "#C4E8D1",
+          "#EDF8F0"
+        ]
+      },
+      "bar-underfunded": {
+        "role": "secondary",
+        "displayName": "barUnderfunded",
+        "canonical": "#A97C00",
+        "cssVar": "--c-bar-underfunded",
+        "dark": "#E5B931",
+        "highContrast": "CanvasText",
+        "tonalRamp": [
+          "#4D3800",
+          "#856100",
+          "#BD8A00",
+          "#F5B400",
+          "#FFC933",
+          "#FFD970",
+          "#FFE9AD",
+          "#FFF8E5"
+        ]
+      },
+      "bar-underfunded-spent": {
+        "role": "secondary",
+        "displayName": "barUnderfundedSpent",
+        "canonical": "#F1D98E",
+        "cssVar": "--c-bar-underfunded-spent",
+        "dark": "#7A6420",
+        "highContrast": "GrayText",
+        "tonalRamp": [
+          "#443608",
+          "#765D0F",
+          "#A88415",
+          "#DAAC1B",
+          "#E9C249",
+          "#EFD480",
+          "#F6E7B6",
+          "#FCF7E8"
+        ]
+      },
+      "bar-overspent": {
+        "role": "secondary",
+        "displayName": "barOverspent",
+        "canonical": "#D1342A",
+        "cssVar": "--c-bar-overspent",
+        "dark": "#F0675A",
+        "highContrast": "Mark",
+        "tonalRamp": [
+          "#40100D",
+          "#6E1B16",
+          "#9D2720",
+          "#CC3329",
+          "#DD5D55",
+          "#E78E88",
+          "#F1BEBB",
+          "#FBEBEA"
+        ]
+      },
+      "bar-snoozed": {
+        "role": "secondary",
+        "displayName": "barSnoozed",
+        "canonical": "#858C95",
+        "cssVar": "--c-bar-snoozed",
+        "dark": "#7E858E",
+        "highContrast": "GrayText",
+        "tonalRamp": [
+          "#242629",
+          "#3E4247",
+          "#585E65",
+          "#727983",
+          "#9298A0",
+          "#B3B7BD",
+          "#D3D6D9",
+          "#F1F2F3"
+        ]
+      },
+      "rta-positive-bg": {
+        "role": "secondary",
+        "displayName": "rtaPositiveBg",
+        "canonical": "#C9EFD6",
+        "cssVar": "--c-rta-positive-bg",
+        "dark": "#1D4A33",
+        "highContrast": "Canvas",
+        "tonalRamp": [
+          "#113B20",
+          "#1E6637",
+          "#2B924E",
+          "#38BD65",
+          "#62D088",
+          "#91DEAB",
+          "#C0ECCF",
+          "#EBF9F0"
+        ]
+      },
+      "rta-positive-fg": {
+        "role": "secondary",
+        "displayName": "rtaPositiveFg",
+        "canonical": "#0B4F2E",
+        "cssVar": "--c-rta-positive-fg",
+        "dark": "#B5EECB",
+        "highContrast": "CanvasText",
+        "tonalRamp": [
+          "#094327",
+          "#107444",
+          "#17A660",
+          "#1ED77D",
+          "#4CE69B",
+          "#82EEB9",
+          "#B7F5D7",
+          "#E9FCF3"
+        ]
+      },
+      "rta-zero-bg": {
+        "role": "secondary",
+        "displayName": "rtaZeroBg",
+        "canonical": "#E8EAED",
+        "cssVar": "--c-rta-zero-bg",
+        "dark": "#33363B",
+        "highContrast": "Canvas",
+        "tonalRamp": [
+          "#22252B",
+          "#3A414A",
+          "#535C6A",
+          "#6B7789",
+          "#8D97A5",
+          "#AFB6C0",
+          "#D1D5DB",
+          "#F1F2F4"
+        ]
+      },
+      "rta-zero-fg": {
+        "role": "secondary",
+        "displayName": "rtaZeroFg",
+        "canonical": "#33383F",
+        "cssVar": "--c-rta-zero-fg",
+        "dark": "#DADDE1",
+        "highContrast": "CanvasText",
+        "tonalRamp": [
+          "#22262A",
+          "#3B4149",
+          "#545D68",
+          "#6E7887",
+          "#8E97A4",
+          "#B0B6BF",
+          "#D2D5DA",
+          "#F1F2F4"
+        ]
+      },
+      "rta-negative-bg": {
+        "role": "secondary",
+        "displayName": "rtaNegativeBg",
+        "canonical": "#FBD1CD",
+        "cssVar": "--c-rta-negative-bg",
+        "dark": "#5A221E",
+        "highContrast": "Mark",
+        "tonalRamp": [
+          "#470B06",
+          "#7B140A",
+          "#AF1C0E",
+          "#E32412",
+          "#F05142",
+          "#F4857B",
+          "#F9B9B3",
+          "#FDE9E7"
+        ]
+      },
+      "rta-negative-fg": {
+        "role": "secondary",
+        "displayName": "rtaNegativeFg",
+        "canonical": "#8E150E",
+        "cssVar": "--c-rta-negative-fg",
+        "dark": "#FFBDB5",
+        "highContrast": "MarkText",
+        "tonalRamp": [
+          "#460A07",
+          "#79120C",
+          "#AC1911",
+          "#DF2116",
+          "#ED4E45",
+          "#F2837D",
+          "#F8B8B5",
+          "#FDE9E8"
+        ]
+      },
+      "negative": {
+        "role": "secondary",
+        "displayName": "negative",
+        "canonical": "#B42318",
+        "cssVar": "--c-negative",
+        "dark": "#FF9A8F",
+        "highContrast": "CanvasText",
+        "tonalRamp": [
+          "#440D09",
+          "#751710",
+          "#A72016",
+          "#D82A1D",
+          "#E7564B",
+          "#EE8981",
+          "#F5BBB7",
+          "#FCEAE8"
+        ]
+      },
+      "warn-text": {
+        "role": "secondary",
+        "displayName": "warnText",
+        "canonical": "#855800",
+        "cssVar": "--c-warn-text",
+        "dark": "#F2CF6B",
+        "highContrast": "CanvasText",
+        "tonalRamp": [
+          "#4D3300",
+          "#855800",
+          "#BD7D00",
+          "#F5A200",
+          "#FFBA33",
+          "#FFCF70",
+          "#FFE3AD",
+          "#FFF6E5"
+        ]
+      },
+      "bad-text": {
+        "role": "secondary",
+        "displayName": "badText",
+        "canonical": "#B42318",
+        "cssVar": "--c-bad-text",
+        "dark": "#FF9A8F",
+        "highContrast": "CanvasText",
+        "tonalRamp": [
+          "#440D09",
+          "#751710",
+          "#A72016",
+          "#D82A1D",
+          "#E7564B",
+          "#EE8981",
+          "#F5BBB7",
+          "#FCEAE8"
+        ]
+      },
+      "chart-1": {
+        "role": "tertiary",
+        "displayName": "chart1",
+        "canonical": "#0E7C66",
+        "cssVar": "--c-chart-1",
+        "dark": "#4FD1B0",
+        "highContrast": "CanvasText",
+        "tonalRamp": [
+          "#084539",
+          "#0D7762",
+          "#13AA8B",
+          "#19DCB5",
+          "#48EACA",
+          "#7FF1DA",
+          "#B6F7EA",
+          "#E8FCF8"
+        ]
+      },
+      "chart-2": {
+        "role": "tertiary",
+        "displayName": "chart2",
+        "canonical": "#3B6FD8",
+        "cssVar": "--c-chart-2",
+        "dark": "#7EA6F7",
+        "highContrast": "Highlight",
+        "tonalRamp": [
+          "#0D1E40",
+          "#16336F",
+          "#1F499D",
+          "#295FCC",
+          "#5582DD",
+          "#88A7E7",
+          "#BBCDF1",
+          "#EAEFFB"
+        ]
+      },
+      "chart-3": {
+        "role": "tertiary",
+        "displayName": "chart3",
+        "canonical": "#C76A12",
+        "cssVar": "--c-chart-3",
+        "dark": "#F0A35E",
+        "highContrast": "LinkText",
+        "tonalRamp": [
+          "#462506",
+          "#7A410B",
+          "#AD5C10",
+          "#E07814",
+          "#EE9744",
+          "#F3B67C",
+          "#F8D5B4",
+          "#FDF2E8"
+        ]
+      },
+      "chart-4": {
+        "role": "tertiary",
+        "displayName": "chart4",
+        "canonical": "#8E5BD1",
+        "cssVar": "--c-chart-4",
+        "dark": "#B896F2",
+        "highContrast": "GrayText",
+        "tonalRamp": [
+          "#23113C",
+          "#3D1D68",
+          "#572993",
+          "#7136BF",
+          "#9160D2",
+          "#B28FE0",
+          "#D3BFED",
+          "#F1EBF9"
+        ]
+      },
+      "chart-5": {
+        "role": "tertiary",
+        "displayName": "chart5",
+        "canonical": "#C2417A",
+        "cssVar": "--c-chart-5",
+        "dark": "#EE85B1",
+        "highContrast": "Mark",
+        "tonalRamp": [
+          "#3A1324",
+          "#64203E",
+          "#8F2E59",
+          "#B93B73",
+          "#CD6593",
+          "#DC93B3",
+          "#EBC1D4",
+          "#F9ECF1"
+        ]
+      },
+      "chart-6": {
+        "role": "tertiary",
+        "displayName": "chart6",
+        "canonical": "#1F8AA3",
+        "cssVar": "--c-chart-6",
+        "dark": "#5CC4DB",
+        "highContrast": "CanvasText",
+        "tonalRamp": [
+          "#0C3640",
+          "#155E6F",
+          "#1E869F",
+          "#27AECE",
+          "#54C4DE",
+          "#87D6E8",
+          "#BAE7F2",
+          "#EAF8FB"
+        ]
+      },
+      "chart-7": {
+        "role": "tertiary",
+        "displayName": "chart7",
+        "canonical": "#6B8A12",
+        "cssVar": "--c-chart-7",
+        "dark": "#A9CB4F",
+        "highContrast": "Highlight",
+        "tonalRamp": [
+          "#344409",
+          "#5B750F",
+          "#81A716",
+          "#A8D91C",
+          "#BFE74B",
+          "#D2EF81",
+          "#E5F6B7",
+          "#F7FCE8"
+        ]
+      },
+      "chart-8": {
+        "role": "tertiary",
+        "displayName": "chart8",
+        "canonical": "#9A6234",
+        "cssVar": "--c-chart-8",
+        "dark": "#D6A47A",
+        "highContrast": "LinkText",
+        "tonalRamp": [
+          "#392413",
+          "#633F21",
+          "#8D5A30",
+          "#B7743E",
+          "#CC9466",
+          "#DBB494",
+          "#EAD4C2",
+          "#F9F2EC"
+        ]
+      },
+      "chart-income": {
+        "role": "tertiary",
+        "displayName": "chartIncome",
+        "canonical": "#24884C",
+        "cssVar": "--c-chart-income",
+        "dark": "#43B873",
+        "highContrast": "CanvasText",
+        "tonalRamp": [
+          "#103C22",
+          "#1C693B",
+          "#279553",
+          "#33C26C",
+          "#5ED48D",
+          "#8EE1AF",
+          "#BEEED1",
+          "#EBFAF1"
+        ]
+      },
+      "chart-expense": {
+        "role": "tertiary",
+        "displayName": "chartExpense",
+        "canonical": "#D1342A",
+        "cssVar": "--c-chart-expense",
+        "dark": "#F0675A",
+        "highContrast": "Highlight",
+        "tonalRamp": [
+          "#40100D",
+          "#6E1B16",
+          "#9D2720",
+          "#CC3329",
+          "#DD5D55",
+          "#E78E88",
+          "#F1BEBB",
+          "#FBEBEA"
+        ]
+      },
+      "chart-net": {
+        "role": "tertiary",
+        "displayName": "chartNet",
+        "canonical": "#1B1D21",
+        "cssVar": "--c-chart-net",
+        "dark": "#ECEEF1",
+        "highContrast": "LinkText",
+        "tonalRamp": [
+          "#22252A",
+          "#3C4049",
+          "#555B68",
+          "#6E7687",
+          "#8F96A3",
+          "#B0B5BF",
+          "#D2D5DA",
+          "#F1F2F4"
+        ]
+      },
+      "chart-grid": {
+        "role": "tertiary",
+        "displayName": "chartGrid",
+        "canonical": "#E4E7EB",
+        "cssVar": "--c-chart-grid",
+        "dark": "#363A40",
+        "highContrast": "GrayText",
+        "tonalRamp": [
+          "#21252C",
+          "#38414C",
+          "#505C6C",
+          "#68788D",
+          "#8A97A8",
+          "#ADB6C2",
+          "#D0D5DC",
+          "#F0F2F4"
+        ]
+      },
+      "flag-red": {
+        "role": "tertiary",
+        "displayName": "flagRed",
+        "canonical": "#D13438",
+        "cssVar": "--c-flag-red",
+        "dark": "#FF6B6E",
+        "highContrast": "CanvasText",
+        "tonalRamp": [
+          "#3E0E0F",
+          "#6C181B",
+          "#9A2326",
+          "#C82D31",
+          "#D9595C",
+          "#E58B8D",
+          "#F0BCBE",
+          "#FAEAEB"
+        ]
+      },
+      "flag-orange": {
+        "role": "tertiary",
+        "displayName": "flagOrange",
+        "canonical": "#E3620C",
+        "cssVar": "--c-flag-orange",
+        "dark": "#FF8C3A",
+        "highContrast": "CanvasText",
+        "tonalRamp": [
+          "#491F04",
+          "#7E3607",
+          "#B34D09",
+          "#E9640C",
+          "#F5873D",
+          "#F8AB77",
+          "#FBCFB1",
+          "#FEF0E7"
+        ]
+      },
+      "flag-yellow": {
+        "role": "tertiary",
+        "displayName": "flagYellow",
+        "canonical": "#C99A00",
+        "cssVar": "--c-flag-yellow",
+        "dark": "#F2CC4B",
+        "highContrast": "CanvasText",
+        "tonalRamp": [
+          "#4D3B00",
+          "#856600",
+          "#BD9100",
+          "#F5BC00",
+          "#FFCF33",
+          "#FFDE70",
+          "#FFECAD",
+          "#FFF9E5"
+        ]
+      },
+      "flag-green": {
+        "role": "tertiary",
+        "displayName": "flagGreen",
+        "canonical": "#13A10E",
+        "cssVar": "--c-flag-green",
+        "dark": "#4CC94A",
+        "highContrast": "CanvasText",
+        "tonalRamp": [
+          "#084606",
+          "#0E7A0B",
+          "#14AE0F",
+          "#1BE114",
+          "#49EF43",
+          "#80F47C",
+          "#B6F8B4",
+          "#E8FDE8"
+        ]
+      },
+      "flag-blue": {
+        "role": "tertiary",
+        "displayName": "flagBlue",
+        "canonical": "#0F6CBD",
+        "cssVar": "--c-flag-blue",
+        "dark": "#5AA9F0",
+        "highContrast": "CanvasText",
+        "tonalRamp": [
+          "#062947",
+          "#0A467B",
+          "#0E64AF",
+          "#1282E3",
+          "#429FF0",
+          "#7BBCF4",
+          "#B3D9F9",
+          "#E7F3FD"
+        ]
+      },
+      "flag-purple": {
+        "role": "tertiary",
+        "displayName": "flagPurple",
+        "canonical": "#8764B8",
+        "cssVar": "--c-flag-purple",
+        "dark": "#B39DDB",
+        "highContrast": "CanvasText",
+        "tonalRamp": [
+          "#241834",
+          "#3E2A5B",
+          "#593B81",
+          "#734DA8",
+          "#9373BF",
+          "#B39DD2",
+          "#D4C7E5",
+          "#F1EEF7"
+        ]
+      },
+      "shadow": {
+        "role": "neutral",
+        "displayName": "shadow",
+        "canonical": "rgba(15, 23, 42, 0.14)",
+        "cssVar": "--c-shadow",
+        "dark": "rgba(0, 0, 0, 0.5)",
+        "highContrast": "transparent"
+      },
+      "scrim": {
+        "role": "neutral",
+        "displayName": "scrim",
+        "canonical": "rgba(15, 23, 42, 0.32)",
+        "cssVar": "--c-scrim",
+        "dark": "rgba(0, 0, 0, 0.55)",
+        "highContrast": "Canvas"
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Ready to Assign figure; Reflect headline figures; donut centre."
+      },
+      "display-stat": {
+        "displayName": "Display Stat",
+        "purpose": "The one big figure in an inspector card (Cost to Be Me)."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Screen titles: month, account name, Reflect."
+      },
+      "figure": {
+        "displayName": "Figure",
+        "purpose": "Register header balances."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Inspector card headings, plan-menu name."
+      },
+      "nav": {
+        "displayName": "Nav",
+        "purpose": "Sidebar Plan / Reflect / All Accounts."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "All table cells and inspector lines; tabular numerals."
+      },
+      "body-strong": {
+        "displayName": "Body Strong",
+        "purpose": "Group rows, totals, unapproved rows, pill amounts, primary labels."
+      },
+      "caption": {
+        "displayName": "Caption",
+        "purpose": "Chips, notes, legends, subtitles, split rows."
+      },
+      "meta": {
+        "displayName": "Meta",
+        "purpose": "RTA label, month note, axes, selection count."
+      },
+      "status": {
+        "displayName": "Status",
+        "purpose": "Target message on category rows; reconciled age."
+      },
+      "label-caps": {
+        "displayName": "Label Caps",
+        "purpose": "Uppercase column headers in grids and report tables."
+      },
+      "label-group": {
+        "displayName": "Label Group",
+        "purpose": "Uppercase sidebar account-group heads."
+      }
+    },
+    "nonColorTokens": [
+      {
+        "name": "--font-ui",
+        "value": "'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif"
+      },
+      {
+        "name": "--font-display",
+        "value": "'Segoe UI Variable Display', 'Segoe UI', system-ui, sans-serif"
+      },
+      {
+        "name": "--row-plan",
+        "value": "34px"
+      },
+      {
+        "name": "--row-register",
+        "value": "30px"
+      },
+      {
+        "name": "--radius",
+        "value": "4px"
+      },
+      {
+        "name": "--radius-lg",
+        "value": "8px"
+      },
+      {
+        "name": "--sidebar-w",
+        "value": "252px",
+        "narrow": "232px"
+      },
+      {
+        "name": "--inspector-w",
+        "value": "328px",
+        "narrow": "296px"
+      },
+      {
+        "name": "titlebar-height",
+        "value": "32px",
+        "note": "46px caption buttons; TITLEBAR_HEIGHT in src-tauri/src/lib.rs"
+      }
+    ],
+    "shadows": [
+      {
+        "name": "float",
+        "value": "0 8px 24px var(--c-shadow)",
+        "purpose": "Floating layers only: toast, bulk-action bar, chart tooltip, popovers/menus/dialogs."
+      },
+      {
+        "name": "lift",
+        "value": "0 1px 3px var(--c-shadow)",
+        "purpose": "Selected tab inside the Reflect tab track; replaced by a 2px selected-border outline in high contrast."
+      }
+    ],
+    "focus": {
+      "ring": "2px solid var(--c-focus)",
+      "offset": "-2px",
+      "radius": "4px",
+      "inputs": "1px var(--c-focus) border + 1px var(--c-focus) outline",
+      "search": "focus border + 0 0 0 1px var(--c-focus)"
+    },
+    "motion": [
+      {
+        "name": "--ease",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "The one easing curve: ease-out with a soft landing."
+      },
+      {
+        "name": "--t-fast",
+        "value": "120ms",
+        "purpose": "Chart hover dimming."
+      },
+      {
+        "name": "--t-move",
+        "value": "180ms",
+        "purpose": "State colour, bar scaleX, banner, entrances (toast, bulk bar)."
+      },
+      {
+        "name": "money-tween",
+        "value": "180ms cubic ease-out (1-(1-k)^3), integer minor units per frame; 220ms settle timeout",
+        "purpose": "Signature: RTA figure and pill amount tween on assign."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "prefers-reduced-motion: reduce → no tween, transition/animation none under .hd",
+        "purpose": "Accessibility."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "narrow",
+        "value": "1365px",
+        "purpose": "max-width: sidebar 232, inspector 296, money cols 112, cell padding 10, pill min 76."
+      },
+      {
+        "name": "reflect-stack",
+        "value": "1100px",
+        "purpose": "max-width: Spending Breakdown stacks donut above list."
+      }
+    ],
+    "noColor": {
+      "trigger": ".hd[data-nocolor=\"true\"] (user option; forced on by system themes)",
+      "pills": {
+        "funded": "checkmark icon",
+        "underfunded": "clock icon + 1.5px dashed outline",
+        "overspent": "warning icon + 2px solid outline",
+        "snoozed": "snooze icon",
+        "credit": "card icon (always shown)"
+      },
+      "bars": {
+        "underfunded": "repeating-linear-gradient 135deg 3px on / 2px off",
+        "overspent": "repeating-linear-gradient 90deg 4px on / 2px off"
+      },
+      "charts": "series fills switch to url(#rf-pat-1..8); pattern 1 solid, 2-8 = 28% tint + diagonal, dots, horizontal, vertical, cross, back-diagonal, squares"
+    },
+    "contrastContract": {
+      "text45": [
+        "text/surface",
+        "text/surfaceAlt",
+        "text/app",
+        "text/raised",
+        "text/hover",
+        "selectedText/selected",
+        "textMuted/surface",
+        "textMuted/surfaceAlt",
+        "textSubtle/surface",
+        "textSubtle/surfaceAlt",
+        "textSubtle/raised",
+        "textSubtle/hover",
+        "textSubtle/selected",
+        "link/surface",
+        "negative/surface",
+        "negative/surfaceAlt",
+        "negative/raised",
+        "sidebarText/sidebar",
+        "sidebarText/sidebarHover",
+        "sidebarText/sidebarSelected",
+        "sidebarMuted/sidebar",
+        "sidebarMuted/sidebarSelected",
+        "textOnAccent/accent",
+        "textOnAccent/accentHover",
+        "fundedFg/fundedBg",
+        "underfundedFg/underfundedBg",
+        "overspentFg/overspentBg",
+        "zeroFg/zeroBg",
+        "rtaPositiveFg/rtaPositiveBg",
+        "rtaZeroFg/rtaZeroBg",
+        "rtaNegativeFg/rtaNegativeBg",
+        "text/accentSoft",
+        "warnText/surface",
+        "warnText/hover",
+        "warnText/selected",
+        "badText/surface",
+        "badText/hover",
+        "badText/selected"
+      ],
+      "graphic3": [
+        "accent/surface",
+        "focus/surface",
+        "focus/surfaceAlt",
+        "selectedBorder/surface",
+        "inputBorder/input",
+        "barFunded/surface",
+        "barUnderfunded/surface",
+        "barOverspent/surface",
+        "chartIncome/surface",
+        "chartExpense/surface",
+        "chart1..8/surface"
+      ]
+    },
+    "icons": {
+      "family": "Fluent UI System Icons (MIT)",
+      "weight": "regular",
+      "sizes": [
+        16,
+        20
+      ],
+      "source": "apps/desktop/src/ui/Icon.tsx"
+    }
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one filled action per region: Assign in the RTA banner, Assign $X / Cover $X in the inspector, Approve all.",
+      "html": "<button class=\"ds-btn-primary\">Assign <svg width=\"16\" height=\"16\" viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path fill=\"currentColor\" d=\"M3.15 5.65a.5.5 0 0 1 .7 0L8 9.79l4.15-4.14a.5.5 0 0 1 .7.7l-4.5 4.5a.5.5 0 0 1-.7 0l-4.5-4.5a.5.5 0 0 1 0-.7Z\"/></svg></button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px 0 14px; border: 0; border-radius: 4px; background: #0E7C66; color: #FFFFFF; font: 600 13px/1.35 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif; cursor: pointer; transition: background-color 120ms cubic-bezier(0.16, 1, 0.3, 1); } .ds-btn-primary:hover { background: #0A6653; } .ds-btn-primary:focus-visible { outline: 2px solid #0E7C66; outline-offset: -2px; } .ds-btn-primary:disabled { background: #C9CED5; color: #555B64; cursor: default; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Outlined companion action: Edit Target, Reconcile, Review.",
+      "html": "<button class=\"ds-btn-secondary\">Edit Target</button>",
+      "css": ".ds-btn-secondary { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border: 1px solid #C9CED5; border-radius: 4px; background: #FFFFFF; color: #1B1D21; font: 500 13px/1.35 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif; cursor: pointer; } .ds-btn-secondary:hover { background: #F1F3F5; } .ds-btn-secondary:focus-visible { outline: 2px solid #0E7C66; outline-offset: -2px; }"
+    },
+    {
+      "name": "Toolbar Button",
+      "kind": "button",
+      "refersTo": "button-toolbar",
+      "description": "Transparent, link-coloured command with a 16 px Fluent icon (Category Group, Undo, Recent Moves, Add Transaction).",
+      "html": "<button class=\"ds-btn-tool\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path fill=\"currentColor\" d=\"M8 2.5a.5.5 0 0 0-1 0V7H2.5a.5.5 0 0 0 0 1H7v4.5a.5.5 0 0 0 1 0V8h4.5a.5.5 0 0 0 0-1H8V2.5Z\"/></svg> Category Group</button>",
+      "css": ".ds-btn-tool { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 8px; border: 0; border-radius: 4px; background: transparent; color: #0B6B58; font: 500 13px/1.35 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif; cursor: pointer; } .ds-btn-tool:hover { background: #F1F3F5; } .ds-btn-tool:focus-visible { outline: 2px solid #0E7C66; outline-offset: -2px; } .ds-btn-tool:disabled { color: #646B74; opacity: 0.6; cursor: default; }"
+    },
+    {
+      "name": "Focused View Chip",
+      "kind": "chip",
+      "refersTo": "chip",
+      "description": "Pill-shaped filter toggle; pressed uses the selection colours; the alert variant shows the overspent count.",
+      "html": "<div class=\"ds-chips\"><button class=\"ds-chip ds-chip-alert\">2 Overspent</button><button class=\"ds-chip\" aria-pressed=\"true\">All</button><button class=\"ds-chip\">Underfunded</button></div>",
+      "css": ".ds-chips { display: flex; gap: 6px; } .ds-chip { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; border: 1px solid #C9CED5; border-radius: 999px; background: #FFFFFF; color: #1B1D21; font: 400 12.5px/1.35 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif; cursor: pointer; } .ds-chip:hover { background: #F1F3F5; } .ds-chip:focus-visible { outline: 2px solid #0E7C66; outline-offset: -2px; } .ds-chip[aria-pressed='true'] { border-color: #0E7C66; background: #E2F2ED; color: #1B1D21; font-weight: 600; } .ds-chip-alert { border-color: transparent; background: #FBD1CD; color: #8E150E; font-weight: 600; }"
+    },
+    {
+      "name": "Available Pill",
+      "kind": "custom",
+      "refersTo": "pill-funded",
+      "description": "Money state of a category: funded, underfunded, overspent, zero. The no-colour variants add an icon and outline.",
+      "html": "<div class=\"ds-pills\"><span class=\"ds-pill ds-funded\">$363.86</span><span class=\"ds-pill ds-under\">$75.94</span><span class=\"ds-pill ds-over\">-$24.99</span><span class=\"ds-pill ds-zero\">$0.00</span><span class=\"ds-pill ds-funded\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path fill=\"currentColor\" d=\"M13.86 3.66a.5.5 0 0 1 0 .7l-7.5 7.5a.5.5 0 0 1-.71 0l-3.5-3.5a.5.5 0 1 1 .7-.71L6 10.79l7.15-7.14a.5.5 0 0 1 .7 0Z\"/></svg>$85.00</span><span class=\"ds-pill ds-under ds-nc-under\">$315.00</span><span class=\"ds-pill ds-over ds-nc-over\">-$86.21</span></div>",
+      "css": ".ds-pills { display: flex; flex-wrap: wrap; gap: 8px; } .ds-pill { display: inline-flex; align-items: center; justify-content: flex-end; gap: 4px; min-width: 84px; height: 22px; padding: 0 9px; border: 1px solid transparent; border-radius: 999px; font: 600 13px/1 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif; font-variant-numeric: tabular-nums; transition: background-color 180ms cubic-bezier(0.16, 1, 0.3, 1), color 180ms cubic-bezier(0.16, 1, 0.3, 1); } .ds-funded { background: #C9EFD6; color: #0B4F2E; } .ds-under { background: #FCE6A4; color: #5A3F00; } .ds-over { background: #FBD1CD; color: #8E150E; } .ds-zero { background: #ECEEF1; color: #4C525A; font-weight: 500; } .ds-nc-under { border: 1.5px dashed currentColor; } .ds-nc-over { border: 2px solid currentColor; }"
+    },
+    {
+      "name": "Segmented Progress Bar",
+      "kind": "custom",
+      "refersTo": "plan-row",
+      "description": "Under each category name: dark = held toward the target, light = spent, track = empty; one segment per week for weekly targets.",
+      "html": "<div class=\"ds-bars\"><div class=\"ds-bar ds-b-funded\"><span class=\"ds-seg\"><span class=\"ds-fill\" style=\"transform:scaleX(1)\"></span><span class=\"ds-spent\" style=\"transform:scaleX(.6)\"></span></span></div><div class=\"ds-bar ds-b-under\"><span class=\"ds-seg\"><span class=\"ds-fill\" style=\"transform:scaleX(.55)\"></span><span class=\"ds-spent\" style=\"transform:scaleX(0)\"></span></span></div><div class=\"ds-bar ds-b-funded\"><span class=\"ds-seg\"><span class=\"ds-fill\" style=\"transform:scaleX(1)\"></span><span class=\"ds-spent\" style=\"transform:scaleX(1)\"></span></span><span class=\"ds-seg\"><span class=\"ds-fill\" style=\"transform:scaleX(1)\"></span><span class=\"ds-spent\" style=\"transform:scaleX(.4)\"></span></span><span class=\"ds-seg\"><span class=\"ds-fill\" style=\"transform:scaleX(.5)\"></span><span class=\"ds-spent\" style=\"transform:scaleX(0)\"></span></span><span class=\"ds-seg\"><span class=\"ds-fill\" style=\"transform:scaleX(0)\"></span><span class=\"ds-spent\" style=\"transform:scaleX(0)\"></span></span></div><div class=\"ds-bar ds-b-over\"><span class=\"ds-seg\"><span class=\"ds-fill\" style=\"transform:scaleX(1)\"></span></span></div></div>",
+      "css": ".ds-bars { display: grid; gap: 12px; width: 360px; } .ds-bar { display: flex; gap: 2px; height: 5px; } .ds-seg { position: relative; flex: 1; overflow: hidden; border-radius: 3px; background: #E4E7EB; } .ds-fill, .ds-spent { position: absolute; inset: 0; transform-origin: left center; transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1); } .ds-b-funded .ds-fill { background: #24884C; } .ds-b-funded .ds-spent { background: #A6DDB9; } .ds-b-under .ds-fill { background: #A97C00; } .ds-b-under .ds-spent { background: #F1D98E; } .ds-b-over .ds-fill { background: #D1342A; }"
+    },
+    {
+      "name": "Ready to Assign Banner",
+      "kind": "custom",
+      "refersTo": "rta-banner-positive",
+      "description": "Top-centre of the plan header: Display figure, state label, primary Assign button. Positive / zero / negative states.",
+      "html": "<div class=\"ds-rta\" role=\"status\"><div><div class=\"ds-rta-amt\">$238.01</div><div class=\"ds-rta-lbl\">Ready to Assign</div></div><button class=\"ds-rta-btn\">Assign <svg width=\"16\" height=\"16\" viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path fill=\"currentColor\" d=\"M3.15 5.65a.5.5 0 0 1 .7 0L8 9.79l4.15-4.14a.5.5 0 0 1 .7.7l-4.5 4.5a.5.5 0 0 1-.7 0l-4.5-4.5a.5.5 0 0 1 0-.7Z\"/></svg></button></div>",
+      "css": ".ds-rta { display: inline-flex; align-items: center; gap: 16px; padding: 8px 8px 8px 18px; border-radius: 8px; background: #C9EFD6; color: #0B4F2E; font-family: 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif; transition: background-color 180ms cubic-bezier(0.16, 1, 0.3, 1), color 180ms cubic-bezier(0.16, 1, 0.3, 1); } .ds-rta-amt { font: 650 22px/1.1 'Segoe UI Variable Display', 'Segoe UI', system-ui, sans-serif; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; } .ds-rta-lbl { font-size: 12px; font-weight: 600; } .ds-rta-btn { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px 0 14px; border: 0; border-radius: 4px; background: #0E7C66; color: #FFFFFF; font: 600 13px/1 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif; cursor: pointer; } .ds-rta-btn:hover { background: #0A6653; } .ds-rta-btn:focus-visible { outline: 2px solid #0E7C66; outline-offset: -2px; }"
+    },
+    {
+      "name": "Sidebar Navigation",
+      "kind": "nav",
+      "refersTo": "nav-item",
+      "description": "34 px nav items, then uppercase account-group heads with totals and 30 px account rows.",
+      "html": "<nav class=\"ds-side\"><button class=\"ds-nav\" aria-current=\"page\">Plan</button><button class=\"ds-nav\">Reflect</button><button class=\"ds-nav\">All Accounts</button><div class=\"ds-grp\"><span>Cash</span><span>$12,269.63</span></div><button class=\"ds-acc\"><span>Everyday Checking</span><span>$5,117.93</span></button><button class=\"ds-acc\"><span>Wallet</span><span>$51.70</span></button></nav>",
+      "css": ".ds-side { display: grid; gap: 2px; width: 232px; padding: 10px; background: #EBEDF0; color: #1B1D21; font: 400 13px/1.35 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif; } .ds-nav, .ds-acc { display: flex; align-items: center; gap: 10px; height: 34px; padding: 0 10px; border: 0; border-radius: 4px; background: transparent; color: inherit; font: inherit; font-size: 13.5px; text-align: left; cursor: pointer; } .ds-nav:hover, .ds-acc:hover { background: #E0E3E7; } .ds-nav:focus-visible, .ds-acc:focus-visible { outline: 2px solid #0E7C66; outline-offset: -2px; } .ds-nav[aria-current='page'] { background: #D5ECE5; font-weight: 600; } .ds-grp { display: flex; justify-content: space-between; height: 30px; align-items: center; margin-top: 8px; padding: 0 8px 0 4px; color: #555B64; font-size: 12px; font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase; font-variant-numeric: tabular-nums; } .ds-acc { height: 30px; padding: 0 8px 0 24px; font-size: 13px; justify-content: space-between; font-variant-numeric: tabular-nums; }"
+    },
+    {
+      "name": "Search Field",
+      "kind": "input",
+      "refersTo": "search-field",
+      "description": "Register search: 30 px field with focus border + 1 px ring and a keyboard hint.",
+      "html": "<label class=\"ds-search\"><input placeholder=\"Search transactions\"><kbd>Ctrl+F</kbd></label>",
+      "css": ".ds-search { display: inline-flex; align-items: center; gap: 6px; width: 260px; height: 30px; padding: 0 6px 0 10px; border: 1px solid #8A919B; border-radius: 4px; background: #FFFFFF; color: #555B64; font: 400 13px/1.35 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif; } .ds-search:focus-within { border-color: #0E7C66; box-shadow: 0 0 0 1px #0E7C66; } .ds-search input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: #1B1D21; font: inherit; } .ds-search input::placeholder { color: #646B74; } .ds-search kbd { padding: 1px 5px; border: 1px solid #C9CED5; border-radius: 3px; color: #646B74; font: 11px/1.4 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif; }"
+    },
+    {
+      "name": "Inspector Card",
+      "kind": "card",
+      "refersTo": "inspector-card",
+      "description": "Flat raised card on the app ground: Title heading, label/value lines, hairline total.",
+      "html": "<section class=\"ds-card\"><h2>October’s Summary</h2><div class=\"ds-line\"><span>Left over from Sep</span><span>$9,717.97</span></div><div class=\"ds-line\"><span>Assigned in Oct</span><span>$4,333.00</span></div><div class=\"ds-line\"><span>Activity</span><span>-$2,745.56</span></div><div class=\"ds-line ds-total\"><span>Available</span><span>$11,305.41</span></div></section>",
+      "css": ".ds-card { width: 296px; padding: 14px 16px; border: 1px solid #E4E7EB; border-radius: 8px; background: #FFFFFF; color: #1B1D21; font: 400 13px/1.35 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif; font-variant-numeric: tabular-nums; } .ds-card h2 { margin: 0 0 10px; font: 600 14px/1.3 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif; } .ds-line { display: flex; justify-content: space-between; gap: 12px; padding: 4px 0; } .ds-line > span:first-child { color: #555B64; } .ds-total { margin-top: 6px; padding-top: 8px; border-top: 1px solid #E4E7EB; font-weight: 600; } .ds-total > span:first-child { color: #1B1D21; }"
+    },
+    {
+      "name": "Toast",
+      "kind": "custom",
+      "refersTo": "toast",
+      "description": "Inverted bottom-centre status with an optional underlined action (Redo after Undo).",
+      "html": "<div class=\"ds-toast\" role=\"status\"><span>Undid: Assign $64.06 to Electric</span><button>Redo</button></div>",
+      "css": ".ds-toast { display: inline-flex; align-items: center; gap: 14px; padding: 10px 10px 10px 16px; border-radius: 8px; background: #1B1D21; color: #FFFFFF; box-shadow: 0 8px 24px rgba(15, 23, 42, 0.14); font: 400 13px/1.35 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif; } .ds-toast button { height: 28px; padding: 0 10px; border: 0; border-radius: 4px; background: transparent; color: inherit; font: 600 13px/1 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; } .ds-toast button:focus-visible { outline: 2px solid #FFFFFF; outline-offset: -2px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Trusted Plan, Native",
+    "overview": "HAFB is the budgeting screen YNAB users already know, rebuilt as a first-class Windows app. The surfaces are calm Fluent neutrals: a soft grey window ground, a white work surface, a slightly darker sidebar. Money sits in clean right-aligned tabular columns at desktop density (34 px plan rows, 30 px register rows). Nothing on screen competes with the numbers.\n\nColour belongs to the state of each dollar. Green, amber, red and grey Available pills, the segmented progress bars under category names and the Ready to Assign banner carry almost all of the colour on any screen. A single deep teal-green accent marks selection and primary actions. Expenses, debts and loan balances stay neutral: spending money is normal, not an alarm. Every state is also carried by shape and icon, so the plan reads the same in high contrast or with \"differentiate without colour\" on.\n\nThe system rejects the fintech-dashboard default of gradient hero cards, metric tiles and decorative charts on the plan. Depth comes from tonal steps and 1 px hairlines; shadows appear only under things that float. The one piece of signature motion is cause and effect: when money is assigned, the Ready to Assign figure, the category's pill and its bar move together in 180 ms.",
+    "keyCharacteristics": [
+      "Fluent-native: Segoe UI Variable (Text and Display optical sizes), Fluent System Icons (regular weight, 16/20 px), 4 px and 8 px radii, a short pill-shaped selection indicator.",
+      "Dense, tabular, keyboard-first. Tabular numerals everywhere, money right-aligned.",
+      "Colour only for money state. One accent for selection and primary actions.",
+      "Every colour is a semantic token; a theme is data (ADR 0003). Light, dark and high contrast ship.",
+      "Status is never hue alone: icons, outline styles, hatching and chart patterns back it up.",
+      "One motion: a 180 ms ease-out tween that ties cause (assign) to effect (RTA, pill, bar)."
+    ],
+    "rules": [
+      {
+        "name": "The Money-State Colour Rule",
+        "body": "Hue on the plan means the state of money: funded, underfunded, overspent, empty or snoozed. The accent means selection or \"do this\". Nothing else gets colour.",
+        "section": "colors"
+      },
+      {
+        "name": "The Red Means Act Rule",
+        "body": "Red (`overspent-*`, `bar-overspent`, `negative`, `bad-text`, `rta-negative-*`) is reserved for four things: - an overspent category; - a negative Ready to Assign; - an overdrawn cash account or cash group total; - a negative Net Income. It also colours the text of the destructive Delete command. Red never marks an ordinary expense.",
+        "section": "colors"
+      },
+      {
+        "name": "The Neutral Debt Rule",
+        "body": "Outflows, Activity, credit-card balances, loan balances and debts render in plain `text`. Sidebar Credit and Loans totals stay neutral even though they're negative. Net Worth draws debts in `chart-2`, not red.",
+        "section": "colors"
+      },
+      {
+        "name": "The Token-Only Rule",
+        "body": "A raw colour in component CSS or TSX is a bug. Every colour comes from `var(--c-<token>)`. Hatching and chart patterns are built from tokens too.",
+        "section": "colors"
+      },
+      {
+        "name": "The Tabular Rule",
+        "body": "Every number that is money, a date or a count is set in tabular numerals and right-aligned in its column (`.num`: right, `tabular-nums`, `nowrap`). Charts' axis labels too. Proportional figures never appear next to money.",
+        "section": "typography"
+      },
+      {
+        "name": "The Two Optical Sizes Rule",
+        "body": "The Display face is only for money figures and screen titles, at 16px and up. Everything else uses the Text face, including card, section and empty-state headings (14–16px).",
+        "section": "typography"
+      },
+      {
+        "name": "The Float-Only Shadow Rule",
+        "body": "A shadow means \"this is above the page and will go away\". Cards, the inspector, banners, pills and rows are flat; they separate by tone and hairline.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do take every colour from a semantic token (`var(--c-*)`), and add a token to `tokens.ts` plus all three themes before using a new role.",
+      "Do add a theme as data. Write a `Theme` object (`id`, `name`, `scheme`, optional `system`, and every `ColorToken`) and list it in `BUILT_IN_THEMES`.",
+      "Do add any new foreground/background pairing to `TEXT_PAIRS` or `GRAPHIC_PAIRS` in `theme.test.ts` in the same change.",
+      "Do back every colour-coded state with an icon or shape (checkmark, clock, warning, snooze, card; dashed or solid outlines; hatching; chart patterns).",
+      "Do keep plan rows at 34px, register rows at 30px, group rows at 36px and table headers at 32px, with tabular, right-aligned money.",
+      "Do use the 3×16px selection pill for selected rows, the 2px `focus` ring (offset -2px, 4px radius) for keyboard focus, and `aria-selected` with `aria-multiselectable` on selectable grids.",
+      "Do use Fluent System Icons, regular weight only, at 16px inline and 20px for navigation and header actions, imported individually through `ui/Icon.tsx`.",
+      "Do animate money changes with the one 180ms ease-out (`--t-move`, `--ease`), using `transform` for bars, and honour reduced motion.",
+      "Do put a visually hidden state word in any element whose meaning is otherwise carried by colour.",
+      "Do use YNAB's words on screen: Plan, Ready to Assign, Assigned, Activity, Available, Targets, Reflect, Inspector."
+    ],
+    "donts": [
+      "Don't use a raw hex, rgb or named colour outside `apps/desktop/src/theme/`.",
+      "Don't colour expenses, outflows, credit-card balances, loans or debts red. Red is for overspent categories, a negative Ready to Assign, overdrawn cash and a negative Net Income (and the Delete command's text).",
+      "Don't use the accent for money state, or a money-state colour for selection or actions.",
+      "Don't draw a pill's `*-fg` colour on an ordinary surface. Use `warn-text`, `bad-text` or `negative`, which are tested against rows, hover and selection.",
+      "Don't add decorative gradients, glass or hero metric cards. The only gradients in the system are the no-colour hatching patterns on progress bars.",
+      "Don't put plan or register rows inside cards. Bordered 8px containers belong to the inspector, report charts and tables, banners and floating bars.",
+      "Don't give in-flow elements shadows. Shadows are only for floating layers (Float, Lift).",
+      "Don't draw a full-height stripe to mark selection. The full-height 3px inset bar is only for the row in inline edit.",
+      "Don't mix icon families or weights, or substitute text glyphs for icons. The `+`/`=` in the register balance equation are mathematical operators, hidden from screen readers.",
+      "Don't add a second animation style or a longer duration for routine state changes.",
+      "Don't borrow YNAB's name, logo, purple branding or artwork."
+    ]
+  }
+}

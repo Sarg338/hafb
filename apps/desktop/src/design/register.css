@@ -175,11 +175,11 @@
 }
 
 .rg-grid col.payee {
-  width: 196px;
+  width: 188px;
 }
 
 .rg-grid col.category {
-  width: 176px;
+  width: 160px;
 }
 
 .rg-grid col.money {
@@ -190,7 +190,7 @@
   width: 44px;
 }
 
-.rg-grid th {
+.hd .rg-grid th {
   padding: 0 10px;
 }
 
@@ -206,7 +206,7 @@
   vertical-align: middle;
 }
 
-.rg-grid td {
+.hd .rg-grid td {
   height: var(--row-register);
   padding: 0 10px;
 }
@@ -231,10 +231,6 @@
   color: var(--c-selected-text);
 }
 
-.rg-row[aria-selected='true'] td:first-child {
-  box-shadow: inset 3px 0 0 var(--c-selected-border);
-}
-
 .rg-row.unapproved td {
   font-weight: 600;
 }
@@ -244,6 +240,13 @@
   align-items: center;
   gap: 6px;
   max-width: 100%;
+}
+
+.rg-payeetext {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .rg-dot {

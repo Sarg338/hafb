@@ -135,6 +135,7 @@
 
 .rf-chartbox {
   position: relative;
+  max-width: 838px;
   padding: 12px 8px 4px;
   border: 1px solid var(--c-border);
   border-radius: var(--radius-lg);
@@ -144,6 +145,7 @@
 .rf-chart {
   display: block;
   width: 100%;
+  max-width: 820px;
   height: auto;
   overflow: visible;
 }
@@ -222,7 +224,7 @@
 }
 
 .rf-key.rf-debts {
-  background: var(--c-chart-expense);
+  background: var(--c-chart-2);
 }
 
 .rf-key.rf-netkey {
@@ -384,12 +386,12 @@
 }
 
 .rf-debts {
-  fill: var(--c-chart-expense);
+  fill: var(--c-chart-2);
 }
 
 .hd[data-nocolor='true'] .rf-debts {
   fill: url(#rf-pat-2);
-  stroke: var(--c-chart-expense);
+  stroke: var(--c-chart-2);
   stroke-width: 1;
 }
 
@@ -587,4 +589,15 @@
   .rf-ranked {
     width: 100%;
   }
+}
+
+/* Tables under charts share the chart's measure. */
+.hd .rf-compact {
+  max-width: 820px;
+}
+
+.rf-avgkey {
+  display: inline-block;
+  width: 18px;
+  border-top: 2px dashed var(--c-text);
 }

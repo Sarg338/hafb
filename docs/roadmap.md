@@ -111,6 +111,13 @@ The 2026-10-08 research (YNAB What's New and help center) found that CLAUDE.md w
 
 **Goal:** a cohesive, Windows-native design language and the reusable pieces every screen is built from, *before* building screens.
 
+**Status (2026-10-08):** S3.1 built; awaiting Sarg's approval of the mockups.
+- **Direction:** Sarg chose the familiar, YNAB-like look. The quality bar is YNAB web, Monarch and Copilot Money.
+- **Design spec:** `DESIGN.md`, with the full token list in `.impeccable/design.json`.
+- **Theming:** themes are data (ADR 0003).
+- **Mockups:** at `#/design` (the "Design mockups" link on the home screen). They run the real engine on a sample household.
+- **Review:** finish review in two rounds. Its remaining items were fixed after the second verdict.
+
 | Sprint | Scope | Done when |
 |---|---|---|
 | **S3.1 Design direction** | Information architecture (Plan / Reflect / Accounts, sidebar, inspector). HAFB visual identity, Fluent-aligned, Segoe UI Variable. Density spec (34 px plan rows, 30 px register rows). Type scale with tabular numerals. Color system for light, dark and **high contrast**, with semantic status colors (funded/underfunded/overspent/snoozed) and a **"differentiate without color"** alternative. Clickable mockups of Plan, Register, Inspector and Reflect. | Sarg approves the mockups; a design spec doc is committed. |

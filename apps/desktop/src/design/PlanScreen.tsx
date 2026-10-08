@@ -35,8 +35,15 @@ function useTweened(value: number): number {
       if (k < 1) raf = requestAnimationFrame(step);
     };
     raf = requestAnimationFrame(step);
+    // Frames don't run in hidden or minimised windows: always land on the true value.
+    const settle = window.setTimeout(() => {
+      cancelAnimationFrame(raf);
+      shownRef.current = value;
+      setShown(value);
+    }, 220);
     return () => {
       cancelAnimationFrame(raf);
+      window.clearTimeout(settle);
     };
   }, [value, reduced]);
   return reduced ? value : shown;
@@ -68,6 +75,7 @@ export function PlanScreen({
   month,
   setMonth,
   initialSelect,
+  demoAssign,
   actions,
   history,
 }: {
@@ -77,6 +85,8 @@ export function PlanScreen({
   setMonth: (m: Month) => void;
   /** Deep link: select a category by name on open (review screenshots). */
   initialSelect?: string | null;
+  /** Deep link `Category:dollars`: assign once after opening (before/after review captures). */
+  demoAssign?: string | null;
   actions: Actions;
   history: { canUndo: boolean; canRedo: boolean; undoLabel: string | undefined; redoLabel: string | undefined };
 }) {
@@ -88,6 +98,22 @@ export function PlanScreen({
     return new Set(hit ? [hit.id] : []);
   });
   const [collapsed, setCollapsed] = useState<ReadonlySet<Id>>(() => new Set(plan.categoryGroups.filter((g) => g.systemKind === 'hidden').map((g) => g.id)));
+  const demoDone = useRef(false);
+  useEffect(() => {
+    if (demoDone.current || !demoAssign) return;
+    demoDone.current = true;
+    const [name, dollars] = demoAssign.split(':');
+    const category = plan.categories.find((c) => c.name === name);
+    if (!category || dollars === undefined) return;
+    const timer = window.setTimeout(() => {
+      actions.run((p, ctx) => setAssigned(p, ctx, { month, categoryId: category.id, amount: parseDecimal(dollars, model.fmt.decimals) }));
+    }, 600);
+    return () => {
+      // React's dev double-invoke runs this cleanup once; let the second run schedule again.
+      window.clearTimeout(timer);
+      demoDone.current = false;
+    };
+  }, [demoAssign, plan.categories, actions, month, model.fmt.decimals]);
   const rta = model.ms.readyToAssign;
   const shownRta = useTweened(rta);
   const rtaState = rta > 0 ? 'positive' : rta === 0 ? 'zero' : 'negative';
@@ -286,7 +312,7 @@ export function PlanScreen({
                             </td>
                             <td className="num">{money(cm.activity)}</td>
                             <td className="num">
-                              <Pill view={view} amount={money(cm.available)} />
+                              <Pill view={view} value={cm.available} money={money} />
                             </td>
                           </tr>
                         );
@@ -307,7 +333,9 @@ function GroupRows({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
-export function Pill({ view, amount }: { view: CategoryView; amount: string }) {
+export function Pill({ view, value, money }: { view: CategoryView; value: Minor; money: (m: Minor) => string }) {
+  const shown = useTweened(value);
+  const amount = money(minor(shown));
   const icon = view.state === 'funded' ? 'checkmark' : view.state === 'underfunded' ? 'clock' : view.state === 'overspent' ? 'warning' : view.state === 'snoozed' ? 'snooze' : null;
   const label = { funded: 'funded', underfunded: 'underfunded', overspent: 'overspent', zero: 'empty', snoozed: 'snoozed' }[view.state];
   return (

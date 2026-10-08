@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { CASH_ACCOUNT_TYPES, CREDIT_ACCOUNT_TYPES, LOAN_ACCOUNT_TYPES, type AccountType } from '@hafb/engine';
 import { minor, type ISODate, type Minor } from '@hafb/shared';
 import { planBudget, type AccountRecord, type PlanData } from '@hafb/store';
@@ -18,12 +18,15 @@ export function Sidebar({
   screen,
   navigate,
   money,
+  footer,
 }: {
   plan: PlanData;
   today: ISODate;
   screen: Screen;
   navigate: (s: Screen) => void;
   money: (m: Minor) => string;
+  /** Mockup-only display options (theme, without colour). */
+  footer?: ReactNode;
 }) {
   const balances = planBudget(plan, { today }).accountBalances;
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
@@ -78,7 +81,7 @@ export function Sidebar({
               }}>
                 <Icon name={isCollapsed ? 'chevronRight' : 'chevronDown'} />
                 {s.title}
-                {s.key !== 'starred' && <span className={`num${total < 0 ? ' neg' : ''}`}>{money(total)}</span>}
+                {s.key !== 'starred' && <span className={`num${s.key === 'cash' && total < 0 ? ' neg' : ''}`}>{money(total)}</span>}
               </button>
               {!isCollapsed &&
                 s.accounts.map((a) => (
@@ -86,13 +89,14 @@ export function Sidebar({
                     navigate({ kind: 'register', accountId: a.id });
                   }}>
                     <span>{a.name}</span>
-                    <span className={`num${balance(a) < 0 ? ' neg' : ''}`}>{money(balance(a))}</span>
+                    <span className={`num${CASH_ACCOUNT_TYPES.includes(a.type) && balance(a) < 0 ? ' neg' : ''}`}>{money(balance(a))}</span>
                   </button>
                 ))}
             </div>
           );
         })}
       </div>
+      {footer}
       <button type="button" className="hd-addaccount">
         <Icon name="add" /> Add Account
       </button>

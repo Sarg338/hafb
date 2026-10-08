@@ -34,6 +34,19 @@ const TEXT_PAIRS: [ColorToken, ColorToken][] = [
   ['rtaZeroFg', 'rtaZeroBg'],
   ['rtaNegativeFg', 'rtaNegativeBg'],
   ['text', 'accentSoft'],
+  // Status text is drawn on rows: plain, alternate, hovered and selected.
+  ['warnText', 'surface'],
+  ['warnText', 'hover'],
+  ['warnText', 'selected'],
+  ['badText', 'surface'],
+  ['badText', 'hover'],
+  ['badText', 'selected'],
+  ['negative', 'raised'],
+  // Reflect's "up" figure: the funded green as plain text on the page.
+  ['fundedFg', 'surface'],
+  ['fundedFg', 'app'],
+  ['textSubtle', 'hover'],
+  ['textSubtle', 'selected'],
 ];
 
 const GRAPHIC_PAIRS: [ColorToken, ColorToken][] = [

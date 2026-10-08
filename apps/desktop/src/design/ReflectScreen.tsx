@@ -305,9 +305,6 @@ function Trends({ plan, from, to, money, fmt }: { plan: PlanData; from: Month; t
             );
           })}
           <line x1={pad.l} x2={W - pad.r} y1={avgY} y2={avgY} className="rf-avg" />
-          <text x={W - pad.r} y={avgY - 6} className="rf-axis rf-avglabel" textAnchor="end">
-            Average {money(trends.averagePerMonth)}
-          </text>
         </svg>
         {hovered && hoveredMonth && hover !== null && (
           <div className="rf-tooltip hd-card" style={{ left: `${String(((pad.l + band * hover + band / 2) / W) * 100)}%` }} role="status">
@@ -336,6 +333,9 @@ function Trends({ plan, from, to, money, fmt }: { plan: PlanData; from: Month; t
             <Swatch index={gi} /> {g.name}
           </li>
         ))}
+        <li>
+          <span className="rf-avgkey" aria-hidden="true" /> Average {money(trends.averagePerMonth)}
+        </li>
       </ul>
       <table className="visually-hidden">
         <caption>Spending by group and month</caption>
@@ -386,11 +386,11 @@ function NetWorth({ plan, from, to, money, fmt }: { plan: PlanData; from: Month;
       <div className="rf-reporthead">
         <div>
           <span className="muted">Net worth, end of {longMonth(last.month)}</span>
-          <strong className={`num${last.netWorth < 0 ? ' neg' : ''}`}>{money(last.netWorth)}</strong>
+          <strong className="num">{money(last.netWorth)}</strong>
         </div>
         <div>
           <span className="muted">Change in {short(last.month)}</span>
-          <strong className={`num ${last.change < 0 ? 'neg' : 'rf-up'}`}>
+          <strong className={`num${last.change > 0 ? ' rf-up' : ''}`}>
             {last.change > 0 ? '+' : ''}
             {money(last.change)}
           </strong>
@@ -455,9 +455,9 @@ function NetWorth({ plan, from, to, money, fmt }: { plan: PlanData; from: Month;
             <tr key={r.month}>
               <th scope="row">{longMonth(r.month)}</th>
               <td className="num">{money(r.assets)}</td>
-              <td className="num neg">{money(r.debts)}</td>
-              <td className={`num${r.netWorth < 0 ? ' neg' : ''}`}>{money(r.netWorth)}</td>
-              <td className={`num${r.change < 0 ? ' neg' : ''}`}>{money(r.change)}</td>
+              <td className="num">{money(r.debts)}</td>
+              <td className="num">{money(r.netWorth)}</td>
+              <td className="num">{money(r.change)}</td>
             </tr>
           ))}
         </tbody>
@@ -472,15 +472,16 @@ function IncomeExpense({ plan, from, to, money }: { plan: PlanData; from: Month;
   const payees = new Map(plan.payees.map((p) => [p.id, p.name]));
   const data = incomeVsExpense(budgetSnapshot(plan), { from, to }, { payeeName: (id) => (id === undefined ? 'No payee' : (payees.get(id) ?? 'Unknown payee')) });
   const [open, setOpen] = useState<ReadonlySet<Id>>(new Set());
-  const cell = (v: Minor, key: string, strong = false) => (
-    <td key={key} className={`num${v < 0 ? ' neg' : ''}${strong ? ' strong' : ''}`}>
+  // Expenses are normal, not alarming: only a negative Net Income is red.
+  const cell = (v: Minor, key: string, strong = false, signal = false) => (
+    <td key={key} className={`num${signal && v < 0 ? ' neg' : ''}${strong ? ' strong' : ''}`}>
       {money(v)}
     </td>
   );
-  const cols = (byMonth: readonly Minor[], average: Minor, total: Minor, strong = false) => [
-    ...byMonth.map((v, i) => cell(v, data.months[i] ?? String(i), strong)),
-    cell(average, 'avg', strong),
-    cell(total, 'total', strong),
+  const cols = (byMonth: readonly Minor[], average: Minor, total: Minor, strong = false, signal = false) => [
+    ...byMonth.map((v, i) => cell(v, data.months[i] ?? String(i), strong, signal)),
+    cell(average, 'avg', strong, signal),
+    cell(total, 'total', strong, signal),
   ];
 
   return (
@@ -569,7 +570,7 @@ function IncomeExpense({ plan, from, to, money }: { plan: PlanData; from: Month;
             </tr>
             <tr className="rf-net">
               <th scope="row">Net Income</th>
-              {cols(data.netIncome.byMonth, data.netIncome.average, data.netIncome.total, true)}
+              {cols(data.netIncome.byMonth, data.netIncome.average, data.netIncome.total, true, true)}
             </tr>
           </tbody>
         </table>

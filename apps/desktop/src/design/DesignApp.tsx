@@ -1,11 +1,12 @@
 // S3.1 clickable mockups (#/design): the real engine and commands on a sample household, in
 // HAFB's chosen look. Plain React state; the production store arrives in S3.3.
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { Id } from '@hafb/engine';
 import { formatMoney, uuidv7Generator, type Month } from '@hafb/shared';
 import { canRedo, canUndo, emptyHistory, historyDo, historyRedo, historyUndo, redoLabel, undoLabel, type Command, type CommandContext, type History, type PlanData } from '@hafb/store';
 import { BUILT_IN_THEMES, lightTheme } from '../theme/themes.ts';
 import { applyTheme } from '../theme/tokens.ts';
+import { Icon } from '../ui/Icon.tsx';
 import { PlanScreen } from './PlanScreen.tsx';
 import { ReflectScreen } from './ReflectScreen.tsx';
 import { RegisterScreen } from './RegisterScreen.tsx';
@@ -30,11 +31,31 @@ const newId = uuidv7Generator(
 );
 
 /** `#/design/<plan|register|reflect>?theme=dark&nocolor=1`: deep links for review screenshots. */
-function readHash(): { screen: Screen; theme: string | null; noColor: boolean; select: string | null } {
+function readHash(): { screen: Screen; theme: string | null; noColor: boolean; select: string | null; assign: string | null } {
   const [path = '', query = ''] = window.location.hash.replace(/^#\/design\/?/, '').split('?');
   const params = new URLSearchParams(query);
   const screen: Screen = path === 'register' ? { kind: 'register', accountId: null } : path === 'reflect' ? { kind: 'reflect' } : { kind: 'plan' };
-  return { screen, theme: params.get('theme'), noColor: params.get('nocolor') === '1', select: params.get('select') };
+  return { screen, theme: params.get('theme'), noColor: params.get('nocolor') === '1', select: params.get('select'), assign: params.get('assign') };
+}
+
+/** Mockup-only display options: one line in the sidebar, the panel opens upward. */
+function DisplayOptions({ children }: { children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="hd-display">
+      {open && (
+        <div className="hd-designbar" role="group" aria-label="Mockup display options">
+          {children}
+        </div>
+      )}
+      <button type="button" className="hd-navitem" aria-expanded={open} onClick={() => {
+        setOpen(!open);
+      }}>
+        <Icon name="settings" size={20} /> Display options
+        <Icon name={open ? 'chevronDown' : 'chevronUp'} style={{ marginLeft: 'auto' }} />
+      </button>
+    </div>
+  );
 }
 
 export function DesignApp() {
@@ -125,22 +146,14 @@ export function DesignApp() {
 
   return (
     <div className="hd" data-nocolor={String(noColor || system)} data-theme-system={String(system)}>
-      <Sidebar plan={plan} today={sample.today} screen={screen} navigate={setScreen} money={(m) => formatMoney(m, fmt)} />
-      {screen.kind === 'plan' && (
-        <PlanScreen
-          plan={plan}
-          today={sample.today}
-          month={month}
-          setMonth={setMonth}
-          initialSelect={initial.select}
-          actions={actions}
-          history={{ canUndo: canUndo(history), canRedo: canRedo(history), undoLabel: undoLabel(history), redoLabel: redoLabel(history) }}
-        />
-      )}
-      {screen.kind === 'register' && <RegisterScreen plan={plan} today={sample.today} accountId={screen.accountId} actions={actions} />}
-      {screen.kind === 'reflect' && <ReflectScreen plan={plan} today={sample.today} />}
-
-      <div className="hd-designbar" role="group" aria-label="Mockup display options">
+      <Sidebar
+        plan={plan}
+        today={sample.today}
+        screen={screen}
+        navigate={setScreen}
+        money={(m) => formatMoney(m, fmt)}
+        footer={
+        <DisplayOptions>
         <span className="muted">Theme</span>
         <div className="hd-seg">
           {BUILT_IN_THEMES.map((t) => (
@@ -157,7 +170,24 @@ export function DesignApp() {
           }} />
           Differentiate without color
         </label>
-      </div>
+        </DisplayOptions>
+        }
+      />
+      {screen.kind === 'plan' && (
+        <PlanScreen
+          plan={plan}
+          today={sample.today}
+          month={month}
+          setMonth={setMonth}
+          initialSelect={initial.select}
+          demoAssign={initial.assign}
+          actions={actions}
+          history={{ canUndo: canUndo(history), canRedo: canRedo(history), undoLabel: undoLabel(history), redoLabel: redoLabel(history) }}
+        />
+      )}
+      {screen.kind === 'register' && <RegisterScreen plan={plan} today={sample.today} accountId={screen.accountId} actions={actions} />}
+      {screen.kind === 'reflect' && <ReflectScreen plan={plan} today={sample.today} />}
+
 
       {toast && (
         <div className="hd-toast" role="status">
