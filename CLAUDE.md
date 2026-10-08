@@ -389,7 +389,7 @@ The full sprint plan with exit criteria is in `docs/roadmap.md`. Phases were ren
 Mark phase status here when it changes:
 - Phase 0: done. Validated on Sarg's machine 2026-10-08 (ADR 0001 §7). The spike screens (`apps/desktop/src/spike/`, `src-tauri/src/spike/`) stay until S3.3 replaces them.
 - Phase 1: done, signed off by Sarg 2026-10-08. Verified against two real YNAB sources (budget-math §12): the public export (98.4% exact, every regular category exact) and Sarg's YNAB trial plan (every value YNAB showed matches after 9 rule corrections; mortgage interest within $0.50). Age of Money and the weekly-target rule were confirmed by follow-up checks. Fresh Start was confirmed too. Remaining open items are in budget-math §13: mortgage interest cents, the public sample's converted card, Credit Card Interest (rolling out) and recurrence edge cases.
-- Phase 2: todo
+- Phase 2: built 2026-10-08 (ADR 0002), awaiting Sarg's validation on hardware. Tests: 537 TS + 25 Rust.
 - Phase 3: todo
 - Phase 4: todo
 - Phase 5: todo

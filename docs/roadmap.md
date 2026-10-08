@@ -92,6 +92,13 @@ The 2026-10-08 research (YNAB What's New and help center) found that CLAUDE.md w
 
 **Goal:** a real `.hafb` file you can open, edit with undo, and fill from a YNAB export.
 
+**Status (2026-10-08):** built and smoke-tested on the dev machine; awaiting Sarg's hardware validation (S2.5 exit). Design in ADR 0002, including its §10 amendments:
+- **S2.1:** STRICT schema; the split check is a view rather than a trigger.
+- **S2.2:** a 20k-transaction plan opens and loads in 24 ms (release build).
+- **S2.3:** the undo property test runs 200 random sequences. Zustand wiring moves to S3.3; the dev screen uses a plain external store.
+- **S2.4:** the trial export matches 34/34 values; the public sample matches 5821/5916, the same as the engine golden.
+- **S2.5:** the Phase 0 SQLite spike is still in the spike screens and is retired with them in S3.3.
+
 | Sprint | Scope | Done when |
 |---|---|---|
 | **S2.1 Schema v1** | `0001_init.sql` from the amended §4: soft deletes, `approved`/import fields (D4), starred accounts, focused views, payee auto-categorize settings, expected income, the split-sum trigger. Rust migration runner with **automatic pre-migration backup**; WAL; `cargo test` for migrations. | Fresh and migrated files pass the schema tests. |

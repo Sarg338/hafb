@@ -211,15 +211,15 @@ A row is `done` only after Sarg validates it on hardware. Rows whose engine half
 | IE-07 | Imported cash inflows default to Ready to Assign; rename rules applied | S1.6 | S6.5 | in-progress |
 | IE-08 | Rejected imports never re-import | S1.6 | S6.5 | in-progress |
 | IE-09 | Export to YNAB-format CSV (round-trip verified) | S1.8 | S6.6 | in-progress |
-| IE-10 | Raw SQLite copy ("save a copy") | — | S2.5 | todo |
-| IE-11 | Automatic backups on open (keep N), manual backup, restore | — | S2.5 / S6.6 | todo |
+| IE-10 | Raw SQLite copy ("save a copy") | — | S2.5 | in-progress |
+| IE-11 | Automatic backups on open (keep N), manual backup, restore | — | S2.5 / S6.6 | in-progress |
 | IE-12 | Direct Import / bank sync / pending transactions | — | — | wontfix (server) |
 
 ## 14. Plans, settings, lifecycle ([resets & fresh starts](https://support.ynab.com/en_us/plan-resets-and-fresh-starts-HkXYR_c0q), [templates](https://support.ynab.com/en_us/creating-a-plan-template-ByZJZx_R9))
 
 | ID | Feature | Engine | UI | Status |
 |---|---|---|---|---|
-| PL-01 | Multiple plans: open, recent list, create | — | S2.5 / S7.2 | todo |
+| PL-01 | Multiple plans: open, recent list, create | — | S2.5 / S7.2 | in-progress |
 | PL-02 | New-plan wizard: blank / template / import YNAB | — | S7.2 | todo |
 | PL-03 | Templates: bundled category sets; pick categories to import; never overwrite | — | S7.2 | todo |
 | PL-04 | Fresh Start (archive + new plan, §5.14; verify starting-balance rule) | S1.5 | S7.2 | in-progress |
@@ -232,7 +232,7 @@ A row is `done` only after Sarg validates it on hardware. Rows whose engine half
 
 | ID | Feature | Engine | UI | Status |
 |---|---|---|---|---|
-| K-01 | Undo Ctrl+Z; redo Ctrl+Shift+Z (and Ctrl+Y) with descriptive toast | S2.3 | S4.8 | todo |
+| K-01 | Undo Ctrl+Z; redo Ctrl+Shift+Z (and Ctrl+Y) with descriptive toast | S2.3 | S4.8 | in-progress |
 | K-02 | Every published YNAB shortcut ([list](https://support.ynab.com/en_us/keyboard-shortcuts-Skw9Xp9A9)) | — | S7.3 | todo |
 | K-03 | `?` shortcut overlay; hints in menus and tooltips; disable toggle | — | S3.5 / S7.3 | todo |
 | X-01 | Custom title bar with Snap Layouts; native fallback | — | Phase 0 ✅ / S3.3 | in-progress |
