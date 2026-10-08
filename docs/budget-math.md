@@ -492,6 +492,12 @@ Spending is outflows net of refunds; it's negative when refunds win.
 
 **What the export cannot verify:** Ready to Assign (not exported), targets (not exported), Age of Money, loans and reports.
 
+**Other public data searched (2026-10-08).** A GitHub-wide code search for YNAB API exports turned up API schemas, mocks, and one real file: Actual Budget's MIT-licensed `ynab5-demo-budget.json`, a 2-month YNAB demo plan. It can't serve as an answer key:
+- Every target amount in it is 0.
+- Its transactions were edited after export without YNAB recomputing the months. September has a −$1,000 Ready to Assign transaction, but YNAB's `to_be_budgeted` is unchanged from August.
+
+Only its August Ready to Assign ($10,000 in − $1,000 assigned = $9,000) is usable, and it matches §2. No other public source carries YNAB-computed Ready to Assign, target, Age of Money, loan or report values. The items in §13 can only be verified with a real YNAB plan.
+
 ## 13. Open questions and assumptions
 
 Each item needs real YNAB behavior to confirm. The optional YNAB free-trial scenario (roadmap S1.7) is the planned way to check them.
