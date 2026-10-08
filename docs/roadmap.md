@@ -92,7 +92,7 @@ The 2026-10-08 research (YNAB What's New and help center) found that CLAUDE.md w
 
 **Goal:** a real `.hafb` file you can open, edit with undo, and fill from a YNAB export.
 
-**Status (2026-10-08):** built and smoke-tested on the dev machine; awaiting Sarg's hardware validation (S2.5 exit). Design in ADR 0002, including its §10 amendments:
+**Status: done, signed off by Sarg 2026-10-08.** All five sprints were validated on Sarg's PC by driving the release build. Design in ADR 0002, including its §10 amendments:
 - **S2.1:** STRICT schema; the split check is a view rather than a trigger.
 - **S2.2:** a 20k-transaction plan opens and loads in 24 ms (release build).
 - **S2.3:** the undo property test runs 200 random sequences. Zustand wiring moves to S3.3; the dev screen uses a plain external store.
