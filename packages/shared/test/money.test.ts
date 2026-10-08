@@ -19,6 +19,11 @@ import {
 const m = minor;
 
 describe('minor', () => {
+  it('normalizes -0 to 0 (SQLite cannot store -0, so it would break disk == memory)', () => {
+    expect(Object.is(minor(-0), 0)).toBe(true);
+    expect(Object.is(neg(ZERO), 0)).toBe(true);
+  });
+
   it('accepts safe integers and rejects fractions, NaN and unsafe values', () => {
     expect(m(1250)).toBe(1250);
     expect(m(-7)).toBe(-7);

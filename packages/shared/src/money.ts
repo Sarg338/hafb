@@ -9,12 +9,17 @@ function isMinorValue(value: number): value is Minor {
   return Number.isSafeInteger(value);
 }
 
-/** Brand an integer as a minor-unit amount. Throws on fractions, NaN, or unsafe integers. */
+/**
+ * Brand an integer as a minor-unit amount. Throws on fractions, NaN, or unsafe integers.
+ * Normalizes -0 to 0: SQLite stores both as 0, and a stray -0 (e.g. `neg(ZERO)`) would make an
+ * in-memory record differ from the same record read back from the file.
+ */
 export function minor(value: number): Minor {
-  if (!isMinorValue(value)) {
+  const v = value === 0 ? 0 : value;
+  if (!isMinorValue(v)) {
     throw new RangeError(`Not a safe integer minor-unit amount: ${String(value)}`);
   }
-  return value;
+  return v;
 }
 
 export const ZERO: Minor = minor(0);

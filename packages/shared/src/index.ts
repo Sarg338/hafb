@@ -43,3 +43,4 @@ export {
   dayOfWeek,
   addMonthsToDate,
 } from './dates.ts';
+export { uuidv7, uuidv7Generator } from './uuid.ts';
