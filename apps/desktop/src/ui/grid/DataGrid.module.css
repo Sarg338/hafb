@@ -1,0 +1,264 @@
+/* The editable grid (S3.4): the approved S3.1 plan grid (.hd-grid) and register grid (.rg-grid)
+   looks, from tokens only (ADR 0004). Rows are absolutely positioned by the virtualizer. */
+
+.grid {
+  position: relative;
+  min-height: 0;
+  overflow: auto;
+  background: var(--c-surface);
+  color: var(--c-text);
+  font-family: var(--t-font-ui);
+  font-size: var(--t-size-body);
+  font-variant-numeric: tabular-nums;
+  outline: none;
+  contain: strict;
+}
+
+.grid:focus-visible {
+  outline: var(--s-focus-width) solid var(--c-focus);
+  outline-offset: calc(0px - var(--s-focus-width));
+}
+
+.inner {
+  position: relative;
+  min-width: 100%;
+}
+
+/* ---- header -------------------------------------------------------------------------------- */
+
+.head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.headerRow {
+  display: grid;
+  grid-template-columns: var(--grid-template);
+  height: var(--d-row-header);
+  border-bottom: var(--s-border-width) solid var(--c-border-strong);
+  background: var(--c-surface);
+}
+
+.columnHeader {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  padding: 0 var(--grid-pad-x);
+  color: var(--c-text-muted);
+  font-family: var(--t-font-label);
+  font-size: var(--t-size-micro);
+  font-weight: var(--t-label-weight);
+  letter-spacing: var(--t-label-tracking);
+  text-transform: var(--t-label-transform);
+  white-space: nowrap;
+}
+
+.columnHeader.end {
+  justify-content: flex-end;
+}
+
+.columnHeader.center {
+  justify-content: center;
+  padding: 0;
+}
+
+.headerLabel {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sortButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+}
+
+.sortButton:hover {
+  color: var(--c-text);
+}
+
+.resizer {
+  position: absolute;
+  top: 6px;
+  right: -3px;
+  bottom: 6px;
+  z-index: 1;
+  width: 7px;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.resizer::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 3px;
+  width: var(--s-border-width);
+  background: transparent;
+  transition: background-color var(--m-fast) var(--m-ease);
+}
+
+.columnHeader:hover .resizer::after,
+.resizer:focus-visible::after,
+.resizer[data-active='true']::after {
+  background: var(--c-border-strong);
+}
+
+.resizer:focus-visible {
+  outline: none;
+}
+
+.resizer:focus-visible::after {
+  width: var(--s-focus-width);
+  background: var(--c-focus);
+}
+
+/* ---- body ---------------------------------------------------------------------------------- */
+
+.body {
+  position: relative;
+}
+
+.row {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: grid;
+  grid-template-columns: var(--grid-template);
+  width: 100%;
+  height: var(--grid-row-height);
+  will-change: transform;
+}
+
+.group {
+  height: var(--d-row-group);
+}
+
+.cell {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  padding: 0 var(--grid-pad-x);
+  border-bottom: var(--s-border-width) solid var(--c-border);
+  outline: none;
+  white-space: nowrap;
+}
+
+.cell.end {
+  justify-content: flex-end;
+  text-align: right;
+}
+
+.cell.center {
+  justify-content: center;
+  padding: 0;
+}
+
+.cellText {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.row.item:hover .cell {
+  background: var(--c-hover);
+}
+
+.row.group .cell {
+  border-bottom-style: var(--s-group-rule-style);
+  background: var(--c-surface-alt);
+  font-weight: var(--t-weight-semibold);
+}
+
+.row[aria-selected='true'] .cell {
+  background: var(--c-selected);
+  color: var(--c-selected-text);
+}
+
+/* Selection indicator: the approved 3x16 pill at the row's leading edge. */
+.row[aria-selected='true'] .cell:first-child::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 3px;
+  width: 3px;
+  height: 16px;
+  border-radius: var(--s-radius-tiny);
+  background: var(--c-selected-border);
+  transform: translateY(-50%);
+}
+
+/* The active cell: a focus ring when the grid has keyboard focus. */
+.cell.active:focus-visible,
+.cell.active:focus {
+  outline: var(--s-focus-width) solid var(--c-focus);
+  outline-offset: calc(0px - var(--s-focus-width));
+}
+
+.cell.editing {
+  padding: 0 calc(var(--grid-pad-x) - 6px);
+  overflow: visible;
+  z-index: 1;
+}
+
+.checkCell {
+  padding: 0 0 0 14px;
+}
+
+.groupName {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.toggle {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  margin-left: -4px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--s-radius);
+  background: transparent;
+  color: var(--c-text-muted);
+}
+
+.toggle:hover {
+  background: var(--c-hover);
+  color: var(--c-text);
+}
+
+.empty {
+  padding: 24px var(--grid-pad-x);
+  color: var(--c-text-muted);
+}
+
+/* Density: plan 34 px rows, 14 px cell padding; register 30 px rows, 10 px. */
+.plan {
+  --grid-row-height: var(--d-row-plan);
+  --grid-pad-x: 14px;
+}
+
+.register {
+  --grid-row-height: var(--d-row-register);
+  --grid-pad-x: 10px;
+}
+
+:where([data-theme-system='true']) .row[aria-selected='true'] .cell:first-child::before {
+  background: var(--c-selected-text);
+}

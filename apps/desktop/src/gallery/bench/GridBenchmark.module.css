@@ -1,0 +1,44 @@
+.bench {
+  display: grid;
+  gap: 10px;
+  width: 100%;
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.note {
+  color: var(--c-text-muted);
+  font-size: var(--t-size-caption);
+}
+
+.result {
+  margin: 0;
+  padding: 10px 12px;
+  min-height: 48px;
+  border: var(--s-border-width) solid var(--c-border);
+  border-radius: var(--s-radius-large);
+  background: var(--c-surface-alt);
+  color: var(--c-text);
+  font-family: var(--t-font-money);
+  font-size: var(--t-size-caption);
+  white-space: pre-wrap;
+  user-select: text;
+}
+
+.frame {
+  display: grid;
+  height: 560px;
+  width: 100%;
+  border: var(--s-border-width) solid var(--c-border);
+  border-radius: var(--s-radius-large);
+  overflow: hidden;
+}
+
+.frame > * {
+  min-height: 0;
+}
