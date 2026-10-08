@@ -18,3 +18,6 @@ Thumbs.db
 
 # YNAB screenshots for design reference: copyrighted, local only
 docs/ui-references/ynab/
+
+# Local-only test data (third-party exports, personal data): never committed
+packages/engine/test/fixtures/local/

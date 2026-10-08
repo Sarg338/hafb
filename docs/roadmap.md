@@ -31,8 +31,8 @@
 
 | Needed by | Input |
 |---|---|
-| S1.8 | A **real YNAB export** (`Plan.csv` + `Register.csv`, anonymized if you like). The larger and older, the better. It's the golden test. |
-| S1.8 | Screenshots or numbers from YNAB for the same months (Ready to Assign, a few category balances, Age of Money) to check against. |
+| — | ~~Sarg's own YNAB export~~: **Sarg has no YNAB account.** Golden data comes from a public real export kept local-only (`packages/engine/test/fixtures/local/`, git-ignored, never committed), plus optionally a YNAB free-trial scenario (below). |
+| S1.7 (optional) | A **YNAB free-trial scenario**: we write a scripted month of transactions covering splits, targets, credit overspending, future assignments and loans. Sarg enters it in a YNAB trial, exports it, and screenshots the open items (D7, D11, D12). This is the only way to verify those items and to get splits and targets into a golden file; the public sample has neither. |
 | S6.5 | Sample bank files: OFX/QFX, QIF and CSV from your banks. |
 | S8.1 | Access to a slower (2019-era) Windows laptop for the launch-time budget, or agreement to throttle the CPU instead. |
 
@@ -72,7 +72,7 @@ The 2026-10-08 research (YNAB What's New and help center) found that CLAUDE.md w
 | **S1.5 Plan operations** | Move money; cover overspending (incl. **from future months**); auto-assign (Underfunded, Assigned/Spent Last Month, Average Assigned/Spent, **Reduce Overfunding**, Reset Available/Assigned) with preview totals, scoped to a category set (for Focused Views); **Plan Reset**. | Every operation is a pure function returning the `assigned` deltas; rounding tests for the averages. |
 | **S1.6 Transaction logic** | Split invariant; scheduled recurrence (all 13 frequencies, 31st → last day, next-date math); reconciliation math and adjustment; search parser and evaluator (D9 syntax); payee default category (D5) and rename rules; approval-state effects (unapproved still counts). | Parser has its own test table covering every documented criterion. |
 | **S1.7 Age of Money, loans, Reflect math** | Age of Money (D7, verified on real data); loan interest accrual, escrow, payoff simulator (payment ↔ date, extra payments, interest saved); report aggregations as pure functions: spending breakdown and trends, net worth by month, income v expense. | Loan formula documented with sources; report functions tested on fixtures. |
-| **S1.8 Golden tests & performance** | YNAB CSV parser (shared with S2.4; strings → minor units, never floats); golden test of Sarg's export matching **to the cent** for every month and category; perf: 5 years × 100 categories recompute in < 50 ms; complete `budget-math.md`. | `pnpm test:engine` green; Phase 1 gate. |
+| **S1.8 Golden tests & performance** | YNAB CSV parser (shared with S2.4; strings → minor units, never floats; **locale-aware**: the export uses the plan's currency and date format, see `docs/ynab-references.md`). Golden test: feed the local public sample's register and assigned amounts to the engine and match YNAB's own **Activity and Available for every category and month to the cent** (58 months × 51 categories, 36 accounts, ~7.5k transactions). Skipped automatically when the local file is absent, so CI and clones stay green. Optionally also the trial scenario. Perf: 5 years × 100 categories recompute in < 50 ms. Complete `budget-math.md`. | `pnpm test:engine` green, with the golden test run locally; Phase 1 gate. |
 
 ## Phase 2: Persistence, commands & import
 
