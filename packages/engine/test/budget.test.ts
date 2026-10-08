@@ -124,6 +124,9 @@ describe('§2 Ready to Assign', () => {
     expect(monthState(state, '2026-03').readyToAssign).toBe(45_000);
     expect(monthState(state, '2026-04')).toMatchObject({ readyToAssign: 45_000, breakdown: { assignedInFuture: 0, assignedThisMonth: 25_000 } });
     expect(state.months.at(-1)).toBe('2026-04');
+    const extended = computeBudget(s, { today: TODAY, throughMonth: '2026-12' });
+    expect(extended.months.at(-1)).toBe('2026-12');
+    expect(monthState(extended, '2026-12').readyToAssign).toBe(45_000);
   });
 
   it('example 2.3: Ready to Assign can go negative', () => {

@@ -27,6 +27,8 @@ import {
 export interface ComputeOptions {
   /** The plan's "today"; the engine never reads the clock (CLAUDE.md §8). */
   today: ISODate;
+  /** Compute at least through this month (future months the user can plan in). */
+  throughMonth?: Month;
 }
 
 export interface Overspending {
@@ -316,7 +318,8 @@ export function computeBudget(snapshot: BudgetSnapshot, options: ComputeOptions)
   const currentMonth = monthOf(options.today);
   let first: Month = snapshot.settings.firstMonth ?? currentMonth;
   let last: Month = currentMonth;
-  for (const m of [...buckets.keys(), ...assigned.keys()]) {
+  const extra = options.throughMonth === undefined ? [] : [options.throughMonth];
+  for (const m of [...buckets.keys(), ...assigned.keys(), ...extra]) {
     if (compareMonths(m, first) < 0) first = m;
     if (compareMonths(m, last) > 0) last = m;
   }

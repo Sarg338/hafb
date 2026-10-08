@@ -7,3 +7,5 @@ export * from './errors.ts';
 export * from './budget.ts';
 export * from './ynab/csv.ts';
 export * from './ynab/toSnapshot.ts';
+export * from './targets.ts';
+export * from './planOps.ts';
