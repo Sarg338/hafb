@@ -55,7 +55,7 @@ export function ShortcutOverlay({ open, onClose }: { open: boolean; onClose: () 
       // from delivered sprints simply aren't registered on the current screen.
       const live = p.inComponent === true && delivered;
       const where = live ? null : delivered ? 'Not available on this screen' : `Coming in ${p.sprint}`;
-      const verify = p.verified ? null : 'to verify against YNAB';
+      const verify = p.extra === true ? 'HAFB extra' : p.verified ? null : 'to verify against YNAB';
       const note = [where, verify].filter((x): x is string => x !== null).join(' · ');
       out.push({
         id: p.id,

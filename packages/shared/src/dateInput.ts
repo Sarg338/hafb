@@ -79,15 +79,19 @@ export const DATE_KEYS: readonly DateKey[] = [
   { key: 'PageUp', description: 'Previous month' },
   { key: 't', description: 'Today' },
   { key: 'm', description: 'First day of the month' },
-  { key: 'h', description: 'Last day of the month' },
+  { key: 'M', description: 'Last day of the month (Shift+M)' },
   { key: 'y', description: 'First day of the year' },
-  { key: 'r', description: 'Last day of the year' },
+  { key: 'Y', description: 'Last day of the year (Shift+Y)' },
 ];
 
-/** The date a key moves to, or null when the key isn't a date shortcut. */
+/**
+ * The date a key moves to, or null when the key isn't a date shortcut. YNAB's keys
+ * (support.ynab.com keyboard shortcuts): + and − a day, T today, M and Shift+M the month's first
+ * and last day, Y and Shift+Y the year's. PageUp/PageDown (a month) are HAFB extras.
+ */
 export function dateKey(date: ISODate, key: string, today: ISODate): ISODate | null {
   const { year, month } = dateParts(date);
-  switch (key.length === 1 ? key.toLowerCase() : key) {
+  switch (key === 'T' ? 't' : key) {
     case '+':
     case '=':
       return addDays(date, 1);
@@ -101,11 +105,11 @@ export function dateKey(date: ISODate, key: string, today: ISODate): ISODate | n
       return today;
     case 'm':
       return makeDate(year, month, 1);
-    case 'h':
+    case 'M':
       return makeDate(year, month, daysInMonth(year, month));
     case 'y':
       return makeDate(year, 1, 1);
-    case 'r':
+    case 'Y':
       return makeDate(year, 12, 31);
     default:
       return null;

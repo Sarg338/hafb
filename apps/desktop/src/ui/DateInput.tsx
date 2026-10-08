@@ -24,11 +24,12 @@ export interface DateInputProps {
 }
 
 /** Letters are always shortcuts; + - = and paging only while the text hasn't been typed over. */
-const LETTER_KEYS = new Set(['t', 'm', 'h', 'y', 'r']);
+const LETTER_KEYS = new Set(['t', 'm', 'y']);
 
 /**
  * A date field in the plan's format. Type a full or partial date (Enter or leaving commits), use
- * the date keys (+/- day, PageUp/PageDown month, T today, M/H month start/end, Y/R year start/end),
+ * the date keys (YNAB's: +/- day, T today, M/Shift+M month start/end, Y/Shift+Y year start/end;
+ * PageUp/PageDown a month),
  * or pick from the calendar.
  */
 export const DateInput = forwardRef<HTMLInputElement, DateInputProps>(function DateInput(

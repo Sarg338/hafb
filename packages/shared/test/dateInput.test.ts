@@ -57,13 +57,21 @@ describe('dateKey', () => {
     ['t', today],
     ['T', today],
     ['m', '2026-01-01'],
-    ['h', '2026-01-31'],
+    ['M', '2026-01-31'],
     ['y', '2026-01-01'],
-    ['r', '2026-12-31'],
-    ['M', '2026-01-01'],
-    ['R', '2026-12-31'],
+    ['Y', '2026-12-31'],
   ])('%s', (key, expected) => {
     expect(dateKey(d, key, today)).toBe(expected);
+  });
+
+  it('tells month and year starts (m, y) from ends (Shift+M, Shift+Y), as YNAB does', () => {
+    const mid = '2026-06-15' as const;
+    expect(dateKey(mid, 'm', today)).toBe('2026-06-01');
+    expect(dateKey(mid, 'M', today)).toBe('2026-06-30');
+    expect(dateKey(mid, 'y', today)).toBe('2026-01-01');
+    expect(dateKey(mid, 'Y', today)).toBe('2026-12-31');
+    expect(dateKey(mid, 'h', today)).toBeNull();
+    expect(dateKey(mid, 'r', today)).toBeNull();
   });
 
   it('ignores other keys', () => {
