@@ -11,6 +11,10 @@ import { ReflectScreen } from '../design/ReflectScreen.tsx';
 import { RegisterScreen } from '../design/RegisterScreen.tsx';
 import '../design/design.css';
 import { cx } from '../ui/cx.ts';
+import { ErrorBoundary } from '../ui/ErrorBoundary.tsx';
+import { useRouteFocus } from '../ui/focusRoute.ts';
+import { useShortcut } from '../ui/shortcuts/ShortcutProvider.tsx';
+import { SkipLink } from '../ui/SkipLink.tsx';
 import type { MenuItem } from '../ui/Menu.tsx';
 import { Splitter } from '../ui/Splitter.tsx';
 import { useToast } from '../ui/Toast.tsx';
@@ -108,24 +112,18 @@ function PlanFrame({ open, system }: { open: OpenPlan; /** A Windows-colour (con
     content.current?.style.setProperty('--d-inspector-width', `${String(p.inspectorWidth)}px`);
   }, [p.inspectorWidth]);
 
-  // Undo and redo anywhere outside a text field (the shortcut registry takes these over in S3.5).
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent): void => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.defaultPrevented) return;
-      const k = e.key.toLowerCase();
-      if (e.ctrlKey && !e.altKey && k === 'z' && !e.shiftKey) {
-        e.preventDefault();
-        session.undo();
-      } else if (e.ctrlKey && !e.altKey && (k === 'y' || (k === 'z' && e.shiftKey))) {
-        e.preventDefault();
-        session.redo();
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => {
-      window.removeEventListener('keydown', onKey);
-    };
-  }, []);
+  // Shortcuts (S3.5 registry). Undo/redo are "system": they work even with shortcuts turned off.
+  useShortcut({ id: 'general.undo', keys: 'Ctrl+Z', description: 'Undo', group: 'General', scope: 'global', system: true, run: () => { session.undo(); } });
+  useShortcut({ id: 'general.redo', keys: 'Ctrl+Shift+Z', description: 'Redo', group: 'General', scope: 'global', system: true, run: () => { session.redo(); } });
+  useShortcut({ id: 'general.redoAlt', keys: 'Ctrl+Y', description: 'Redo', group: 'General', scope: 'global', system: true, run: () => { session.redo(); } });
+  useShortcut({ id: 'nav.plan', keys: 'G then P', description: 'Go to Plan', group: 'Navigation', scope: 'global', run: () => { navigate({ kind: 'plan' }); } });
+  useShortcut({ id: 'nav.reflect', keys: 'G then R', description: 'Go to Reflect', group: 'Navigation', scope: 'global', run: () => { navigate({ kind: 'reflect' }); } });
+  useShortcut({ id: 'nav.accounts', keys: 'G then A', description: 'Go to All Accounts', group: 'Navigation', scope: 'global', run: () => { navigate({ kind: 'accounts', accountId: null }); } });
+  useShortcut({ id: 'nav.toggleSidebar', keys: 'Ctrl+B', description: 'Collapse or expand the sidebar', group: 'Navigation', scope: 'global', run: () => { prefs.update({ sidebarCollapsed: !prefs.get().sidebarCollapsed }); } });
+
+  // Moving between screens puts keyboard focus at the start of the new screen.
+  const routeKey = route.kind === 'accounts' ? `accounts:${route.accountId ?? 'all'}` : route.kind;
+  useRouteFocus(routeKey, content);
 
   const actions: Actions = useMemo(
     () => ({
@@ -211,13 +209,19 @@ function PlanFrame({ open, system }: { open: OpenPlan; /** A Windows-colour (con
           setDialog('addAccount');
         }}
       />
+      <SkipLink targetId="main" />
       <div
         ref={content}
+        id="main"
+        tabIndex={-1}
+        role="main"
+        aria-label={route.kind === 'reflect' ? 'Reflect' : route.kind === 'accounts' ? 'Accounts' : 'Plan'}
         className={cx('hd', 'hd-embedded', styles.content)}
         data-nocolor={String(p.noColor || system)}
         data-theme-system={String(system)}
         key={path}
       >
+        <ErrorBoundary area={route.kind === 'reflect' ? 'Reflect' : route.kind === 'accounts' ? 'This account' : 'The plan'} resetKey={routeKey}>
         {route.kind === 'reflect' ? (
           <ReflectScreen plan={open.plan} today={today} sampleLabel={false} />
         ) : route.kind === 'accounts' ? (
@@ -243,6 +247,7 @@ function PlanFrame({ open, system }: { open: OpenPlan; /** A Windows-colour (con
             }
           />
         )}
+        </ErrorBoundary>
       </div>
       <NewPlanDialog
         open={dialog === 'new'}

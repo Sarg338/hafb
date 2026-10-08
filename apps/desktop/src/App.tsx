@@ -7,8 +7,12 @@ import { appIpc, type LaunchTiming } from './shell/ipc.ts';
 import { useRoute } from './shell/router.ts';
 import { session } from './shell/session.ts';
 import { Shell } from './shell/Shell.tsx';
+import { prefs, usePrefs } from './shell/prefs.ts';
 import { ConfirmProvider } from './ui/Dialog.tsx';
-import { ToastProvider } from './ui/Toast.tsx';
+import { ErrorBoundary } from './ui/ErrorBoundary.tsx';
+import { installGlobalErrorHandlers } from './ui/errors.ts';
+import { ShortcutProvider } from './ui/shortcuts/ShortcutProvider.tsx';
+import { ToastProvider, useToast } from './ui/Toast.tsx';
 import './ui/base.css';
 
 declare global {
@@ -51,12 +55,38 @@ function useStartup(): void {
   }, []);
 }
 
+/** Unexpected errors anywhere (window errors, rejected promises) become an error toast. */
+function GlobalErrors() {
+  const { toast } = useToast();
+  useEffect(
+    () =>
+      installGlobalErrorHandlers((d) => {
+        toast({ text: `${d.title}. ${d.message}`, tone: 'error' });
+      }),
+    [toast],
+  );
+  return null;
+}
+
 export function App() {
   const route = useRoute();
+  const p = usePrefs();
   useStartup();
   return (
-    <ToastProvider>
-      <ConfirmProvider>{route.kind === 'dev' ? route.page === 'design' ? <DesignApp /> : <Gallery /> : <Shell />}</ConfirmProvider>
-    </ToastProvider>
+    <ErrorBoundary area="HAFB">
+      <ToastProvider>
+        <ConfirmProvider>
+          <ShortcutProvider
+            enabled={p.shortcutsOn}
+            onEnabledChange={(on) => {
+              prefs.update({ shortcutsOn: on });
+            }}
+          >
+            <GlobalErrors />
+            {route.kind === 'dev' ? route.page === 'design' ? <DesignApp /> : <Gallery /> : <Shell />}
+          </ShortcutProvider>
+        </ConfirmProvider>
+      </ToastProvider>
+    </ErrorBoundary>
   );
 }

@@ -16,6 +16,8 @@ export interface Prefs {
   /** Explicitly expanded sections that are collapsed by default. */
   expandedSections: string[];
   inspectorWidth: number;
+  /** Keyboard shortcuts on (CLAUDE.md §6.14 "shortcuts on/off"). */
+  shortcutsOn: boolean;
   /** Last route per plan file path, to reopen where the user left off. */
   lastRoute: Record<string, string>;
 }
@@ -33,6 +35,7 @@ export const DEFAULT_PREFS: Prefs = {
   collapsedSections: [],
   expandedSections: [],
   inspectorWidth: INSPECTOR_DEFAULT,
+  shortcutsOn: true,
   lastRoute: {},
 };
 
@@ -63,6 +66,7 @@ export function parsePrefs(text: string | null): Prefs {
     collapsedSections: strings(raw.collapsedSections),
     expandedSections: strings(raw.expandedSections),
     inspectorWidth: Math.min(INSPECTOR_MAX, Math.max(INSPECTOR_MIN, width)),
+    shortcutsOn: raw.shortcutsOn !== false,
     lastRoute,
   };
 }
