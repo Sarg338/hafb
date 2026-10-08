@@ -60,7 +60,7 @@ The 2026-10-08 research (YNAB What's New and help center) found that CLAUDE.md w
 
 ## Phase 1: Budget engine (pure TypeScript, tests first)
 
-> **Status: complete 2026-10-08, awaiting Sarg's sign-off.** Tests were run on Sarg's machine.
+> **Status: done, signed off by Sarg 2026-10-08.** Tests were run on Sarg's machine. The YNAB-trial check of the §13 rules is pending (`docs/ynab-trial-scenario.md`; predictions frozen).
 > - **Tests:** 221 tests (186 engine), and a 400-plan property test of the reconciliation identity.
 > - **Golden test:** 98.4% of YNAB's own values match to the cent, including every regular category. The 95 payment-category values that differ are documented in budget-math §12.
 > - **Performance:** recompute median 14.8 ms against the 50 ms budget.

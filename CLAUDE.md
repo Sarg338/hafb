@@ -375,7 +375,7 @@ The full sprint plan with exit criteria is in `docs/roadmap.md`. Phases were ren
 
 Mark phase status here when it changes:
 - Phase 0: done. Validated on Sarg's machine 2026-10-08 (ADR 0001 §7). The spike screens (`apps/desktop/src/spike/`, `src-tauri/src/spike/`) stay until S3.3 replaces them.
-- Phase 1: complete 2026-10-08, awaiting Sarg's sign-off. Engine tests are green on Sarg's machine; the golden export matches 98.4% to the cent (budget-math §12); open verifications are in budget-math §13.
+- Phase 1: done, signed off by Sarg 2026-10-08. The golden export matches 98.4% to the cent (budget-math §12). Still open: verifying the rules in budget-math §13 against Sarg's YNAB trial (`docs/ynab-trial-scenario.md`); HAFB's predictions are frozen in `packages/engine/test/__snapshots__/trialScenario.test.ts.snap`. Compare when the results arrive.
 - Phase 2: todo
 - Phase 3: todo
 - Phase 4: todo
