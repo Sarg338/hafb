@@ -12,5 +12,8 @@
   },
   "dependencies": {
     "@hafb/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.4"
   }
 }

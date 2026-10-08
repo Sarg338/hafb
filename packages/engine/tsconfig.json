@@ -1,9 +1,10 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    // No DOM types: the engine must not touch the browser, Tauri, or I/O.
+    // No DOM types: the engine must not touch the browser or Tauri. Node types exist only so
+    // tests can read fixtures; ESLint bans Node imports and globals in src/ (eslint.config.mjs).
     "lib": ["ES2023"],
-    "types": []
+    "types": ["node"]
   },
   "include": ["src", "test"]
 }

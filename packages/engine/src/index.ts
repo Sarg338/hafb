@@ -1,5 +1,9 @@
 /**
- * HAFB budget engine. Pure: snapshot in, computed BudgetState out.
- * No budget logic yet — Phase 1 (CLAUDE.md §7) builds §5 here, tests first.
+ * HAFB budget engine. Pure: snapshot in, computed state out. No I/O, no clock, no randomness.
+ * Rules: CLAUDE.md §5. Worked examples: docs/budget-math.md.
  */
-export const ENGINE_API_VERSION = 0;
+export * from './model.ts';
+export * from './errors.ts';
+export * from './budget.ts';
+export * from './ynab/csv.ts';
+export * from './ynab/toSnapshot.ts';

@@ -143,8 +143,9 @@ available(m) = available(m-1)_carried + assigned(m) + activity(m)
 - `available(m-1)_carried`:
   - if `available(m-1) >= 0` → carries forward in full.
   - if `available(m-1) < 0` and the overspending is **cash** → carries as `0`; the shortfall reduces next month's Ready to Assign (see 5.3).
-  - if `available(m-1) < 0` and the overspending is **credit** → carries forward as the negative amount (the category stays red until covered). YNAB calls this "credit overspending."
-- A month's overspending is classified as **cash** if the net category overspending is covered by cash-account outflows, otherwise **credit**. Precisely: for the month, compute the category's outflows from credit accounts vs. cash accounts; overspending is attributed to credit first up to the credit outflow total, remainder is cash. Document and test the edge case where both exist.
+  - if `available(m-1) < 0` and the overspending is **credit** → also carries as `0`. The uncovered amount stays as card debt the payment category doesn't cover (an underfunded payment category), and it does **not** reduce Ready to Assign.
+    - *Corrected 2026-10-08.* This file previously said credit overspending "carries forward as the negative amount". That's wrong per YNAB's docs ([overspending](https://support.ynab.com/en_us/overspending-in-ynab-a-guide-ryWoxEyi), [month rollover](https://support.ynab.com/en_us/when-the-month-rolls-over-a-guide-rkyyd6qC9)) and per real data: all 186 negative month-ends in the golden export reset to 0.
+- A month's overspending is classified at **month level, credit first**: overspending is attributed to credit up to the category's net credit-card spending that month, and the remainder is cash. Verified on the golden export; a chronological model fits much worse. Documented with examples in `docs/budget-math.md` §3.
 
 ### 5.2 Ready to Assign (RTA)
 ```
@@ -161,6 +162,7 @@ RTA(m) = RTA(m-1)
 ### 5.3 Credit cards
 - Creating a credit card account creates a hidden-from-user-deletion category *"<Card Name>"* in the *Credit Card Payments* group, linked via `credit_card_account_id`.
 - A categorized outflow on a credit card account moves money: category available decreases by the amount, **and** the CC payment category available increases by the same amount — but only up to the amount the category actually had. If the category was already at 0 or would go negative, the uncovered portion does **not** move to the payment category (this is the mechanism behind credit overspending).
+- When the credit overspending in a category involves several cards (or several card transactions), the unfunded part is taken from the **most recent card outflows first** (last in, first out; ties broken by entry order). This is inferred from the golden data, not documented by YNAB; it fixed every case where two cards share an overspent category.
 - A transfer from a cash account to the CC account is a payment: it reduces the CC payment category's available by the payment amount and does not touch any other category.
 - Inflows (refunds) categorized on a CC account reverse the movement.
 - Interest/fees charged on the card are regular categorized outflows on the card (user categorizes them, usually to a "Interest & Fees" category).

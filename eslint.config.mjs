@@ -20,6 +20,13 @@ const pureRules = {
     { object: 'Date', property: 'now', message: 'Pass `today` in; the engine is pure.' },
     { object: 'Math', property: 'random', message: 'The engine is deterministic.' },
   ],
+  'no-restricted-globals': [
+    'error',
+    { name: 'process', message: 'No I/O or environment access in pure packages.' },
+    { name: 'Buffer', message: 'No I/O in pure packages.' },
+    { name: 'setTimeout', message: 'The engine is synchronous and deterministic.' },
+    { name: 'setInterval', message: 'The engine is synchronous and deterministic.' },
+  ],
   'no-restricted-syntax': [
     'error',
     { selector: "NewExpression[callee.name='Date']", message: 'Use ISODate/Month strings and helpers in @hafb/shared, never Date objects.' },
@@ -51,7 +58,7 @@ export default defineConfig(
   },
 
   {
-    files: ['packages/engine/**/*.ts', 'packages/shared/**/*.ts'],
+    files: ['packages/engine/src/**/*.ts', 'packages/shared/src/**/*.ts'],
     rules: pureRules,
   },
 
