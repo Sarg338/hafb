@@ -16,6 +16,8 @@
     "lint:clippy": "cargo clippy --manifest-path apps/desktop/src-tauri/Cargo.toml --workspace --all-targets -- -D warnings",
     "test:rust": "cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml --workspace",
     "build": "pnpm --filter @hafb/desktop tauri build && node scripts/build-report.mjs",
+    "smoke": "node --experimental-strip-types --no-warnings --test --test-concurrency=1 apps/desktop/smoke/app.smoke.ts",
+    "smoke:build": "pnpm build && pnpm smoke",
     "import:ynab": "node --experimental-strip-types --no-warnings scripts/import-ynab.ts"
   },
   "devDependencies": {
