@@ -16,3 +16,4 @@ export * from './payees.ts';
 export * from './ageOfMoney.ts';
 export * from './loans.ts';
 export * from './reports.ts';
+export * from './balances.ts';
