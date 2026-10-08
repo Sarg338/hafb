@@ -46,6 +46,7 @@ interface Observed {
     ageOfMoney: number | null;
   };
   loan: { payoff: string; payments: number; interest: number };
+  followUps?: { ageOfMoneyAfterFuelFix: number; groceriesAt350: { assignMore: number; toGo: number } };
 }
 
 /** "🛒 Groceries" → "Groceries" */
@@ -192,6 +193,20 @@ describe.skipIf(!present)('golden: Sarg’s YNAB trial plan (local only)', () =>
     const n = obs.reports.netWorthOct;
     expect(nw && [nw.assets, nw.debts, nw.netWorth, nw.change]).toEqual([n.assets, n.debts, n.net, n.change]);
     expect(ageOfMoney(snapshot, today)).toBe(obs.reports.ageOfMoney);
+  });
+
+  it('follow-ups: Age of Money once there are 10 outflows; the weekly creation-date rule', () => {
+    const f = obs.followUps;
+    if (!f) return;
+    // Sarg corrected the Oct 5 fuel purchase to a $200 outflow → 10 outflows → YNAB: 4 days.
+    const fixed = register.map((r) => (r.payee === 'Gas Station' && r.date === '2026-10-05' ? { ...r, amount: minor(-20_000) } : r));
+    const s2 = ynabExportToSnapshot(plan, fixed, { today, accountTypes: { house: 'mortgage' } }).snapshot;
+    expect(ageOfMoney(s2, today)).toBe(f.ageOfMoneyAfterFuelFix);
+    // Groceries temporarily assigned $350 in October → YNAB: "Assign $50.00 more", $50 to go.
+    const s3 = { ...snapshot, assignments: snapshot.assignments.map((a) => (a.categoryId === id('Groceries') && a.month === '2026-10' ? { ...a, assigned: minor(35_000) } : a)) };
+    const st3 = computeBudget(s3, { today, throughMonth: '2026-11' });
+    const g = evaluateTargets(targets, monthState(st3, '2026-10'), (c, mm) => monthState(st3, mm).categories[c]?.assigned ?? minor(0), { today })[id('Groceries')];
+    expect([g?.underfunded, g?.toGo]).toEqual([f.groceriesAt350.assignMore, f.groceriesAt350.toGo]);
   });
 
   it('mortgage payoff: date and payment count exact; interest differs by a known $0.50', () => {

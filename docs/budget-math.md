@@ -152,7 +152,7 @@ A target is a **cadence** (weekly / monthly / yearly / custom ± repeat) plus a 
 **Corrected and confirmed by the YNAB trial (2026-10-08, §12.2):**
 - **Have a balance of, no date:** shows progress and to go, but `neededThisMonth = 0` and no "Assign" prompt; it's excluded from Cost to Be Me.
 - **Weekly targets:** in the month a target is created, due days before its creation date need no funding. Example: Groceries, created Thu Oct 8 with $400 assigned against 5 Saturdays. YNAB shows *Needed $500, Funded $400, To go $0, met*.
-  - Inferred from one case. An alternative ("money already spent counts") also fits; a discriminating check is pending (§13 Q4).
+  - Confirmed by a follow-up: with $350 assigned, YNAB asks for $50 more (4 remaining Saturdays × $100 − $350).
 - **Refill up to, viewed in a future month:** leftover money is ignored. November shows Groceries *Funded $0.00* despite $185 left over (YNAB's API docs say the same). Yearly refill targets still count it.
 - **Status:** overspending isn't a target status. An overspent category whose assignment meets its target shows the target as met.
 - **Cost to Be Me** = full weekly/monthly amounts + this month's share of multi-month targets. No-date balances are excluded and snoozed targets included: **$1,390.01** exactly.
@@ -550,9 +550,9 @@ Each item needs real YNAB behavior to confirm. The optional YNAB free-trial scen
 | # | Topic | Status after the YNAB trial (2026-10-08) |
 |---|---|---|
 | Q1 | Ready to Assign breakdown fields (D11) | ✅ **Verified.** YNAB lists the non-zero lines (inflows this month, assigned this month, total); the engine provides every line |
-| Q2 | Age of Money algorithm (D7) | ⏳ **Partly.** "Empty before 10 transactions, a split counts once" is verified. The value itself is unverified: the trial had 9 outflows (see the pending check) |
+| Q2 | Age of Money algorithm (D7) | ✅ **Verified on the trial:** empty before 10 transactions (a split counts once); with 10 outflows YNAB shows **4 days**, as predicted (first in, first out). In this data a simple mean and an amount-weighted mean both give 4, so which one YNAB uses is not yet distinguished |
 | Q3 | Fresh Start starting balances (D12) | ⏳ Pending: Part 8 of the trial (do last) |
-| Q4 | Target formulas | ✅ **Verified** on 19 cards across 8 behaviors. One inference remains: weekly creation-date vs "spending counts" (pending check) |
+| Q4 | Target formulas | ✅ **Verified** on 19 cards across 8 behaviors, plus the weekly creation-date rule: Groceries at $350 shows "Assign $50.00 more", as predicted (the "spending counts" alternative would have shown it met) |
 | Q5 | Average Assigned/Spent window | ✅ **Verified:** months the plan has |
 | Q6 | Underfunded with scheduled transactions | ✅ **Verified:** funded to the bill's total, current month only |
 | Q7 | Loan interest accrual | ⚠️ **Near-match.** Payoff date and 360 payments are exact; total interest differs by $0.50 over 30 years, and no rounding method tried reproduces YNAB's cents (YNAB's own totals disagree by $0.01) |
