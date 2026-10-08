@@ -382,6 +382,18 @@ export function setFlag(plan: PlanData, _ctx: CommandContext, args: { transactio
   return { label: args.flag === null ? 'Clear flag' : 'Set flag', changes: d.build() };
 }
 
+/** Name a flag colour (YNAB's custom flag names); an empty name goes back to the colour. */
+export function setFlagName(plan: PlanData, _ctx: CommandContext, args: { color: FlagColor; name: string }): Command {
+  const d = new Draft(plan);
+  const name = args.name.trim();
+  if (name === '') {
+    if (d.get('flagNames', args.color)) d.remove('flagNames', args.color);
+  } else {
+    d.put('flagNames', { color: args.color, name });
+  }
+  return { label: name === '' ? 'Clear flag name' : `Name flag: ${name}`, changes: d.build() };
+}
+
 /** Approve transactions; approving one leg of a transfer approves the other (§5.12). */
 export function approveTransactions(plan: PlanData, _ctx: CommandContext, args: { transactionIds: readonly Id[] }): Command {
   const d = new Draft(plan);
