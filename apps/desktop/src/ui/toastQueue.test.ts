@@ -43,6 +43,13 @@ describe('toast queue', () => {
     expect(s.queue.map((x) => x.id)).toEqual([2]);
   });
 
+  it('a newer change replaces an older Undo toast (Undo always applies to the latest change)', () => {
+    let s = toastReducer(emptyToasts, { type: 'replace', toast: { ...t(1, 'Hid “Groceries”.'), action: { label: 'Undo', onAction: () => undefined } } });
+    s = toastReducer(s, { type: 'replace', toast: { ...t(2, 'Deleted “Pets”.'), action: { label: 'Undo', onAction: () => undefined } } });
+    expect(s.current?.id).toBe(2);
+    expect(s.queue).toEqual([]);
+  });
+
   it('errors jump the queue but never replace a visible error', () => {
     let s = toastReducer(emptyToasts, { type: 'push', toast: t(1) });
     s = toastReducer(s, { type: 'push', toast: t(2) });

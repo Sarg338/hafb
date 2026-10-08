@@ -129,8 +129,8 @@ function PlanFrame({ open, system }: { open: OpenPlan; /** A Windows-colour (con
 
   const actions: Actions = useMemo(
     () => ({
-      run: (build) => {
-        session.run(build);
+      run: (build, options) => {
+        session.run(build, options);
       },
       undo: () => {
         session.undo();

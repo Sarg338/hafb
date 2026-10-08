@@ -58,6 +58,11 @@ export interface OpenPlan {
   inMemory?: boolean;
 }
 
+export interface RunOptions {
+  /** Toast text offering Undo once the command is applied. */
+  announce?: string;
+}
+
 export interface SessionState {
   recent: readonly RecentPlan[];
   open: OpenPlan | null;
@@ -288,8 +293,11 @@ class PlanSession {
     this.setOpen({ month });
   }
 
-  /** Apply a command now (optimistic) and persist it with its undo-log row. */
-  run(build: (plan: PlanData, ctx: CommandContext) => Command): void {
+  /**
+   * Apply a command now (optimistic) and persist it with its undo-log row. `announce` shows a toast
+   * with Undo (deletes, hides, moves: changes the user might not see happen).
+   */
+  run(build: (plan: PlanData, ctx: CommandContext) => Command, options: RunOptions = {}): void {
     const open = this.state.open;
     if (!open) return;
     let command: Command;
@@ -299,7 +307,8 @@ class PlanSession {
       this.notify(errorMessage(e), 'error');
       return;
     }
-    this.commit(historyDo(open.history, open.plan, command.changes, command.label));
+    const step = historyDo(open.history, open.plan, command.changes, command.label);
+    this.commit(step, step && options.announce !== undefined ? options.announce : undefined, step && options.announce !== undefined ? 'undo' : undefined);
   }
 
   undo(): void {

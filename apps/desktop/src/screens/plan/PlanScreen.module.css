@@ -208,3 +208,61 @@
     min-width: 76px;
   }
 }
+
+/* ---- editing (S4.2) -------------------------------------------------------------------------- */
+
+.nameButton {
+  min-width: 0;
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.nameButton:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.groupLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.groupButton {
+  font-weight: inherit;
+}
+
+/* The group's "add a category" button shows on hover, like YNAB's. */
+.groupAdd {
+  opacity: 0;
+  transition: opacity var(--m-fast) var(--m-ease);
+}
+
+[role='row']:hover .groupAdd,
+[role='row']:focus-within .groupAdd,
+.groupAdd:focus-visible {
+  opacity: 1;
+}
+
+.gridWrap {
+  position: relative;
+}
+
+/* Where a dragged category or group will land. */
+.dropLine {
+  position: absolute;
+  right: 0;
+  left: 40px;
+  z-index: 3;
+  height: var(--s-focus-width);
+  margin-top: -1px;
+  background: var(--c-focus);
+  pointer-events: none;
+}

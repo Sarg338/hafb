@@ -1,0 +1,37 @@
+/* Plan editing surfaces (S4.2): the name popover and the delete dialog's body. Tokens only. */
+
+.popover {
+  width: 320px;
+}
+
+.form {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.body {
+  display: grid;
+  gap: 12px;
+}
+
+.lead {
+  margin: 0;
+  color: var(--c-text);
+}
+
+.facts {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--c-text-muted);
+}

@@ -1,7 +1,7 @@
 // The Plan screen (S4.1): month header with Ready to Assign, focused views, and the category grid,
 // rebuilt from the component library in the approved S3.1 look (ADR 0007). Numbers come from the
 // engine through planModel; edits go through store commands (CLAUDE.md §10).
-import { useCallback, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { useCallback, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react';
 import type { Id } from '@hafb/engine';
 import { addMonths, minor, monthOf, monthParts, type ISODate, type Minor, type Month } from '@hafb/shared';
 import { applyPlanChange, setAssigned, setMonthNote, type PlanData } from '@hafb/store';
@@ -26,7 +26,9 @@ import { NARROW_WINDOW, useMediaQuery } from '../shared/useMediaQuery.ts';
 import { assignChoices } from './assignOptions.ts';
 import { planModel } from './planModel.ts';
 import { planBounds } from './planMonths.ts';
-import { groupIds, HIDDEN_SECTION_ID, overspentCount, planRows, type PlanCategoryRow, type PlanRow, type ViewFilter } from './planRows.ts';
+import { rectOf, usePlanEditing } from './PlanEditing.tsx';
+import { groupIds, HIDDEN_SECTION_ID, overspentCount, planRows, type PlanCategoryRow, type PlanGroupRow, type PlanRow, type ViewFilter } from './planRows.ts';
+import { usePlanDrag } from './usePlanDrag.ts';
 import styles from './PlanScreen.module.css';
 
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -73,6 +75,36 @@ export function PlanScreen({ plan, planPath, today, month, setMonth, actions, hi
   );
 
   const rows = useMemo(() => planRows(model, filter), [model, filter]);
+  const rowInfo = useMemo(() => new Map(rows.map((r) => [r.id, { row: r.data, groupId: r.groupId }])), [rows]);
+  const [request, setRequest] = useState<{ cell: { rowId: string; columnId: string }; edit: boolean; key: number } | undefined>(undefined);
+  const editing = usePlanEditing({
+    plan,
+    month,
+    today,
+    actions,
+    onCreated: (rowId, groupId) => {
+      // Show it: open its group, leave a filter that would hide it, and move the grid there.
+      if (collapsed.has(groupId)) setCollapsed(new Set([...collapsed].filter((g) => g !== groupId)));
+      setFilter('all');
+      setRequest((r) => ({ cell: { rowId, columnId: 'category' }, edit: false, key: (r?.key ?? 0) + 1 }));
+    },
+  });
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const drag = usePlanDrag({ wrap: wrapRef, rows: rowInfo, onDropCategory: editing.moveCategory, onDropGroup: editing.moveGroup });
+  const justDragged = drag.justDragged;
+  const openRename = editing.openRename;
+  const openAddCategory = editing.openAddCategory;
+  const nameActions = useMemo(
+    () => ({
+      rename: (id: string, el: Element) => {
+        if (!justDragged.current) openRename(id, rectOf(el));
+      },
+      addCategory: (groupId: string, el: Element) => {
+        openAddCategory(groupId, rectOf(el));
+      },
+    }),
+    [justDragged, openRename, openAddCategory],
+  );
   const overspent = overspentCount(model);
   // Leaving a filter that no longer applies (the last overspent category got covered).
   if (filter === 'overspent' && overspent === 0) setFilter('all');
@@ -100,7 +132,8 @@ export function PlanScreen({ plan, planPath, today, month, setMonth, actions, hi
         header: 'Category',
         width: narrow ? 180 : 220,
         flex: true,
-        render: (r) => (r.data.kind === 'group' ? r.data.name : <CategoryCell row={r.data} showBar={p.showProgressBars} />),
+        render: (r) =>
+          r.data.kind === 'group' ? <GroupName id={r.id} row={r.data} on={nameActions} /> : <CategoryCell row={r.data} showBar={p.showProgressBars} on={nameActions} />,
       },
       {
         id: 'assigned',
@@ -137,7 +170,7 @@ export function PlanScreen({ plan, planPath, today, month, setMonth, actions, hi
           ),
       },
     ],
-    [money, model.fmt, month, assign, p.showProgressBars, narrow, moneyWidth],
+    [money, model.fmt, month, assign, p.showProgressBars, narrow, moneyWidth, nameActions],
   );
 
   // Esc deselects all (YNAB), when the grid is navigating rather than editing.
@@ -217,7 +250,13 @@ export function PlanScreen({ plan, planPath, today, month, setMonth, actions, hi
         </div>
 
         <div className={styles.toolbar}>
-          <Button variant="toolbar" icon="add">
+          <Button
+            variant="toolbar"
+            icon="add"
+            onClick={(e) => {
+              editing.openAddGroup(rectOf(e.currentTarget));
+            }}
+          >
             Category Group
           </Button>
           <Button variant="toolbar" icon="undo" disabled={!history.canUndo} title={history.undoLabel ? `Undo ${history.undoLabel} (Ctrl+Z)` : 'Nothing to undo'} onClick={actions.undo}>
@@ -235,7 +274,7 @@ export function PlanScreen({ plan, planPath, today, month, setMonth, actions, hi
           </span>
         </div>
 
-        <div className={styles.gridWrap} onKeyDown={onGridKeyDown} onKeyDownCapture={onGridKeyDownCapture}>
+        <div ref={wrapRef} className={styles.gridWrap} onKeyDown={onGridKeyDown} onKeyDownCapture={onGridKeyDownCapture} onPointerDown={drag.onPointerDown}>
           <DataGrid<PlanRow>
             label="Categories"
             rows={rows}
@@ -248,9 +287,13 @@ export function PlanScreen({ plan, planPath, today, month, setMonth, actions, hi
             onCollapsedChange={setCollapsed}
             editOnClick={EDIT_ON_CLICK}
             enterMoves="down"
+            onRowContextMenu={editing.openMenu}
+            {...(request ? { request } : {})}
             empty={filter === 'all' ? 'No categories yet. Add a category group to start your plan.' : 'No categories in this view this month.'}
           />
+          {drag.indicator && <div className={styles.dropLine} style={{ top: drag.indicator.top }} aria-hidden="true" />}
         </div>
+        {editing.element}
       </section>
       {inspectorEdge !== undefined && <div className={styles.inspectorEdge}>{inspectorEdge}</div>}
       <Inspector model={model} selected={selected} actions={actions} />
@@ -260,17 +303,80 @@ export function PlanScreen({ plan, planPath, today, month, setMonth, actions, hi
 
 const EDIT_ON_CLICK = ['assigned'] as const;
 
-function CategoryCell({ row, showBar }: { row: PlanCategoryRow; showBar: boolean }) {
+interface NameActions {
+  rename: (id: string, el: Element) => void;
+  addCategory: (groupId: string, el: Element) => void;
+}
+
+/** Keeps the grid from also selecting the row (or stealing focus) when a name button is pressed. */
+const stopGrid = (e: MouseEvent): void => {
+  e.stopPropagation();
+};
+
+function CategoryCell({ row, showBar, on }: { row: PlanCategoryRow; showBar: boolean; on: NameActions }) {
   const { view } = row;
+  const hidden = row.groupId === HIDDEN_SECTION_ID;
   return (
     <span className={styles.catName}>
-      <span className={styles.name}>{row.name}</span>
+      {row.payment ? (
+        <span className={styles.name} data-drag={hidden ? undefined : 'category'} data-drag-id={row.id}>
+          {row.name}
+        </span>
+      ) : (
+        <button
+          type="button"
+          tabIndex={-1}
+          className={cx(styles.name, styles.nameButton)}
+          data-drag={hidden ? undefined : 'category'}
+          data-drag-id={row.id}
+          title={hidden ? undefined : 'Rename, hide or delete (drag to move)'}
+          onMouseDown={stopGrid}
+          onClick={(e) => {
+            on.rename(row.id, e.currentTarget);
+          }}
+        >
+          {row.name}
+        </button>
+      )}
       <span className={cx(styles.message, view.messageTone === 'warn' && styles.warn, view.messageTone === 'bad' && styles.bad)}>{view.message}</span>
       {showBar && view.bar && (
         <span className={styles.bar}>
           <ProgressBar segments={view.bar.segments} fillPercent={view.bar.fillPercent} spentPercent={view.bar.spentPercent} state={view.barState} />
         </span>
       )}
+    </span>
+  );
+}
+
+function GroupName({ id, row, on }: { id: string; row: PlanGroupRow; on: NameActions }) {
+  if (row.system !== null) return <span className={styles.groupLabel}>{row.name}</span>;
+  return (
+    <span className={styles.groupLabel}>
+      <button
+        type="button"
+        tabIndex={-1}
+        className={cx(styles.name, styles.nameButton, styles.groupButton)}
+        data-drag="group"
+        data-drag-id={id}
+        title="Rename, hide or delete (drag to move)"
+        onMouseDown={stopGrid}
+        onClick={(e) => {
+          on.rename(id, e.currentTarget);
+        }}
+      >
+        {row.name}
+      </button>
+      <IconButton
+        icon="add"
+        size="small"
+        label={`Add a category to ${row.name}`}
+        tabIndex={-1}
+        className={styles.groupAdd}
+        onMouseDown={stopGrid}
+        onClick={(e) => {
+          on.addCategory(id, e.currentTarget);
+        }}
+      />
     </span>
   );
 }

@@ -170,6 +170,17 @@ The 2026-10-08 research (YNAB What's New and help center) found that CLAUDE.md w
   - Shortcuts: the full verified list is in `ynabShortcuts.ts`. Date keys follow YNAB: Shift+M and Shift+Y end the month and year.
   - Exit check: `pnpm smoke` drives the release app through every month of the public YNAB export (59 months, 3,363 rows) and the trial plan, and every name, Assigned, Activity, Available and Ready to Assign value matches the engine.
   - Look: compared with `.impeccable/review/desktop.png`. The only differences are rows 0.6 px shorter (the DataGrid's 34 px token) and Recent Moves shown disabled until S5.7.
+- **S4.2 done (2026-10-08).**
+  - Editing:
+    - Click a name to rename it; the same popover has Hide and Delete.
+    - The row menu (right-click, Shift+F10 or the Menu key) offers rename, add a category, move up/down, hide/unhide and delete.
+    - **+ Category Group**, plus a hover **+** on each group to add a category.
+    - Drag to reorder categories (within and across groups) and groups.
+  - Rules and feedback:
+    - Delete asks where the history goes only when there is some. A store change made `reassignTo` optional for unused categories, with tests.
+    - Hides, deletes and moves toast with Undo, and a newer toast replaces an older Undo toast.
+    - Credit Card Payments stays first, and its categories can't leave it.
+  - Exit check: smoke tests in the release app cover rename, add, hide, delete-with-reassign and drag, each undone. Ready to Assign is unchanged, and a dragged order survives a relaunch.
 
 ## Phase 5: Planning power → **M2**
 

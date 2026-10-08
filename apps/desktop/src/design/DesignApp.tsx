@@ -18,7 +18,8 @@ import './design.css';
 export type Screen = { kind: 'plan' } | { kind: 'reflect' } | { kind: 'register'; accountId: Id | null };
 
 export interface Actions {
-  run: (build: (plan: PlanData, ctx: CommandContext) => Command) => void;
+  /** `announce`: toast text offering Undo (deletes, hides, moves). */
+  run: (build: (plan: PlanData, ctx: CommandContext) => Command, options?: { announce?: string }) => void;
   undo: () => void;
   redo: () => void;
   navigate: (screen: Screen) => void;

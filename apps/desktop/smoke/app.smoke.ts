@@ -289,3 +289,113 @@ for (const source of realExports()) {
     });
   });
 }
+
+// ---- S4.2 exit: every Plan edit is undoable, with a toast ----------------------------------------
+void describe('plan editing', () => {
+  let box: Sandbox;
+  let app: App;
+  before(async () => {
+    box = makeSandbox();
+    app = await launch(box, ['--open', box.planPath]);
+    await app.page.getByRole('treegrid', { name: 'Categories' }).waitFor();
+  });
+  after(async () => {
+    await app.close();
+    box.cleanup();
+  });
+
+  const nameButton = (page: Page, name: string) => page.locator('[data-drag-id]', { hasText: new RegExp(`^${name}$`) });
+  const rowNames = (page: Page) => page.$$eval('[role=row][data-row-id] [data-drag-id]', (els) => els.map((e) => e.textContent.trim()));
+  const toast = (page: Page, text: RegExp) => page.locator('[role=status]', { hasText: text }).first();
+  const undo = async (page: Page): Promise<void> => {
+    await page.locator('#main').focus();
+    await page.keyboard.press('Control+z');
+  };
+
+  void test('rename a category, then undo', async () => {
+    const { page } = app;
+    await nameButton(page, 'Electric').click();
+    await page.getByRole('textbox', { name: 'Category name' }).fill('Electricity');
+    await page.keyboard.press('Enter');
+    await nameButton(page, 'Electricity').waitFor();
+    await undo(page);
+    await toast(page, /Undid: Rename category: Electric/).waitFor();
+    await nameButton(page, 'Electric').waitFor();
+  });
+
+  void test('add a group and a category, then undo both', async () => {
+    const { page } = app;
+    await page.getByRole('button', { name: 'Category Group' }).click();
+    await page.getByRole('textbox', { name: 'New group name' }).fill('Someday');
+    await page.keyboard.press('Enter');
+    const group = page.locator('[role=row]', { has: page.locator('[data-drag=group]', { hasText: 'Someday' }) });
+    await group.waitFor();
+    await group.hover();
+    await group.getByRole('button', { name: 'Add a category to Someday' }).click();
+    await page.getByRole('textbox', { name: 'New category name' }).fill('Sailboat');
+    await page.keyboard.press('Enter');
+    await nameButton(page, 'Sailboat').waitFor();
+    await undo(page);
+    await nameButton(page, 'Sailboat').waitFor({ state: 'detached' });
+    await undo(page);
+    await group.waitFor({ state: 'detached' });
+  });
+
+  void test('hide from the row menu; the toast offers Undo', async () => {
+    const { page } = app;
+    const before = await rta(page);
+    const row = page.locator('[role=row]', { has: nameButton(page, 'Groceries') });
+    await row.locator('[data-col=activity]').click({ button: 'right' });
+    await page.getByRole('menuitem', { name: 'Hide' }).click();
+    const note = toast(page, /Hid “Groceries”/);
+    await note.waitFor();
+    assert.ok((await rowNames(page)).every((n) => n !== 'Groceries'), 'Groceries left its group (Hidden Categories is collapsed)');
+    assert.equal(await rta(page), before);
+    await note.getByRole('button', { name: 'Undo' }).click();
+    await nameButton(page, 'Groceries').waitFor();
+  });
+
+  void test('delete with reassignment keeps Ready to Assign; undo restores it', async () => {
+    const { page } = app;
+    const before = await rta(page);
+    await nameButton(page, 'Pets').click();
+    await page.getByRole('button', { name: 'Delete' }).click();
+    const dialog = page.getByRole('dialog', { name: /Delete Pets/ });
+    await dialog.getByRole('combobox').fill('Household');
+    await page.keyboard.press('Enter');
+    await dialog.getByRole('button', { name: 'Reassign and delete' }).click();
+    await toast(page, /Deleted “Pets”/).waitFor();
+    await nameButton(page, 'Pets').waitFor({ state: 'detached' });
+    assert.equal(await rta(page), before);
+    await undo(page);
+    await nameButton(page, 'Pets').waitFor();
+    assert.equal(await rta(page), before);
+  });
+
+  void test('drag a category to a new place, undo, and the order survives a relaunch', async () => {
+    const { page } = app;
+    const order = async (): Promise<string[]> => (await rowNames(page)).filter((n) => ['Mortgage', 'Car Payment', 'Streaming'].includes(n));
+    assert.deepEqual(await order(), ['Mortgage', 'Car Payment', 'Streaming']);
+    const src = await nameButton(page, 'Streaming').boundingBox();
+    const dst = await nameButton(page, 'Mortgage').boundingBox();
+    assert.ok(src && dst);
+    await page.mouse.move(src.x + 8, src.y + src.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(src.x + 8, src.y - 20, { steps: 4 });
+    await page.mouse.move(dst.x + 8, dst.y + 2, { steps: 8 });
+    await page.mouse.up();
+    await toast(page, /Moved “Streaming”/).waitFor();
+    assert.deepEqual(await order(), ['Streaming', 'Mortgage', 'Car Payment']);
+    await undo(page);
+    await page.waitForTimeout(200);
+    assert.deepEqual(await order(), ['Mortgage', 'Car Payment', 'Streaming']);
+    // Redo, quit, reopen: the new order is in the file.
+    await page.keyboard.press('Control+Shift+z');
+    await page.waitForTimeout(800);
+    await app.close();
+    app = await launch(box, ['--open', box.planPath]);
+    await app.page.getByRole('treegrid', { name: 'Categories' }).waitFor();
+    const reopened = (await rowNames(app.page)).filter((n) => ['Mortgage', 'Car Payment', 'Streaming'].includes(n));
+    assert.deepEqual(reopened, ['Streaming', 'Mortgage', 'Car Payment']);
+  });
+});
