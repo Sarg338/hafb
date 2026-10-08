@@ -1,0 +1,51 @@
+/* Recoverable error panel: the approved raised card, with the overspent hue only on the icon. */
+
+.panel {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  max-width: 560px;
+  margin: 24px;
+  padding: 16px 20px;
+  border: var(--s-border-width) solid var(--c-border-strong);
+  border-radius: var(--s-radius-large);
+  background: var(--c-raised);
+  color: var(--c-text);
+  box-shadow: 0 8px 24px var(--c-shadow);
+}
+
+.icon {
+  margin-top: 2px;
+  color: var(--c-bad-text);
+}
+
+.text {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.title {
+  margin: 0;
+  font-family: var(--t-font-display);
+  font-size: var(--t-size-subtitle);
+  font-weight: var(--t-weight-semibold);
+}
+
+.message {
+  margin: 0;
+  font-size: var(--t-size-body);
+  overflow-wrap: anywhere;
+}
+
+.note {
+  margin: 0;
+  color: var(--c-text-muted);
+  font-size: var(--t-size-small);
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}

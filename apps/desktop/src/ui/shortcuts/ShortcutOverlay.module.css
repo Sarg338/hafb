@@ -1,0 +1,106 @@
+/* `?` overlay: list rows in the approved table grammar (hairline rows, muted labels, Kbd chips). */
+
+.controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.controls > :first-child {
+  flex: 1;
+  max-width: 280px;
+}
+
+.offNote {
+  margin: 0;
+  color: var(--c-text-muted);
+  font-size: var(--t-size-small);
+}
+
+.groups {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 4px 24px;
+  max-height: min(56vh, 520px);
+  overflow: auto;
+}
+
+.group {
+  margin: 12px 0 2px;
+  color: var(--c-text-muted);
+  font-family: var(--t-font-label);
+  font-size: var(--t-size-micro);
+  font-weight: var(--t-label-weight);
+  letter-spacing: var(--t-label-tracking);
+  text-transform: var(--t-label-transform);
+}
+
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: var(--d-row-register);
+  padding: 4px 0;
+  border-bottom: var(--s-border-width) solid var(--c-border);
+}
+
+.row[data-status='planned'],
+.row[data-status='off'] {
+  color: var(--c-text-muted);
+}
+
+.row[data-status='planned'] .keys,
+.row[data-status='off'] .keys {
+  opacity: 0.6;
+}
+
+.description {
+  display: grid;
+  min-width: 0;
+  font-size: var(--t-size-body);
+}
+
+.note {
+  color: var(--c-text-subtle);
+  font-size: var(--t-size-micro);
+}
+
+.keys {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+}
+
+.step {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.then {
+  color: var(--c-text-subtle);
+  font-size: var(--t-size-micro);
+}
+
+.conflicts {
+  padding: 8px 12px;
+  border: var(--s-border-width) solid var(--c-bar-underfunded);
+  border-radius: var(--s-radius);
+  background: var(--c-underfunded-bg);
+  color: var(--c-underfunded-fg);
+  font-size: var(--t-size-small);
+}
+
+.conflicts ul {
+  margin: 4px 0 0;
+  padding-left: 18px;
+}
