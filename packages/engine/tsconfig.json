@@ -1,0 +1,9 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // No DOM types: the engine must not touch the browser, Tauri, or I/O.
+    "lib": ["ES2023"],
+    "types": []
+  },
+  "include": ["src", "test"]
+}

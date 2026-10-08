@@ -1,0 +1,17 @@
+node_modules/
+dist/
+*.tsbuildinfo
+.vite/
+
+# Rust / Tauri
+apps/desktop/src-tauri/target/
+apps/desktop/src-tauri/gen/
+
+# Budget / spike data files never belong in the repo
+*.hafb
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+
+.DS_Store
+Thumbs.db
