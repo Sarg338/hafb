@@ -94,7 +94,7 @@ Entities (table ≈ TS type ≈ Rust struct; keep them in lockstep via `packages
   - The system groups are *Credit Card Payments* and *Hidden Categories*, plus the implicit *Inflow* group that holds *Ready to Assign*.
 - **Category:** group, name, hidden, note, sort order, `credit_card_account_id` (set only for CC payment categories).
 - **Target:** one per category, cadence × behavior (§5.4).
-  - Fields: snoozed months, created/updated.
+  - Fields: snoozed months, created date (`createdOn`), updated.
   - Not versioned: an edit applies to all past and future months, as in YNAB.
 - **FocusedView:** name, sort order, category ids.
   - Up to 12 custom views. The built-in views (Underfunded, Overfunded, Snoozed, Money Available, plus Overspent when applicable) store only their order.
@@ -106,7 +106,7 @@ Entities (table ≈ TS type ≈ Rust struct; keep them in lockstep via `packages
     - Category is nullable for transfers between on-budget accounts and for off-budget accounts.
   - State: `cleared: uncleared | cleared | reconciled`, `approved: bool`, flag color (nullable).
   - Links: `transfer_transaction_id` (the paired leg), `scheduled_transaction_id` (origin, if any).
-  - Import: import id (FITID or synthetic), matched-import metadata (original bank payee/memo as imported).
+  - Import: import id (FITID or synthetic), matched-import metadata (original bank payee/memo as imported), `isStartingBalance` (YNAB payee "Starting Balance").
   - Soft delete: deleted.
 - **Subtransaction:** parent transaction, category, payee (optional override), memo, amount, transfer leg.
   - Invariant: the parent amount must equal the sum of its subtransactions. Enforced in the engine and by a DB trigger.
@@ -203,8 +203,13 @@ Rules:
   - Progress-bar data: rollover section, one section per week for weekly targets, an "extra" section when spending exceeds the target; light shade = spent, dark = available.
   - Progress-ring percentage.
 - **Snooze:** for the current month only; underfunded = 0 that month and status = snoozed.
+- **Verified against YNAB (trial, 2026-10-08):**
+  - "Have a balance of" with no date never asks for money (no underfunded amount, not in Cost to Be Me).
+  - Weekly due days before the target's creation date need no funding.
+  - Refill targets viewed in a **future** month ignore leftover money (weekly/monthly cadences).
+  - Overspending is not a target status: status is snoozed / underfunded / funded / on track / inactive.
 - **Expiry:** a non-repeating target whose due month has passed becomes inactive.
-- **Cost to Be Me:** the sum of this month's target amounts compared with the plan's expected income.
+- **Cost to Be Me:** the sum of full weekly/monthly target amounts plus this month's share of multi-month targets (no-date balances excluded), compared with the plan's expected income.
 - **Edit Plan** can suggest target amounts from historical spending.
 
 ### 5.5 Auto-assign
@@ -219,6 +224,12 @@ These options act on the selected categories, or else on the current Focused Vie
 - `Reset Assigned Amounts` (set assigned to 0).
 
 Each option shows its amount before committing. Averages use integer division with round-half-up to the currency's minor unit. Every auto-assign action is one undo step and logs `MoneyMove`s.
+
+Verified against YNAB (trial):
+- "Spent" is −activity with its sign, and payment categories are skipped.
+- Options that look back do nothing when the plan has no earlier month; averages use the months the plan has.
+- Underfunded also covers scheduled bills with no target (current month) and a payment category's uncovered card debt (minus this month's credit overspending).
+- Reset options act only on selected categories.
 
 ### 5.6 Move money, cover overspending, Plan Reset
 - **Move money:** between any two categories (or Ready to Assign) within a month. `assigned` changes on both sides, net zero.
@@ -266,7 +277,7 @@ Loans are their own off-budget account group.
 - On the date, each one becomes a real transaction, shown **bold and unapproved**. There's no launch-time review prompt; this replaces the old CLAUDE.md rule.
 - Actions: *Enter Now*, *Skip*, *Make repeating* (Shift+T).
 - A day-of-month past the end of a month clamps to the last day.
-- **Shortfall warning:** if a category's available amount won't cover its upcoming scheduled outflows this month, flag it (calendar icon) and show "available after upcoming" in the inspector.
+- **Shortfall warning:** if a category's available amount won't cover its upcoming scheduled outflows this month, flag it (calendar icon) and show "available after upcoming" in the inspector. Scheduled transactions are **not** projected into future months (YNAB trial).
 
 ### 5.12 Approval and matching
 - `approved` is false for imported and auto-entered transactions. **Unapproved transactions still count** in the plan.
@@ -375,7 +386,7 @@ The full sprint plan with exit criteria is in `docs/roadmap.md`. Phases were ren
 
 Mark phase status here when it changes:
 - Phase 0: done. Validated on Sarg's machine 2026-10-08 (ADR 0001 §7). The spike screens (`apps/desktop/src/spike/`, `src-tauri/src/spike/`) stay until S3.3 replaces them.
-- Phase 1: done, signed off by Sarg 2026-10-08. The golden export matches 98.4% to the cent (budget-math §12). Still open: verifying the rules in budget-math §13 against Sarg's YNAB trial (`docs/ynab-trial-scenario.md`); HAFB's predictions are frozen in `packages/engine/test/__snapshots__/trialScenario.test.ts.snap`. Compare when the results arrive.
+- Phase 1: done, signed off by Sarg 2026-10-08. Verified against two real YNAB sources (budget-math §12): the public export (98.4% exact, every regular category exact) and Sarg's YNAB trial plan (every value YNAB showed matches after 9 rule corrections; mortgage interest within $0.50). Remaining open items are in budget-math §13 (Age of Money value, Fresh Start, one weekly-target inference).
 - Phase 2: todo
 - Phase 3: todo
 - Phase 4: todo

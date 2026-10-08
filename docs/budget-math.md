@@ -149,11 +149,15 @@ A target is a **cadence** (weekly / monthly / yearly / custom ± repeat) plus a 
 | 6.7 | Have a balance of $10,000 by May 2027 with $1,111.12 | **11%**, to go $8,888.88 | YNAB example |
 | 6.8 | Snoozed this month | underfunded 0 this month only | Documented |
 
-**Assumptions** (also in §13):
-1. A non-repeating target's single period starts in the month it was created.
-2. Multi-month shares round up.
-3. Cost to Be Me uses `neededThisMonth`.
-4. Overspent outranks underfunded in status.
+**Corrected and confirmed by the YNAB trial (2026-10-08, §12.2):**
+- **Have a balance of, no date:** shows progress and to go, but `neededThisMonth = 0` and no "Assign" prompt; it's excluded from Cost to Be Me.
+- **Weekly targets:** in the month a target is created, due days before its creation date need no funding. Example: Groceries, created Thu Oct 8 with $400 assigned against 5 Saturdays. YNAB shows *Needed $500, Funded $400, To go $0, met*.
+  - Inferred from one case. An alternative ("money already spent counts") also fits; a discriminating check is pending (§13 Q4).
+- **Refill up to, viewed in a future month:** leftover money is ignored. November shows Groceries *Funded $0.00* despite $185 left over (YNAB's API docs say the same). Yearly refill targets still count it.
+- **Status:** overspending isn't a target status. An overspent category whose assignment meets its target shows the target as met.
+- **Cost to Be Me** = full weekly/monthly amounts + this month's share of multi-month targets. No-date balances are excluded and snoozed targets included: **$1,390.01** exactly.
+- **Rounding:** multi-month shares round **up**. Confirmed by the .01 in Cost to Be Me (Vacation $133.34).
+- **Confirmed unchanged:** set aside / refill / have-a-balance formulas, months remaining, and progress %. All 19 cards matched in October and November.
 
 ## 7. Plan operations (CLAUDE.md §5.5, §5.6, §5.14)
 
@@ -183,7 +187,16 @@ Every operation is pure. It returns assignment deltas and their total (the amoun
   - Each open account gets one starting-balance transaction dated today, equal to its current balance (on-budget → Ready to Assign).
   - **D12:** YNAB's exact starting-balance rule is unverified (§13).
 
-**Verification:** documented, plus end-to-end tests that apply the deltas and recompute.
+**Corrected and confirmed by the YNAB trial (§12.2):**
+- **Spent Last Month / Average Spent:** use −activity **with its sign**; a category with net inflow counts negative. They skip credit card payment categories. November: **$1,410.00**.
+- **Options that look back:** with no earlier month in the plan, Assigned/Spent Last Month and the averages do nothing (all **$0.00** in October). Averages use the months the plan has (November Average Assigned = October's **$2,430.00**).
+- **Underfunded:**
+  - It includes a scheduled bill with no target (Utilities $15) and covers overspending first.
+  - A credit card payment category adds its uncovered card debt minus this month's credit overspending. Amex owes $50 with $40 set aside: **$0** in October (Dining out's $10 is already counted as overspending), **$10** in November.
+  - Totals: **$285.01** (Oct) and **$1,395.00** (Nov), both exact.
+- **Reset Available / Reset Assigned** act only on selected categories; with nothing selected YNAB shows $0.00. That's a UI scope rule.
+
+**Verification:** YNAB trial for Auto-Assign and Cost to Be Me. Move money, cover overspending, Plan Reset and Fresh Start: documented, plus end-to-end tests.
 
 ## 8. Transaction logic (S1.6)
 
@@ -464,7 +477,9 @@ Spending is outflows net of refunds; it's negative when refunds win.
 - **Net income:** 750 | 1,220 (total 1,970).
 - **Exclusions (YNAB):** tracking-account activity and starting balances are left out, so net income doesn't match the change in net worth. A December-only report of checking + house shows $0 income: the Dec 31 starting balance is excluded, and the house is off-budget.
 
-## 12. Golden test against a real YNAB export
+## 12. Golden tests against real YNAB data
+
+### 12.1 Public export
 
 **Data and how it's run:**
 - **Data:** a public, real export (Plan.csv + Register.csv, exported 2026-09-14). It covers 58 months, 51 categories, 36 accounts (6 credit cards) and 7,571 transactions.
@@ -498,21 +513,51 @@ Spending is outflows net of refunds; it's negative when refunds win.
 
 Only its August Ready to Assign ($10,000 in − $1,000 assigned = $9,000) is usable, and it matches §2. No other public source carries YNAB-computed Ready to Assign, target, Age of Money, loan or report values. The items in §13 can only be verified with a real YNAB plan.
 
+### 12.2 Sarg's YNAB trial plan (2026-10-08)
+
+**How it was run:**
+- **Setup:** Sarg ran `docs/ynab-trial-scenario.md` in a YNAB trial. YNAB's numbers were read from the live plan in Chrome (screenshots) and from its export.
+- **Test:** `goldenTrial.test.ts` holds every observed value. Local data is in `test/fixtures/local/ynab-trial/`.
+- **Data entry:** one row was entered differently from the script (the $200 fuel purchase as an inflow). The engine was run on what was actually entered.
+- **Fairness:** HAFB's predictions for the scripted plan were frozen before the trial (commit `7ace1fd`).
+
+**Results:**
+
+| Check | Before fixes | After (`bdd53dd`) |
+|---|---|---|
+| Plan.csv Activity and Available (all 17 categories) | ✅ exact | ✅ |
+| Ready to Assign Oct/Nov ($3,070.00) and breakdown (Inflow +$5,500, Assigned −$2,430) | ✅ | ✅ |
+| Month summaries (left over, assigned, activity, available) | ✅ | ✅ |
+| 19 target cards (needed, funded, to go, assign, %) | ❌ 4 rules | ✅ |
+| Cost to Be Me $1,390.01 | ❌ | ✅ |
+| Upcoming bills (current month only) | ❌ | ✅ |
+| Auto-Assign: Underfunded $285.01 / $1,395.00; Assigned/Spent last month, averages | ❌ | ✅ |
+| Spending Breakdown $1,410.00 (net) and percentages | ❌ | ✅ |
+| Income v Expense $4,500 / −$1,410; Net Worth (change $0 in month one) | ❌ | ✅ |
+| Age of Money empty before 10 transactions (a split is one) | ❌ importer | ✅ |
+| Mortgage payoff Oct 2056, 360 payments | ✅ | ✅ |
+| Mortgage total interest | $0.50 off | $0.50 off (pinned) |
+
+**Also confirmed:**
+- **Credit card funding and payments** (Visa $10, Amex $40), including the most-recent-spending-unfunded-first rule.
+- **Credit overspending:** it does **not** reduce next month's Ready to Assign ($3,070.00 in November), and the category resets to $0.
+- **Export format:** split rows carry `Split (k/n)`, and starting balances use the payee `Starting Balance`.
+
 ## 13. Open questions and assumptions
 
 Each item needs real YNAB behavior to confirm. The optional YNAB free-trial scenario (roadmap S1.7) is the planned way to check them.
 
-| # | Topic | Our choice | How to verify | Blocks |
-|---|---|---|---|---|
-| Q1 | Ready to Assign breakdown fields (D11) | left over / cash overspending last month / inflows / assigned / assigned in future | Screenshot YNAB's popover | S4.3 |
-| Q2 | Age of Money algorithm (D7) | First in, first out on cash inflows to Ready to Assign; simple mean of the last 10 outflows; card payments count (§9) | Trial scenario with known dates | S6.3 |
-| Q3 | Fresh Start starting balances (D12) | Current balance, dated today | Run a Fresh Start in a trial | S7.2 |
-| Q4 | Target formulas not shown in YNAB examples | Ceiling shares; a non-repeating period starts at creation; status order (§6) | Trial scenario with targets | S5.2 |
-| Q5 | Average Assigned/Spent window | Up to the previous 12 months the plan has | Trial scenario | S5.3 |
-| Q6 | Underfunded with scheduled transactions and no target | Refill to the month's scheduled total | Trial scenario | S5.3 |
-| Q7 | Loan interest accrual | Simple monthly accrual on the opening balance (§10) | A real loan statement | S6.4 |
-| Q8 | Converted-account card behavior (§12) | Not modeled | Trial account that changes type | S2.4 |
-| Q9 | Split rows in the YNAB export | Each row is its own transaction (budget math unaffected) | Trial export containing a split | S2.4 |
-| Q10 | YNAB's "Credit Card Interest" categorization (rolling out Oct 2026) | Not modeled | Wait for documentation | S4.7 |
-| Q11 | "Twice a month" and other recurrence edge cases | Anchor day + 15, clamped (§8.1) | Trial scheduled transactions | S5.4 |
-| Q12 | Reports: positive-inflow section, income grouping | As documented in §11 | Compare with YNAB Reflect | S6.2–S6.3 |
+| # | Topic | Status after the YNAB trial (2026-10-08) |
+|---|---|---|
+| Q1 | Ready to Assign breakdown fields (D11) | ✅ **Verified.** YNAB lists the non-zero lines (inflows this month, assigned this month, total); the engine provides every line |
+| Q2 | Age of Money algorithm (D7) | ⏳ **Partly.** "Empty before 10 transactions, a split counts once" is verified. The value itself is unverified: the trial had 9 outflows (see the pending check) |
+| Q3 | Fresh Start starting balances (D12) | ⏳ Pending: Part 8 of the trial (do last) |
+| Q4 | Target formulas | ✅ **Verified** on 19 cards across 8 behaviors. One inference remains: weekly creation-date vs "spending counts" (pending check) |
+| Q5 | Average Assigned/Spent window | ✅ **Verified:** months the plan has |
+| Q6 | Underfunded with scheduled transactions | ✅ **Verified:** funded to the bill's total, current month only |
+| Q7 | Loan interest accrual | ⚠️ **Near-match.** Payoff date and 360 payments are exact; total interest differs by $0.50 over 30 years, and no rounding method tried reproduces YNAB's cents (YNAB's own totals disagree by $0.01) |
+| Q8 | Converted-account card behavior (public export, 95 values) | ❓ Unexplained; optional trial extra |
+| Q9 | Split rows in the export | ✅ **Verified:** `Split (k/n)` rows, recombined on import |
+| Q10 | YNAB "Credit Card Interest" categorization | ⏳ Rolling out; not modeled |
+| Q11 | Recurrence edge cases (twice a month, 31st) | ⏳ Documented only |
+| Q12 | Reports | ✅ **Verified** for October: Spending Breakdown, Income v Expense, Net Worth |
