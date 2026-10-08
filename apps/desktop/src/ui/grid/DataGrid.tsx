@@ -85,6 +85,11 @@ export interface DataGridProps<T> {
   initialEditing?: boolean;
   /** Move to (and optionally edit) a cell after mount, e.g. the new row after Ctrl+Enter. Change `key` to repeat. */
   request?: { cell: CellRef; edit: boolean; key: number };
+  /**
+   * One row shown taller with extra content underneath it, spanning all columns (the register's
+   * Cancel / Save strip under the transaction being edited).
+   */
+  expandedRow?: { id: string; height: number; content: ReactNode };
   /** The scroll element (benchmarks drive scrollTop). */
   scrollRef?: Ref<HTMLDivElement>;
   className?: string;
@@ -127,17 +132,24 @@ interface RowProps {
   isEditable: (rowId: string, columnId: string) => boolean;
   top: number;
   ariaRowIndex: number;
+  /** Content under the row's cells (expandedRow), and its height. */
+  extra?: ReactNode;
+  extraHeight?: number;
 }
 
-const Row = memo(function Row({ vrow, columns, selectable, selected, activeColumn, editingColumn, renderCell, isEditable, top, ariaRowIndex }: RowProps) {
+const Row = memo(function Row({ vrow, columns, selectable, selected, activeColumn, editingColumn, renderCell, isEditable, top, ariaRowIndex, extra, extraHeight }: RowProps) {
   const { row } = vrow;
   const isGroup = row.kind === 'group';
   const offset = selectable ? 1 : 0;
   return (
     <div
       role="row"
-      className={cx(styles.row, isGroup ? styles.group : styles.item)}
-      style={{ transform: `translateY(${String(top)}px)` }}
+      className={cx(styles.row, isGroup ? styles.group : styles.item, extra !== undefined && styles.expanded)}
+      style={
+        extra !== undefined && extraHeight !== undefined
+          ? { transform: `translateY(${String(top)}px)`, height: `calc(var(--grid-row-height) + ${String(extraHeight)}px)`, gridTemplateRows: `var(--grid-row-height) ${String(extraHeight)}px` }
+          : { transform: `translateY(${String(top)}px)` }
+      }
       aria-rowindex={ariaRowIndex}
       aria-selected={isGroup ? undefined : selected}
       aria-level={vrow.expanded !== undefined || vrow.level === 2 ? vrow.level : undefined}
@@ -190,6 +202,7 @@ const Row = memo(function Row({ vrow, columns, selectable, selected, activeColum
           </div>
         );
       })}
+      {extra !== undefined && <div className={styles.rowExtra}>{extra}</div>}
     </div>
   );
 });
@@ -297,7 +310,16 @@ export function DataGrid<T>(props: DataGridProps<T>) {
 
   // Stable callbacks: TanStack Virtual memoizes its measurements on getItemKey's identity, and a
   // fresh closure per render would re-measure every row on every scroll frame.
-  const estimateSize = useCallback((i: number) => (visible[i]?.row.kind === 'group' ? metrics.group : metrics.row), [visible, metrics]);
+  const expandedId = props.expandedRow?.id;
+  const expandedHeight = props.expandedRow?.height ?? 0;
+  const estimateSize = useCallback(
+    (i: number) => {
+      const r = visible[i]?.row;
+      if (r?.kind === 'group') return metrics.group;
+      return r !== undefined && r.id === expandedId ? metrics.row + expandedHeight : metrics.row;
+    },
+    [visible, metrics, expandedId, expandedHeight],
+  );
   const getItemKey = useCallback((i: number) => visible[i]?.row.id ?? i, [visible]);
   const getScrollElement = useCallback(() => scrollEl.current, []);
   // React Compiler is not enabled in this project; the rule only notes the compiler would skip this component.
@@ -312,7 +334,7 @@ export function DataGrid<T>(props: DataGridProps<T>) {
   });
   useEffect(() => {
     virtualizer.measure();
-  }, [metrics, virtualizer]);
+  }, [metrics, virtualizer, expandedId, expandedHeight]);
 
   const nav = useCallback(
     (): NavContext => ({
@@ -476,6 +498,8 @@ export function DataGrid<T>(props: DataGridProps<T>) {
     const hit = cellFrom(e.target);
     if (!hit) return;
     const { cell } = hit;
+    // Controls inside a cell (a row being edited, a cleared or flag button) handle their own clicks.
+    if (e.target instanceof Element && e.target.closest('input, textarea, select, [role=combobox], [data-interactive]')) return;
     // Clicks inside the open editor belong to the editor.
     if (editing && sameCell(editing.cell, cell)) return;
     if (editing) onEditEnd('blur');
@@ -717,6 +741,7 @@ export function DataGrid<T>(props: DataGridProps<T>) {
                 isEditable={isEditable}
                 top={vi.start - virtualizer.options.scrollMargin}
                 ariaRowIndex={vi.index + 2}
+                {...(props.expandedRow && props.expandedRow.id === vrow.row.id ? { extra: props.expandedRow.content, extraHeight: props.expandedRow.height } : {})}
               />
             );
           })}
