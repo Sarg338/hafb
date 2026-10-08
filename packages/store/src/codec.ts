@@ -139,13 +139,13 @@ function corrupt(table: string, column: string, value: unknown, expected: string
 
 /** Typed, validated access to one positional row. */
 class Reader {
+  // No parameter properties: Node's type stripping (scripts/) only accepts erasable syntax.
+  private readonly table: string;
   private readonly index: Map<string, number>;
   row: readonly SqlValue[] = [];
 
-  constructor(
-    private readonly table: string,
-    columns: readonly string[],
-  ) {
+  constructor(table: string, columns: readonly string[]) {
+    this.table = table;
     this.index = new Map(columns.map((c, i) => [c, i]));
   }
 

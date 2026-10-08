@@ -1,0 +1,9 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    // Node scripts run with `node --experimental-transform-types`.
+    "lib": ["ES2023"],
+    "types": ["node"]
+  },
+  "include": ["*.ts"]
+}

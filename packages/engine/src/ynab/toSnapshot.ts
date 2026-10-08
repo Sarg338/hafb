@@ -44,6 +44,11 @@ export interface YnabImportResult {
   accounts: InferredAccount[];
   /** "Group: Category" → category id. */
   categoryIds: Record<string, Id>;
+  /**
+   * The register rows behind each transaction (one row, or a split's lines in order), so importers
+   * can recover what the snapshot doesn't carry: payee names, flags, memos.
+   */
+  sourceRows: Record<Id, readonly YnabRegisterRow[]>;
   warnings: string[];
 }
 
@@ -139,6 +144,7 @@ export function ynabExportToSnapshot(
   // Sarg's trial export, 2026-10-08). Recombine them into one transaction with subtransactions:
   // a split is one transaction for Age of Money and the register.
   const transactions: Transaction[] = [];
+  const sourceRows: Record<Id, readonly YnabRegisterRow[]> = {};
   for (let i = 0; i < current.length; i += 1) {
     const r = current[i];
     if (!r) continue;
@@ -163,6 +169,7 @@ export function ynabExportToSnapshot(
           ...(memo === '' ? {} : { memo }),
         };
       });
+      sourceRows[`txn:${String(i)}`] = parts;
       transactions.push({
         id: `txn:${String(i)}`,
         accountId: accountId(r.account),
@@ -187,6 +194,7 @@ export function ynabExportToSnapshot(
       ...(r.payee === 'Starting Balance' && l.counterpart === undefined ? { isStartingBalance: true } : {}),
     };
     if (l.transfer !== undefined) tx.transferAccountId = l.transfer;
+    sourceRows[tx.id] = [r];
     transactions.push(tx);
   }
 
@@ -213,6 +221,7 @@ export function ynabExportToSnapshot(
     scheduled: [...scheduled],
     accounts: inferred,
     categoryIds,
+    sourceRows,
     warnings,
   };
 }
