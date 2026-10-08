@@ -18,6 +18,12 @@ export interface Prefs {
   inspectorWidth: number;
   /** Keyboard shortcuts on (CLAUDE.md §6.14 "shortcuts on/off"). */
   shortcutsOn: boolean;
+  /** Plan Display Options: target progress bars under category names. */
+  showProgressBars: boolean;
+  /** Hide Amounts: money is masked everywhere until turned off. */
+  hideAmounts: boolean;
+  /** Collapsed category groups per plan file path (absent = only Hidden Categories collapsed). */
+  collapsedGroups: Record<string, string[]>;
   /** Last route per plan file path, to reopen where the user left off. */
   lastRoute: Record<string, string>;
 }
@@ -36,6 +42,9 @@ export const DEFAULT_PREFS: Prefs = {
   expandedSections: [],
   inspectorWidth: INSPECTOR_DEFAULT,
   shortcutsOn: true,
+  showProgressBars: true,
+  hideAmounts: false,
+  collapsedGroups: {},
   lastRoute: {},
 };
 
@@ -58,6 +67,8 @@ export function parsePrefs(text: string | null): Prefs {
   const width = typeof raw.inspectorWidth === 'number' && Number.isFinite(raw.inspectorWidth) ? Math.round(raw.inspectorWidth) : INSPECTOR_DEFAULT;
   const lastRoute: Record<string, string> = {};
   if (isRecord(raw.lastRoute)) for (const [k, v] of Object.entries(raw.lastRoute)) if (typeof v === 'string') lastRoute[k] = v;
+  const collapsedGroups: Record<string, string[]> = {};
+  if (isRecord(raw.collapsedGroups)) for (const [k, v] of Object.entries(raw.collapsedGroups)) if (Array.isArray(v)) collapsedGroups[k] = strings(v);
   return {
     version: 1,
     theme,
@@ -67,6 +78,9 @@ export function parsePrefs(text: string | null): Prefs {
     expandedSections: strings(raw.expandedSections),
     inspectorWidth: Math.min(INSPECTOR_MAX, Math.max(INSPECTOR_MIN, width)),
     shortcutsOn: raw.shortcutsOn !== false,
+    showProgressBars: raw.showProgressBars !== false,
+    hideAmounts: raw.hideAmounts === true,
+    collapsedGroups,
     lastRoute,
   };
 }

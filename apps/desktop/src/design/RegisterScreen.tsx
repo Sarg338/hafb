@@ -2,7 +2,9 @@
 // Balances come from the engine; rows are the plan's records; edits go through real commands.
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { READY_TO_ASSIGN, type CategoryRef, type ClearedState, type FlagColor, type Id, CASH_ACCOUNT_TYPES } from '@hafb/engine';
-import { asISODate, dateParts, formatMoney, isISODate, minor, neg, parseDecimal, ZERO, type ISODate, type Minor } from '@hafb/shared';
+import { asISODate, dateParts, isISODate, minor, neg, parseDecimal, ZERO, type ISODate, type Minor } from '@hafb/shared';
+import { usePrefs } from '../shell/prefs.ts';
+import { moneyText } from '../screens/shared/money.ts';
 import {
   addTransaction,
   applyChanges,
@@ -19,7 +21,7 @@ import {
 } from '@hafb/store';
 import { Icon, type IconName } from '../ui/Icon.tsx';
 import type { Actions } from './DesignApp.tsx';
-import { moneyFormat } from './planModel.ts';
+import { moneyFormat } from '../screens/plan/planModel.ts';
 import './register.css';
 
 const TYPE_LABEL: Record<string, string> = {
@@ -89,7 +91,8 @@ interface Draft {
 
 export function RegisterScreen({ plan, today, accountId, actions }: { plan: PlanData; today: ISODate; accountId: Id | null; actions: Actions }) {
   const fmt = moneyFormat(plan);
-  const money = (m: Minor): string => formatMoney(m, fmt);
+  const { hideAmounts } = usePrefs();
+  const money = moneyText(fmt, hideAmounts);
   const balances = planBudget(plan, { today }).accountBalances;
   const account = accountId === null ? undefined : plan.accounts.find((a) => a.id === accountId);
   const [selected, setSelected] = useState<ReadonlySet<Id>>(new Set());

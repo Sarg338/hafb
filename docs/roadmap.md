@@ -159,6 +159,18 @@ The 2026-10-08 research (YNAB What's New and help center) found that CLAUDE.md w
 | **S4.7 Credit cards** | Payment-category UI, activity popover (spending / returns / funded / payments), **Record Payment**, pay-in-full gap and underfunded alert, credit overspending display, CC interest handling (if D10 adopts it). | Sarg's real cards match YNAB for 2+ months. |
 | **S4.8 Undo everywhere + M1** | Ctrl+Z / Ctrl+Shift+Z (+ Ctrl+Y) on every action with descriptive toasts; edge-case sweep; performance re-check on the real file. | **M1:** two weeks of parallel use, and the numbers match. |
 
+**Phase 4 progress** (production screens per ADR 0007):
+- **S4.1 done (2026-10-08).**
+  - What's built:
+    - The Plan screen is rebuilt in `src/screens/plan` on the DataGrid: month picker, month note, Ready to Assign banner with an Assign menu, Focused View chips and the Hidden Categories section.
+    - Collapse and expand all with Ctrl+Up/Down; the collapsed groups are remembered per plan.
+    - Display Options: progress bars on or off, differentiate without color.
+    - Hide Amounts covers the Plan, sidebar, inspector, register and Reflect.
+    - Below 1366 px the money columns narrow, as in the approved layout.
+  - Shortcuts: the full verified list is in `ynabShortcuts.ts`. Date keys follow YNAB: Shift+M and Shift+Y end the month and year.
+  - Exit check: `pnpm smoke` drives the release app through every month of the public YNAB export (59 months, 3,363 rows) and the trial plan, and every name, Assigned, Activity, Available and Ready to Assign value matches the engine.
+  - Look: compared with `.impeccable/review/desktop.png`. The only differences are rows 0.6 px shorter (the DataGrid's 34 px token) and Recent Moves shown disabled until S5.7.
+
 ## Phase 5: Planning power → **M2**
 
 | Sprint | Scope | Done when |

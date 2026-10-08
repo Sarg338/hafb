@@ -68,6 +68,18 @@ describe('design values come from theme tokens', () => {
     expect(found).toEqual([]);
   });
 
+  it('production screen CSS (src/screens) is held to the strict rules too (ADR 0007)', () => {
+    const found = files(join(SRC, 'screens'), /\.css$/).flatMap((f) => violations(f, STRICT));
+    expect(found).toEqual([]);
+  });
+
+  it('production screen TSX (src/screens) has no inline raw colours or fonts', () => {
+    const found = files(join(SRC, 'screens'), /\.tsx?$/)
+      .filter((f) => !f.endsWith('.test.ts'))
+      .flatMap((f) => violations(f, COMMON.slice(0, 3)));
+    expect(found).toEqual([]);
+  });
+
   it('S3.1 mockup CSS (src/design) uses tokens for colour, fonts, radii and rules', () => {
     const found = files(join(SRC, 'design'), /\.css$/).flatMap((f) => violations(f, COMMON));
     expect(found).toEqual([]);

@@ -4,7 +4,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { READY_TO_ASSIGN, type ClearedState } from '@hafb/engine';
 import { formatMoney, minor, neg, uuidv7Generator, type ISODate, type Minor } from '@hafb/shared';
 import { applyChanges, setAssigned, type PlanData } from '@hafb/store';
-import { planModel, moneyFormat } from '../../design/planModel.ts';
+import { planModel, moneyFormat } from '../../screens/plan/planModel.ts';
 import { buildSamplePlan, SAMPLE_TODAY } from '../../design/sample.ts';
 import { CategoryPicker } from '../../ui/CategoryPicker.tsx';
 import { cx } from '../../ui/cx.ts';

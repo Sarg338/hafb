@@ -3,51 +3,17 @@ import type { Id } from '@hafb/engine';
 import { addMonths, formatMoney, minor, monthParts, parseDecimal, ZERO, type ISODate, type Minor, type Month } from '@hafb/shared';
 import { setAssigned, setMonthNote, type PlanData } from '@hafb/store';
 import { Icon } from '../ui/Icon.tsx';
+import { useTweened } from '../ui/useTweened.ts';
 import type { Actions } from './DesignApp.tsx';
 import { Inspector } from './Inspector.tsx';
-import { planModel, type PlanModel } from './planModel.ts';
-import type { BarView, CategoryView } from './planView.ts';
+import { planModel, type PlanModel } from '../screens/plan/planModel.ts';
+import type { BarView, CategoryView } from '../screens/plan/planView.ts';
 
 type ViewFilter = 'all' | 'underfunded' | 'overfunded' | 'available' | 'snoozed' | 'overspent';
 
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 export const monthName = (m: Month): string => MONTH_NAMES[monthParts(m).month - 1] ?? m;
 export const monthShort = (m: Month): string => `${monthName(m).slice(0, 3)} ${String(monthParts(m).year)}`;
-
-/** Animate an integer toward its new value: the signature "cause and effect" motion (180 ms ease-out). */
-function useTweened(value: number): number {
-  const [shown, setShown] = useState(value);
-  const shownRef = useRef(value);
-  const reduced = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  useEffect(() => {
-    const from = shownRef.current;
-    if (from === value || reduced) {
-      shownRef.current = value;
-      return;
-    }
-    const start = performance.now();
-    let raf = 0;
-    const step = (t: number): void => {
-      const k = Math.min(1, (t - start) / 180);
-      const v = Math.round(from + (value - from) * (1 - (1 - k) ** 3));
-      shownRef.current = v;
-      setShown(v);
-      if (k < 1) raf = requestAnimationFrame(step);
-    };
-    raf = requestAnimationFrame(step);
-    // Frames don't run in hidden or minimised windows: always land on the true value.
-    const settle = window.setTimeout(() => {
-      cancelAnimationFrame(raf);
-      shownRef.current = value;
-      setShown(value);
-    }, 220);
-    return () => {
-      cancelAnimationFrame(raf);
-      window.clearTimeout(settle);
-    };
-  }, [value, reduced]);
-  return reduced ? value : shown;
-}
 
 function matches(filter: ViewFilter, model: PlanModel, id: Id): boolean {
   const view = model.views.get(id);

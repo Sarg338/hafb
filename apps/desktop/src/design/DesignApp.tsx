@@ -12,7 +12,7 @@ import { ReflectScreen } from './ReflectScreen.tsx';
 import { RegisterScreen } from './RegisterScreen.tsx';
 import { buildSamplePlan } from './sample.ts';
 import { Sidebar } from './Sidebar.tsx';
-import { moneyFormat } from './planModel.ts';
+import { moneyFormat } from '../screens/plan/planModel.ts';
 import './design.css';
 
 export type Screen = { kind: 'plan' } | { kind: 'reflect' } | { kind: 'register'; accountId: Id | null };

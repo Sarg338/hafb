@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { buildSamplePlan } from '../../design/sample.ts';
-import { moneyFormat } from '../../design/planModel.ts';
+import { moneyFormat } from '../../screens/plan/planModel.ts';
 import { CategoryPicker } from '../../ui/CategoryPicker.tsx';
 import { PayeePicker } from '../../ui/PayeePicker.tsx';
 import { categoryPickerData, payeeGroups } from '../../ui/pickerData.ts';

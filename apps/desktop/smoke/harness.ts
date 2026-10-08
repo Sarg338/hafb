@@ -9,7 +9,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'no
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { chromium, type Browser, type Page } from 'playwright-core';
-import { encodePlan } from '@hafb/store';
+import { encodePlan, type PlanData } from '@hafb/store';
 import { buildSamplePlan } from '../src/design/sample.ts';
 
 export const DESKTOP = resolve(import.meta.dirname, '..');
@@ -24,12 +24,12 @@ export interface Sandbox {
   cleanup: () => void;
 }
 
-/** A temp folder with a fresh copy of the sample household as a real .hafb plan file. */
-export function makeSandbox(): Sandbox {
+/** A temp folder with a real .hafb plan file: the sample household unless another plan is given. */
+export function makeSandbox(plan: PlanData = buildSamplePlan().plan): Sandbox {
   const root = mkdtempSync(join(tmpdir(), 'hafb-smoke-'));
-  const planPath = join(root, 'Sample Household.hafb');
+  const planPath = join(root, `${plan.settings.name.replace(/[^\w -]/g, '')}.hafb`);
   const changes = join(root, 'plan.json');
-  writeFileSync(changes, JSON.stringify(encodePlan(buildSamplePlan().plan)));
+  writeFileSync(changes, JSON.stringify(encodePlan(plan)));
   const r = spawnSync('cargo', ['run', '-q', '--manifest-path', MANIFEST, '-p', 'hafb-store', '--', 'create', planPath], {
     input: readFileSync(changes, 'utf8'),
     encoding: 'utf8',

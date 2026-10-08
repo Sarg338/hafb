@@ -3,11 +3,13 @@
 import { useState, type ReactNode } from 'react';
 import { ageOfMoneySeries, incomeVsExpense, netWorth, spendingBreakdown, spendingTrends, type Id, type SpendingBreakdown } from '@hafb/engine';
 import { addMonths, compareMonths, formatMoney, minor, monthOf, monthParts, type ISODate, type Minor, type MoneyFormat, type Month } from '@hafb/shared';
+import { prefs, usePrefs } from '../shell/prefs.ts';
+import { moneyText } from '../screens/shared/money.ts';
 import { budgetSnapshot, type PlanData } from '@hafb/store';
 import { Icon } from '../ui/Icon.tsx';
 import { donutAngles, donutSlice, linear, niceTicks } from './charts/scale.ts';
 import { SeriesPatterns, Swatch, seriesFill } from './charts/Patterns.tsx';
-import { moneyFormat } from './planModel.ts';
+import { moneyFormat } from '../screens/plan/planModel.ts';
 import './reflect.css';
 
 type Tab = 'breakdown' | 'trends' | 'networth' | 'income' | 'age';
@@ -34,6 +36,7 @@ function tabFromHash(): Tab {
 
 /** Whole-unit axis label from a tick in minor units ("$1,500"). */
 function axisLabel(v: number, fmt: MoneyFormat): string {
+  if (prefs.get().hideAmounts) return moneyText(fmt, true)(minor(0));
   const unit = 10 ** fmt.decimals;
   return formatMoney(minor(Math.round(v / unit)), { ...fmt, decimals: 0 });
 }
@@ -44,7 +47,8 @@ export function ReflectScreen({ plan, today, sampleLabel = true }: { plan: PlanD
   const [tab, setTab] = useState<Tab>(tabFromHash);
   const [range, setRange] = useState<Range>('last3');
   const fmt = moneyFormat(plan);
-  const money = (m: Minor): string => formatMoney(m, fmt);
+  const { hideAmounts } = usePrefs();
+  const money = moneyText(fmt, hideAmounts);
   const snapshot = budgetSnapshot(plan);
   const to = monthOf(today);
   const firstMonth = plan.settings.firstMonth ?? to;

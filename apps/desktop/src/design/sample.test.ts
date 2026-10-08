@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildSamplePlan } from './sample.ts';
-import { planModel } from './planModel.ts';
+import { planModel } from '../screens/plan/planModel.ts';
 
 // The mockups are only useful if the sample shows every state the design must handle.
 describe('sample household', () => {

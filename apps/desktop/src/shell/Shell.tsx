@@ -6,10 +6,11 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 import type { Month } from '@hafb/shared';
 import { canRedo, canUndo, redoLabel, undoLabel } from '@hafb/store';
 import type { Actions, Screen } from '../design/DesignApp.tsx';
-import { PlanScreen } from '../design/PlanScreen.tsx';
 import { ReflectScreen } from '../design/ReflectScreen.tsx';
 import { RegisterScreen } from '../design/RegisterScreen.tsx';
 import '../design/design.css';
+import { shownMonth } from '../screens/plan/planMonths.ts';
+import { PlanScreen } from '../screens/plan/PlanScreen.tsx';
 import { cx } from '../ui/cx.ts';
 import { ErrorBoundary } from '../ui/ErrorBoundary.tsx';
 import { useRouteFocus } from '../ui/focusRoute.ts';
@@ -119,6 +120,7 @@ function PlanFrame({ open, system }: { open: OpenPlan; /** A Windows-colour (con
   useShortcut({ id: 'nav.plan', keys: 'G then P', description: 'Go to Plan', group: 'Navigation', scope: 'global', run: () => { navigate({ kind: 'plan' }); } });
   useShortcut({ id: 'nav.reflect', keys: 'G then R', description: 'Go to Reflect', group: 'Navigation', scope: 'global', run: () => { navigate({ kind: 'reflect' }); } });
   useShortcut({ id: 'nav.accounts', keys: 'G then A', description: 'Go to All Accounts', group: 'Navigation', scope: 'global', run: () => { navigate({ kind: 'accounts', accountId: null }); } });
+  useShortcut({ id: 'nav.toggleSidebarYnab', keys: '>', description: 'Expand or collapse the sidebar (Shift+.)', group: 'Navigation', scope: 'global', run: () => { prefs.update({ sidebarCollapsed: !prefs.get().sidebarCollapsed }); } });
   useShortcut({ id: 'nav.toggleSidebar', keys: 'Ctrl+B', description: 'Collapse or expand the sidebar', group: 'Navigation', scope: 'global', run: () => { prefs.update({ sidebarCollapsed: !prefs.get().sidebarCollapsed }); } });
 
   // Moving between screens puts keyboard focus at the start of the new screen.
@@ -192,7 +194,7 @@ function PlanFrame({ open, system }: { open: OpenPlan; /** A Windows-colour (con
     undoLabel: undoLabel(open.history),
     redoLabel: redoLabel(open.history),
   };
-  const month = route.kind === 'plan' && route.month !== undefined ? route.month : open.month;
+  const month = shownMonth(open.plan, today, route.kind === 'plan' && route.month !== undefined ? route.month : open.month);
 
   return (
     <>
@@ -229,6 +231,7 @@ function PlanFrame({ open, system }: { open: OpenPlan; /** A Windows-colour (con
         ) : (
           <PlanScreen
             plan={open.plan}
+            planPath={path}
             today={today}
             month={month}
             setMonth={setMonth}

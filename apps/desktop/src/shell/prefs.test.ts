@@ -50,6 +50,15 @@ describe('parsePrefs', () => {
     const p = parsePrefs(JSON.stringify({ version: 1, lastRoute: { 'C:\\a.hafb': '#/reflect', bad: 4 } }));
     expect(p.lastRoute).toEqual({ 'C:\\a.hafb': '#/reflect' });
   });
+
+  it('reads Plan display options and per-plan collapsed groups', () => {
+    expect(DEFAULT_PREFS.showProgressBars).toBe(true);
+    expect(DEFAULT_PREFS.hideAmounts).toBe(false);
+    const p = parsePrefs(JSON.stringify({ version: 1, showProgressBars: false, hideAmounts: true, collapsedGroups: { 'C:\\a.hafb': ['g1', 3], bad: 'x' } }));
+    expect(p.showProgressBars).toBe(false);
+    expect(p.hideAmounts).toBe(true);
+    expect(p.collapsedGroups).toEqual({ 'C:\\a.hafb': ['g1'] });
+  });
 });
 
 describe('prefs store', () => {

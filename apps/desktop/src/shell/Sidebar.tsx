@@ -1,12 +1,13 @@
 import { CASH_ACCOUNT_TYPES, CREDIT_ACCOUNT_TYPES, LOAN_ACCOUNT_TYPES, type AccountType } from '@hafb/engine';
-import { formatMoney, minor, type ISODate, type Minor } from '@hafb/shared';
+import { minor, type ISODate, type Minor } from '@hafb/shared';
 import { planBudget, type AccountRecord, type PlanData } from '@hafb/store';
 import { cx } from '../ui/cx.ts';
 import { Icon, type IconName } from '../ui/Icon.tsx';
 import { MenuButton, type MenuItem } from '../ui/Menu.tsx';
 import { useTooltip } from '../ui/Tooltip.tsx';
-import { moneyFormat } from '../design/planModel.ts';
+import { moneyFormat } from '../screens/plan/planModel.ts';
 import { prefs, usePrefs } from './prefs.ts';
+import { moneyText } from '../screens/shared/money.ts';
 import { formatRoute, type Route } from './router.ts';
 import styles from './Sidebar.module.css';
 
@@ -64,7 +65,8 @@ export function Sidebar({ plan, subtitle, today, route, planMenu, onPlanMenu, vi
   const p = usePrefs();
   const rail = p.sidebarCollapsed;
   const fmt = moneyFormat(plan);
-  const money = (m: Minor): string => formatMoney(m, fmt);
+  const { hideAmounts } = usePrefs();
+  const money = moneyText(fmt, hideAmounts);
   const balances = planBudget(plan, { today }).accountBalances;
   const live = plan.accounts.filter((a) => a.deletedAt === undefined).toSorted((a, b) => a.sortOrder - b.sortOrder);
   const open = live.filter((a) => a.closed !== true);

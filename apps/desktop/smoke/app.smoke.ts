@@ -3,7 +3,11 @@
 import assert from 'node:assert/strict';
 import { after, before, describe, test } from 'node:test';
 import type { Page } from 'playwright-core';
+import { existsSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
+import { addMonths, compareMonths, monthOf } from '@hafb/shared';
 import { launch, makeSandbox, type App, type Sandbox } from './harness.ts';
+import { expectedReadyToAssign, expectedRows, importExport, norm, readGrid, todayLocal } from './planCheck.ts';
 
 const MONEY = /^-?\$[\d,]+\.\d\d$/;
 
@@ -14,13 +18,27 @@ declare global {
 }
 
 async function rta(page: Page): Promise<string> {
-  const text = (await page.locator('.hd-rta .amt').textContent()) ?? '';
-  return text.trim();
+  const text = (await page.locator('[data-part=rta-amount]').textContent()) ?? '';
+  return norm(text);
+}
+
+/** Click a category's Assigned cell (it opens the editor, as in YNAB), type, and press Enter. */
+async function assignVia(page: Page, category: string, text: string): Promise<void> {
+  const row = page.locator('[role=row]', { has: page.locator('[data-col=category]', { hasText: new RegExp(`^${category}`) }) });
+  await row.locator('[data-col=assigned]').click();
+  const input = page.getByRole('textbox', { name: new RegExp(`^Assigned in .* for ${category}$`) });
+  await input.fill(text);
+  await input.press('Enter');
+}
+
+async function assignedText(page: Page, category: string): Promise<string> {
+  const row = page.locator('[role=row]', { has: page.locator('[data-col=category]', { hasText: new RegExp(`^${category}`) }) });
+  return ((await row.locator('[data-col=assigned]').textContent()) ?? '').trim();
 }
 
 /** Wait for the animated Ready to Assign figure to settle on a new value. */
 async function rtaSettled(page: Page, previous: string): Promise<string> {
-  await page.waitForFunction((prev) => document.querySelector('.hd-rta .amt')?.textContent.trim() !== prev, previous, { timeout: 5000 });
+  await page.waitForFunction((prev) => document.querySelector('[data-part=rta-amount]')?.textContent.trim() !== prev, previous, { timeout: 5000 });
   await page.waitForTimeout(300);
   return rta(page);
 }
@@ -69,7 +87,7 @@ void describe('a plan opened with --open', () => {
   void test('opens the plan: sidebar, title, Ready to Assign', async () => {
     const { page } = app;
     await page.getByRole('navigation', { name: 'Plan navigation' }).waitFor();
-    await page.locator('.hd-rta .amt').waitFor();
+    await page.locator('[data-part=rta-amount]').waitFor();
     assert.match(await rta(page), MONEY);
     assert.equal(await page.title(), 'Sample Household – HAFB');
     assert.ok(await page.getByText('Everyday Checking').first().isVisible());
@@ -88,16 +106,13 @@ void describe('a plan opened with --open', () => {
     await page.waitForFunction(() => location.hash.startsWith('#/accounts/'));
     await page.getByRole('heading', { name: 'Visa Rewards' }).waitFor();
     await nav.getByRole('link', { name: 'Plan', exact: true }).click();
-    await page.locator('.hd-rta .amt').waitFor();
+    await page.locator('[data-part=rta-amount]').waitFor();
   });
 
   void test('assign, undo and redo go through the store', async () => {
     const { page } = app;
-    const input = page.getByRole('textbox', { name: /^Assigned in .* for Electric$/ });
     const before = await rta(page);
-    await input.click();
-    await input.fill('140');
-    await input.press('Enter');
+    await assignVia(page, 'Electric', '140');
     const assigned = await rtaSettled(page, before);
     assert.notEqual(assigned, before);
     await page.locator('body').click({ position: { x: 5, y: 600 } }).catch(() => undefined);
@@ -149,18 +164,14 @@ void describe('persistence across a relaunch', () => {
 
   void test('an assignment survives quitting and reopening', async () => {
     const first = await launch(box, ['--open', box.planPath]);
-    const input = first.page.getByRole('textbox', { name: /^Assigned in .* for Electric$/ });
-    await input.waitFor();
-    await input.click();
-    await input.fill('155.55');
-    await input.press('Enter');
+    await first.page.getByRole('treegrid', { name: 'Categories' }).waitFor();
+    await assignVia(first.page, 'Electric', '155.55');
     await first.page.waitForTimeout(800);
     await first.close();
 
     const second = await launch(box, ['--open', box.planPath]);
-    const again = second.page.getByRole('textbox', { name: /^Assigned in .* for Electric$/ });
-    await again.waitFor();
-    assert.equal(await again.inputValue(), '$155.55');
+    await second.page.getByRole('treegrid', { name: 'Categories' }).waitFor();
+    assert.equal(await assignedText(second.page, 'Electric'), '$155.55');
     await second.close();
   });
 });
@@ -201,3 +212,80 @@ void describe('performance in the real webview', () => {
     }
   });
 });
+
+// ---- S4.1 exit: the Plan screen matches the engine for real YNAB data, month by month ----------
+// Sources are local-only fixtures (git-ignored): the public sample export and Sarg's YNAB trial
+// export. Missing fixtures skip the check.
+const LOCAL = join(import.meta.dirname, '..', '..', '..', 'packages', 'engine', 'test', 'fixtures', 'local');
+const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+function realExports(): { label: string; path: string }[] {
+  const out: { label: string; path: string }[] = [];
+  const pub = join(LOCAL, 'ynab-public-sample');
+  if (existsSync(join(pub, 'Plan.csv'))) out.push({ label: 'public sample', path: pub });
+  const trial = join(LOCAL, 'ynab-trial');
+  const zip = existsSync(trial) ? readdirSync(trial).find((f) => f.endsWith('.zip')) : undefined;
+  if (zip !== undefined) out.push({ label: 'trial plan', path: join(trial, zip) });
+  return out;
+}
+
+for (const source of realExports()) {
+  void describe(`the Plan screen matches the engine month by month (${source.label})`, () => {
+    let box: Sandbox;
+    let app: App;
+    let plan: Awaited<ReturnType<typeof importExport>>;
+    before(async () => {
+      plan = await importExport(source.path);
+      box = makeSandbox(plan);
+      app = await launch(box, ['--open', box.planPath]);
+    });
+    after(async () => {
+      await app.close();
+      box.cleanup();
+    });
+
+    void test('every category, group and Ready to Assign, in every month', { timeout: 900_000 }, async () => {
+      const { page } = app;
+      await page.getByRole('treegrid', { name: 'Categories' }).waitFor();
+      await page.getByRole('button', { name: 'Display options' }).click();
+      await page.getByRole('menuitem', { name: /Expand all groups/ }).click();
+      const today = todayLocal();
+      const last = monthOf(today);
+      const mismatches: string[] = [];
+      let months = 0;
+      let rows = 0;
+      for (let m = plan.settings.firstMonth ?? last; compareMonths(m, last) <= 0; m = addMonths(m, 1)) {
+        const [y, mo] = m.split('-');
+        const title = `${MONTH_NAMES[Number(mo) - 1] ?? ''} ${y ?? ''}. Choose a month`;
+        await page.evaluate((mm) => {
+          location.hash = `#/plan?month=${mm}`;
+        }, m);
+        await page.locator(`[aria-label="${title}"]`).waitFor();
+        const rtaWanted = expectedReadyToAssign(plan, m, today);
+        await page
+          .waitForFunction((want) => (document.querySelector('[data-part=rta-amount]')?.textContent ?? '').replace(/\s+/g, ' ').trim() === want, rtaWanted, { timeout: 5000 })
+          .catch(() => undefined);
+        await page.waitForTimeout(350); // Available pills tween to the new month's values.
+        const rtaShown = await rta(page);
+        if (rtaShown !== rtaWanted) mismatches.push(`${m} Ready to Assign: shown ${rtaShown}, engine ${rtaWanted}`);
+        const shown = new Map((await readGrid(page)).map((r) => [r.id, r]));
+        for (const want of expectedRows(plan, m, today)) {
+          const got = shown.get(want.id);
+          if (!got) {
+            mismatches.push(`${m} ${want.name}: not shown`);
+            continue;
+          }
+          for (const k of ['name', 'assigned', 'activity', 'available'] as const) {
+            if (got[k] !== want[k]) mismatches.push(`${m} ${want.name} ${k}: shown ${got[k]}, engine ${want[k]}`);
+          }
+          shown.delete(want.id);
+          rows += 1;
+        }
+        for (const extra of shown.values()) mismatches.push(`${m} ${extra.name}: shown but not in the engine's rows`);
+        months += 1;
+      }
+      console.log(`${source.label}: ${String(months)} months, ${String(rows)} rows compared, ${String(mismatches.length)} mismatches`);
+      assert.deepEqual(mismatches.slice(0, 20), []);
+    });
+  });
+}

@@ -1,0 +1,210 @@
+/* The Plan screen (S4.1): the approved S3.1 plan (.hd-planhead, .hd-views, .hd-toolbar,
+   .hd-catname) rebuilt from tokens only (ADR 0004, ADR 0007). */
+
+.main {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--d-inspector-width);
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+}
+
+.work {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  background: var(--c-surface);
+}
+
+.inspectorEdge {
+  position: absolute;
+  top: 0;
+  right: var(--d-inspector-width);
+  bottom: 0;
+  width: 0;
+}
+
+/* ---- header -------------------------------------------------------------------------------- */
+
+.head {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 20px 12px;
+}
+
+.month {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+.title {
+  margin: 0;
+  font-size: inherit;
+}
+
+.titleButton {
+  margin: 0 6px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--s-radius);
+  background: transparent;
+  color: var(--c-text);
+  font-family: var(--t-font-display);
+  font-size: var(--t-size-title);
+  font-weight: var(--t-weight-semibold);
+  line-height: 1.2;
+  letter-spacing: var(--t-display-tracking);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.titleButton:hover {
+  color: var(--c-link);
+}
+
+.noteButton {
+  display: block;
+  max-width: 260px;
+  height: 20px;
+  padding: 0 6px;
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--s-radius);
+  background: transparent;
+  color: var(--c-text-subtle);
+  font-family: var(--t-font-ui);
+  font-size: var(--t-size-caption);
+  font-weight: var(--t-weight-regular);
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.noteButton:hover {
+  background: var(--c-hover);
+  color: var(--c-text);
+}
+
+.noteInput {
+  width: 260px;
+  height: 22px;
+  margin-left: 6px;
+  padding: 0 6px;
+  border: var(--s-border-width) solid var(--c-input-border);
+  border-radius: var(--s-radius);
+  background: var(--c-input);
+  color: var(--c-text);
+  font-family: var(--t-font-ui);
+  font-size: var(--t-size-caption);
+}
+
+.headRight {
+  justify-self: end;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ---- focused views and toolbar ------------------------------------------------------------- */
+
+.views {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 20px 10px;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 40px;
+  padding: 0 14px;
+  border-top: var(--s-border-width) solid var(--c-border);
+  border-bottom: var(--s-border-width) solid var(--c-border);
+}
+
+.spacer {
+  flex: 1;
+}
+
+.count {
+  color: var(--c-text-subtle);
+  font-size: var(--t-size-caption);
+}
+
+/* ---- grid ---------------------------------------------------------------------------------- */
+
+.gridWrap {
+  display: grid;
+  flex: 1;
+  min-height: 0;
+}
+
+.gridWrap > * {
+  min-height: 0;
+}
+
+.catName {
+  display: grid;
+  grid-template-columns: minmax(min-content, auto) minmax(0, 1fr);
+  align-items: center;
+  row-gap: 3px;
+  column-gap: 10px;
+  width: 100%;
+  min-width: 0;
+  padding: 4px 0;
+}
+
+.name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.message {
+  overflow: hidden;
+  color: var(--c-text-subtle);
+  font-size: var(--t-size-micro);
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.message.warn {
+  color: var(--c-warn-text);
+}
+
+.message.bad {
+  color: var(--c-bad-text);
+}
+
+.bar {
+  grid-column: 1 / -1;
+}
+
+.groupAmount {
+  white-space: nowrap;
+}
+
+.negative {
+  color: var(--c-negative);
+}
+
+/* Smaller laptop windows: the approved S3.1 breakpoint gives the category names the room. */
+@media (max-width: 1365px) {
+  .gridWrap > [role][aria-label] {
+    --grid-pad-x: 10px;
+  }
+
+  .gridWrap [data-col='available'] [data-state] {
+    min-width: 76px;
+  }
+}

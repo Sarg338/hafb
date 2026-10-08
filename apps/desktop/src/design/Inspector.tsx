@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { autoAssign, costToBeMe, limitToReadyToAssign, type AutoAssignOption, type Id } from '@hafb/engine';
-import { addMonths, formatMoney, minor, neg, type Minor } from '@hafb/shared';
+import { addMonths, minor, neg, type Minor } from '@hafb/shared';
+import { usePrefs } from '../shell/prefs.ts';
+import { moneyText } from '../screens/shared/money.ts';
 import { applyPlanChange, setAssigned, setCategoryNote } from '@hafb/store';
 import { Icon } from '../ui/Icon.tsx';
 import type { Actions } from './DesignApp.tsx';
 import { Bar, monthName, Pill } from './PlanScreen.tsx';
-import type { PlanModel } from './planModel.ts';
-import { targetSentence } from './planView.ts';
+import type { PlanModel } from '../screens/plan/planModel.ts';
+import { targetSentence } from '../screens/plan/planView.ts';
 
 const OPTIONS: { id: AutoAssignOption; label: string; group: number }[] = [
   { id: 'underfunded', label: 'Underfunded', group: 0 },
@@ -20,7 +22,8 @@ const OPTIONS: { id: AutoAssignOption; label: string; group: number }[] = [
 ];
 
 export function Inspector({ model, selected, actions }: { model: PlanModel; selected: ReadonlySet<Id>; actions: Actions }) {
-  const money = (m: Minor): string => formatMoney(m, model.fmt);
+  const { hideAmounts } = usePrefs();
+  const money = moneyText(model.fmt, hideAmounts);
   const ids = [...selected].filter((id) => model.ms.categories[id] !== undefined);
   const first = ids[0];
   return (

@@ -11,19 +11,19 @@ A row is `done` only after Sarg validates it on hardware. Rows whose engine half
 
 | ID | Feature | Engine | UI | Status |
 |---|---|---|---|---|
-| P-01 | Month navigation (previous/next, month picker), month note | S1.2 | S4.1 | in-progress |
-| P-02 | Ready to Assign banner: green (money to assign) / grey "All Money Assigned" / red "assigned more than you have" | S1.2 | S4.1 | in-progress |
+| P-01 | Month navigation (previous/next, month picker), month note | S1.2 | S4.1 | done |
+| P-02 | Ready to Assign banner: green (money to assign) / grey "All Money Assigned" / red "assigned more than you have" | S1.2 | S4.1 | done |
 | P-03 | Ready to Assign breakdown (fields to verify, D11) | S1.2 | S4.3 | in-progress |
 | P-04 | Category groups and categories: add, rename, delete with reassignment | S1.2 | S4.2 | in-progress |
 | P-05 | Drag reorder of groups and categories | — | S4.2 | todo |
 | P-06 | Hide/unhide categories (Hidden Categories group) | S1.2 | S4.2 | in-progress |
-| P-07 | Collapse/expand groups, collapse all (Ctrl+Up/Down) | — | S4.1 | todo |
+| P-07 | Collapse/expand groups, collapse all (Ctrl+Up/Down) | — | S4.1 | done |
 | P-08 | Assigned / Activity / Available columns; inline assign with math (+ − × ÷) | S1.2 | S4.2 | in-progress |
 | P-09 | Available pills: green, yellow, red, grey; icons (calendar = upcoming shortfall, pie = underfunded, snooze) | S1.4 | S4.1 | in-progress |
-| P-10 | Segmented progress bars (rollover / weekly / extra; light = spent, dark = available) | S1.4 | S4.1 | in-progress |
-| P-11 | Display Options: progress bars on/off; balance style "differentiate without color"; theme | — | S4.1 / S7.1 | todo |
-| P-12 | Cash overspending (zeroed next month, reduces Ready to Assign) | S1.2 | S4.1 | in-progress |
-| P-13 | Credit overspending (carries negative) | S1.3 | S4.1 | in-progress |
+| P-10 | Segmented progress bars (rollover / weekly / extra; light = spent, dark = available) | S1.4 | S4.1 | done |
+| P-11 | Display Options: progress bars on/off; balance style "differentiate without color"; theme | — | S4.1 / S7.1 | in-progress |
+| P-12 | Cash overspending (zeroed next month, reduces Ready to Assign) | S1.2 | S4.1 | done |
+| P-13 | Credit overspending (resets to 0 next month; stays as card debt the payment category doesn't cover) | S1.3 | S4.1 | done |
 | P-14 | Overspent banner / Overspent focused view (shown only when something is overspent) | S1.2 | S4.3 / S5.3 | in-progress |
 | P-15 | Move money from the Available popover (to/from any category or Ready to Assign) | S1.5 | S4.3 | in-progress |
 | P-16 | Cover overspending, including from future months | S1.5 | S4.3 | in-progress |
@@ -35,8 +35,8 @@ A row is `done` only after Sarg validates it on hardware. Rows whose engine half
 | P-22 | Focused Views: built-ins Underfunded, Overfunded, Snoozed, Money Available (+ Overspent) | S1.5 | S5.3 | in-progress |
 | P-23 | Focused Views: up to 12 custom, reorderable, remembered per device; hidden categories excluded | — | S5.3 | todo |
 | P-24 | Plan Reset (all unspent → Ready to Assign; CC payments keep money; confirm + undo) | S1.5 | S5.3 | in-progress |
-| P-25 | Hide Amounts toggle | — | S7.1 | todo |
-| P-26 | Undo / Redo buttons in the plan toolbar | S2.3 | S4.8 | todo |
+| P-25 | Hide Amounts toggle | — | S4.1 | done |
+| P-26 | Undo / Redo buttons in the plan toolbar | S2.3 | S4.1 | done |
 
 ## 2. Inspector ([inspector](https://support.ynab.com/en_us/the-inspector-an-overview-ryylY7OCq))
 
