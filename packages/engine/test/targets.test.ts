@@ -121,9 +121,18 @@ describe('§6.2 multi-month targets (yearly, custom)', () => {
     expect(evalT(t, '2026-10', cm({ carriedIn: 111_112 }))).toMatchObject({ progressPercent: 11, toGo: 888_888, status: 'underfunded' });
   });
 
-  it('Have a balance of with no date: just reach the amount', () => {
+  it('Have a balance of with no date: progress only, never asks for money (YNAB trial 2026-10)', () => {
     const t = target({ amount: minor(50_000), cadence: { kind: 'custom' }, behavior: 'haveBalance' });
-    expect(evalT(t, '2026-10', cm({ carriedIn: 20_000, assigned: 10_000 }))).toMatchObject({ neededThisMonth: 30_000, underfunded: 20_000 });
+    expect(evalT(t, '2026-10', cm({ carriedIn: 20_000, assigned: 10_000 }))).toMatchObject({
+      needed: 50_000,
+      funded: 30_000,
+      toGo: 20_000,
+      neededThisMonth: 0,
+      underfunded: 0,
+      progressPercent: 60,
+      monthlyCost: 0,
+      status: 'onTrack',
+    });
   });
 
   it('a non-repeating target is inactive after its due month', () => {
@@ -142,8 +151,23 @@ describe('§6.3 statuses', () => {
     expect(evalT(t, '2026-06', cm({}))).toMatchObject({ status: 'underfunded', underfunded: 10_000 });
   });
 
-  it('overspent wins over underfunded', () => {
-    expect(evalT(monthly, '2026-05', cm({ assigned: 5_000, available: -2_000 })).status).toBe('overspent');
+  it('overspending is a category state, not a target status (YNAB trial: overspent Dining out shows its target met)', () => {
+    expect(evalT(monthly, '2026-05', cm({ assigned: 10_000, available: -1_000 })).status).toBe('funded');
+    expect(evalT(monthly, '2026-05', cm({ assigned: 5_000, available: -2_000 })).status).toBe('underfunded');
+  });
+
+  it('weekly: due days before the target was created need no funding that month (YNAB trial: Groceries)', () => {
+    // Created Thu Oct 8 2026: the Oct 3 Saturday passed already; 4 Saturdays remain.
+    const t = target({ amount: minor(10_000), cadence: { kind: 'weekly', weekday: 6 }, behavior: 'refill', startMonth: '2026-10', createdOn: asISODate('2026-10-08') });
+    expect(evalT(t, '2026-10', cm({ assigned: 40_000 }))).toMatchObject({ needed: 50_000, funded: 40_000, toGo: 0, underfunded: 0, status: 'funded', progressPercent: 100, monthlyCost: 50_000 });
+  });
+
+  it('future months ignore leftover money for weekly/monthly refill targets (YNAB trial: November)', () => {
+    const t = target({ amount: minor(10_000), cadence: { kind: 'weekly', weekday: 6 }, behavior: 'refill', startMonth: '2026-10' });
+    const today = { today: asISODate('2026-10-08') };
+    expect(evaluateTarget(t, '2026-11', cm({ carriedIn: 18_500 }), none, today)).toMatchObject({ needed: 40_000, funded: 0, toGo: 40_000, underfunded: 40_000, progressPercent: 0 });
+    // In the current month the leftover counts.
+    expect(evaluateTarget(t, '2026-10', cm({ carriedIn: 18_500, assigned: 30_000 }), none, today)).toMatchObject({ funded: 48_500, underfunded: 1_500 });
   });
 
   it('on track: this month’s share is in, the period goal is not yet reached', () => {
@@ -160,9 +184,12 @@ describe('§6.4 validation and Cost to Be Me', () => {
     expect(() => { validateTarget(target({ amount: minor(1), cadence: { kind: 'weekly', weekday: 7 }, behavior: 'setAside' })); }).toThrow(ValidationError);
   });
 
-  it('Cost to Be Me sums what this month’s active targets ask for', () => {
+  it('Cost to Be Me: full weekly/monthly amounts, multi-month shares, no-date balances excluded (YNAB trial: $1,390.01)', () => {
     const a = evalT(target({ amount: minor(10_000), cadence: { kind: 'monthly', day: 1 }, behavior: 'setAside' }), '2026-02', cm({}));
     const b = evalT(target({ amount: minor(10_000), cadence: { kind: 'weekly', weekday: 6 }, behavior: 'refill' }), '2026-02', cm({ carriedIn: 5_000 }));
-    expect(costToBeMe({ a, b }, minor(600_000))).toEqual({ targets: 45_000, expectedIncome: 600_000, difference: 555_000 });
+    const c = evalT(target({ amount: minor(500_000), cadence: { kind: 'custom' }, behavior: 'haveBalance' }), '2026-02', cm({}));
+    const d = evalT(target({ amount: minor(120_000), cadence: { kind: 'custom', due: asISODate('2026-11-01') }, behavior: 'haveBalance' }), '2026-02', cm({}));
+    // 100 + 400 (4 Saturdays, leftovers don't reduce it) + 0 + ⌈1,200 / 10⌉ = 620
+    expect(costToBeMe({ a, b, c, d }, minor(600_000))).toEqual({ targets: 62_000, expectedIncome: 600_000, difference: 538_000 });
   });
 });

@@ -120,9 +120,12 @@ export interface AutoAssignInput {
   paymentCategoryIds?: ReadonlySet<Id>;
 }
 
-/** Spending in a month = net outflow (refunds net against it), never negative. */
+/**
+ * Spending in a month = −activity, keeping the sign: a category with net inflow "spent" a
+ * negative amount (YNAB trial 2026-11: Spent Last Month $1,410.00 = 1,575 spent − 165 inflow).
+ */
 function spending(cm: CategoryMonth | undefined): number {
-  return cm && cm.activity < 0 ? 0 - cm.activity : 0;
+  return cm ? 0 - cm.activity : 0;
 }
 
 /** The up-to-12 complete months before `month` that exist in the plan. */
@@ -157,13 +160,15 @@ export function autoAssign(option: AutoAssignOption, input: AutoAssignInput): Pl
 
   switch (option) {
     case 'assignedLastMonth': {
+      // No earlier month in the plan → the option does nothing (YNAB trial: $0.00 in month one).
       const last = state.byMonth[addMonths(month, -1)];
-      for (const id of categoryIds) setAssigned(id, last?.categories[id]?.assigned ?? 0);
+      if (last) for (const id of categoryIds) setAssigned(id, last.categories[id]?.assigned ?? 0);
       break;
     }
     case 'spentLastMonth': {
+      // Credit card payment categories are left out of the spending options (trial 2026-11).
       const last = state.byMonth[addMonths(month, -1)];
-      for (const id of categoryIds) setAssigned(id, spending(last?.categories[id]));
+      if (last) for (const id of categoryIds) if (!input.paymentCategoryIds?.has(id)) setAssigned(id, spending(last.categories[id]));
       break;
     }
     case 'averageAssigned':
@@ -171,10 +176,8 @@ export function autoAssign(option: AutoAssignOption, input: AutoAssignInput): Pl
       // ASSUMPTION: average over the up-to-12 previous months the plan has (YNAB: "last 12 months").
       const months = previousMonths(state, month, 12);
       for (const id of categoryIds) {
-        if (months.length === 0) {
-          setAssigned(id, 0);
-          continue;
-        }
+        if (option === 'averageSpent' && input.paymentCategoryIds?.has(id)) continue;
+        if (months.length === 0) continue; // no history: nothing to average (YNAB trial)
         let sum = 0;
         for (const m of months) {
           const c = state.byMonth[m]?.categories[id];
@@ -236,9 +239,19 @@ function underfunded(input: AutoAssignInput, readyToAssign: Minor): PlanChange {
           else tier = 3;
         }
       }
+    } else if (!t && cm.creditCard) {
+      // A payment category is underfunded by the card debt it doesn't cover, minus this month's
+      // credit overspending (already counted on the overspent categories). YNAB trial: Amex owes
+      // $50 with $40 set aside → $0 in October (the $10 is Dining out's), $10 in November.
+      const debt = 0 - cm.creditCard.balance;
+      const short = Math.max(0, debt - cm.available - cm.creditCard.unfundedSpending);
+      if (short > 0) {
+        amount += short;
+        if (tier !== 0) tier = 4;
+      }
     } else if (!t) {
       const scheduled = input.scheduledOutflows?.[id] ?? 0;
-      // ASSUMPTION: scheduled outflows are funded like a refill to their monthly total.
+      // Scheduled outflows are funded like a refill to their total (trial 2026-10: Utilities $15).
       const short = Math.max(0, scheduled - Math.max(cm.carriedIn + cm.assigned, 0));
       if (short > 0) {
         amount += short;
@@ -300,6 +313,7 @@ export function freshStart(snapshot: BudgetSnapshot, state: BudgetState, today: 
       categoryId: a.onBudget ? READY_TO_ASSIGN : null,
       cleared: 'reconciled',
       memo: 'Starting Balance',
+      isStartingBalance: true,
     });
   }
   return {

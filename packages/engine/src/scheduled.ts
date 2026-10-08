@@ -6,6 +6,7 @@ import {
   addMonthsToDate,
   clampedDate,
   compareDates,
+  compareMonths,
   dateParts,
   firstDayOfMonth,
   lastDayOfMonth,
@@ -164,6 +165,9 @@ export function dueTransactions(scheduled: readonly ScheduledTransaction[], toda
  * Split lines count toward their own categories; Ready to Assign and uncategorized lines are skipped.
  */
 export function upcomingByCategory(scheduled: readonly ScheduledTransaction[], month: Month, today: ISODate): Record<Id, Minor> {
+  // YNAB doesn't project scheduled transactions into future months (trial 2026-11: the monthly
+  // Utilities bill flagged in October showed nothing in November).
+  if (compareMonths(month, monthOf(today)) > 0) return {};
   const start = monthOf(today) === month ? addDays(today, 1) : firstDayOfMonth(month);
   const end = lastDayOfMonth(month);
   const totals = new Map<Id, number>();

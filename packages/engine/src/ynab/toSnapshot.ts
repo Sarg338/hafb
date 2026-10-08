@@ -12,6 +12,7 @@ import {
   type CategoryGroup,
   type CategoryRef,
   type Id,
+  type Subtransaction,
   type Transaction,
 } from '../model.ts';
 import type { YnabPlanRow, YnabRegisterRow } from './csv.ts';
@@ -19,6 +20,8 @@ import type { YnabPlanRow, YnabRegisterRow } from './csv.ts';
 export const CREDIT_CARD_PAYMENTS_GROUP = 'Credit Card Payments';
 export const HIDDEN_CATEGORIES_GROUP = 'Hidden Categories';
 const TRANSFER_PREFIX = 'Transfer : ';
+/** "Split (2/3) memo" → line 2 of 3. */
+const SPLIT_MEMO = /^Split \((\d+)\/(\d+)\)\s?/;
 
 export interface YnabImportOptions {
   /** The export's "today": register rows after it are upcoming scheduled transactions. */
@@ -125,22 +128,67 @@ export function ynabExportToSnapshot(
   }
 
   // ---- transactions -----------------------------------------------------------------------------
-  const transactions: Transaction[] = current.map((r, i) => {
+  const toLine = (r: YnabRegisterRow) => {
     const counterpart = r.payee.startsWith(TRANSFER_PREFIX) ? r.payee.slice(TRANSFER_PREFIX.length) : undefined;
     let ref: CategoryRef = null;
     if (r.key !== '') ref = isRtaKey(r.group) ? READY_TO_ASSIGN : categoryIds[r.key] ?? null;
+    const transfer = counterpart !== undefined && accountNames.has(counterpart) ? accountId(counterpart) : undefined;
+    return { counterpart, ref, transfer };
+  };
+  // YNAB exports each split line as its own row with a "Split (k/n) " memo prefix (verified in
+  // Sarg's trial export, 2026-10-08). Recombine them into one transaction with subtransactions:
+  // a split is one transaction for Age of Money and the register.
+  const transactions: Transaction[] = [];
+  for (let i = 0; i < current.length; i += 1) {
+    const r = current[i];
+    if (!r) continue;
+    const split = SPLIT_MEMO.exec(r.memo);
+    const n = split ? Number(split[2]) : 0;
+    const parts = split?.[1] === '1' ? current.slice(i, i + n) : [];
+    const isSplit =
+      n > 1 &&
+      parts.length === n &&
+      parts.every((p, k) => p.account === r.account && p.date === r.date && SPLIT_MEMO.exec(p.memo)?.[1] === String(k + 1) && SPLIT_MEMO.exec(p.memo)?.[2] === String(n));
+    if (isSplit) {
+      let total = 0;
+      const subtransactions: Subtransaction[] = parts.map((p, k) => {
+        total += p.amount;
+        const l = toLine(p);
+        const memo = p.memo.replace(SPLIT_MEMO, '').trim();
+        return {
+          id: `txn:${String(i)}:${String(k + 1)}`,
+          amount: p.amount,
+          categoryId: l.ref,
+          ...(l.transfer === undefined ? {} : { transferAccountId: l.transfer }),
+          ...(memo === '' ? {} : { memo }),
+        };
+      });
+      transactions.push({
+        id: `txn:${String(i)}`,
+        accountId: accountId(r.account),
+        date: r.date,
+        amount: minor(total),
+        categoryId: null,
+        cleared: r.cleared,
+        subtransactions,
+      });
+      i += n - 1;
+      continue;
+    }
+    const l = toLine(r);
     const tx: Transaction = {
       id: `txn:${String(i)}`,
       accountId: accountId(r.account),
       date: r.date,
       amount: r.amount,
-      categoryId: ref,
+      categoryId: l.ref,
       cleared: r.cleared,
       ...(r.memo === '' ? {} : { memo: r.memo }),
+      ...(r.payee === 'Starting Balance' && l.counterpart === undefined ? { isStartingBalance: true } : {}),
     };
-    if (counterpart !== undefined && accountNames.has(counterpart)) tx.transferAccountId = accountId(counterpart);
-    return tx;
-  });
+    if (l.transfer !== undefined) tx.transferAccountId = l.transfer;
+    transactions.push(tx);
+  }
 
   // ---- assignments ------------------------------------------------------------------------------
   const assignments: Assignment[] = [];

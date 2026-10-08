@@ -40,6 +40,10 @@ interface MoneyEvent {
 
 /** Each account's first transaction, when it is an inflow-to-Ready-to-Assign (YNAB's "Starting Balance"). */
 export function defaultStartingBalanceIds(snapshot: BudgetSnapshot): Set<Id> {
+  // Prefer the explicit marker (YNAB's "Starting Balance" payee). The first-transaction guess
+  // is only a fallback: a starting balance can be dated after earlier income (trial 2026-10).
+  const marked = new Set(snapshot.transactions.filter((t) => t.isStartingBalance === true && !t.deleted).map((t) => t.id));
+  if (marked.size > 0) return marked;
   const first = new Map<Id, { id: Id; date: ISODate; rta: boolean }>();
   for (const tx of snapshot.transactions) {
     if (tx.deleted) continue;

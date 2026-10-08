@@ -86,6 +86,8 @@ export interface Transaction {
   payeeId?: Id;
   memo?: string;
   subtransactions?: readonly Subtransaction[];
+  /** The account's opening balance (YNAB payee "Starting Balance"); excluded from income and Age of Money. */
+  isStartingBalance?: boolean;
   deleted?: boolean;
 }
 

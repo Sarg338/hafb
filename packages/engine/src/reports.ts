@@ -116,8 +116,13 @@ export interface InflowCategory {
 }
 
 export interface SpendingBreakdown {
-  /** Sum of all spending categories (net-inflow categories are listed separately, not subtracted). */
+  /**
+   * Total spending, net of categories whose inflows exceeded their spending (YNAB trial 2026-10:
+   * $1,410.00 = $1,575.00 spent − a $165.00 net inflow; the inflow category isn't listed).
+   */
   total: Minor;
+  /** Sum of the listed spending categories; YNAB's percentages are shares of this. */
+  grossSpending: Minor;
   averagePerMonth: Minor;
   /** Stack-ranked: groups and their categories by spending, largest first. */
   groups: SpendingGroup[];
@@ -132,10 +137,12 @@ export function spendingBreakdown(snapshot: BudgetSnapshot, filters: ReportFilte
   const groups = new Map<Id, SpendingGroup>();
   const inflowCategories: InflowCategory[] = [];
   let total = 0;
+  let inflows = 0;
   for (const [categoryId, amount] of net) {
     const name = cat.name.get(categoryId) ?? categoryId;
     if (amount > 0) {
       inflowCategories.push({ categoryId, name, inflow: minor(amount) });
+      inflows += amount;
       continue;
     }
     if (amount === 0) continue;
@@ -153,9 +160,11 @@ export function spendingBreakdown(snapshot: BudgetSnapshot, filters: ReportFilte
   for (const g of ranked) g.categories.sort((a, b) => b.spending - a.spending || order(a.categoryId) - order(b.categoryId));
   inflowCategories.sort((a, b) => b.inflow - a.inflow || order(a.categoryId) - order(b.categoryId));
   const months = monthRange(filters.from, filters.to).length;
+  const netTotal = total - inflows;
   return {
-    total: minor(total),
-    averagePerMonth: months > 0 ? divRound(minor(total), months) : minor(0),
+    total: minor(netTotal),
+    grossSpending: minor(total),
+    averagePerMonth: months > 0 ? divRound(minor(netTotal), months) : minor(0),
     groups: ranked,
     inflowCategories,
   };
@@ -245,9 +254,11 @@ export function netWorth(snapshot: BudgetSnapshot, filters: Pick<ReportFilters, 
   const months = monthRange(filters.from, filters.to);
   const balanceBefore = new Map<Id, number>();
   const deltas = new Map<Id, Map<Month, number>>();
+  let firstMonth: Month | undefined;
   for (const tx of snapshot.transactions) {
     if (tx.deleted || (wanted && !wanted.has(tx.accountId))) continue;
     const month = monthOf(tx.date);
+    if (firstMonth === undefined || compareMonths(month, firstMonth) < 0) firstMonth = month;
     if (compareMonths(month, filters.from) < 0) {
       balanceBefore.set(tx.accountId, (balanceBefore.get(tx.accountId) ?? 0) + tx.amount);
     } else if (compareMonths(month, filters.to) <= 0) {
@@ -273,7 +284,9 @@ export function netWorth(snapshot: BudgetSnapshot, filters: Pick<ReportFilters, 
       else debts += b;
     }
     const net = assets + debts;
-    const row: NetWorthRow = { month, assets: minor(assets), debts: minor(debts), netWorth: minor(net), change: minor(net - previous) };
+    // The plan's first month has no change (YNAB trial 2026-10: "$0.00 (0.0%)").
+    const change = firstMonth !== undefined && compareMonths(month, firstMonth) <= 0 ? 0 : net - previous;
+    const row: NetWorthRow = { month, assets: minor(assets), debts: minor(debts), netWorth: minor(net), change: minor(change) };
     previous = net;
     return row;
   });

@@ -47,10 +47,24 @@ export interface Target {
   behavior: TargetBehavior;
   /** Month the target was created; "set aside" progress counts assignments from here. */
   startMonth: Month;
+  /**
+   * Day the target was created. In that month, weekly due days before it don't need funding
+   * (YNAB trial 2026-10: created Oct 8, the Oct 3 Saturday was not asked for).
+   */
+  createdOn?: ISODate;
   snoozedMonths?: readonly Month[];
 }
 
-export type TargetStatus = 'onTrack' | 'underfunded' | 'funded' | 'overspent' | 'snoozed' | 'inactive';
+/**
+ * Target progress only. Overspending is a category state, not a target status: YNAB shows an
+ * overspent category's target as met when its assignment meets it (trial 2026-10, Dining out).
+ */
+export type TargetStatus = 'onTrack' | 'underfunded' | 'funded' | 'snoozed' | 'inactive';
+
+export interface TargetOptions {
+  /** The plan's today. Months after it are "future months" (see refill rule below). */
+  today?: ISODate;
+}
 
 export interface TargetMonth {
   categoryId: Id;
@@ -67,8 +81,10 @@ export interface TargetMonth {
   underfunded: Minor;
   /** Assigned beyond the target this month; what "Reduce Overfunding" removes. */
   overfunded: Minor;
-  /** 0–100, floor(funded / needed). */
+  /** 0–100, floor(funded / needed); 100 once nothing is left to go. */
   progressPercent: number;
+  /** This target's contribution to Cost to Be Me (full monthly amount, or this month's share). */
+  monthlyCost: Minor;
   /** Due date of the current period, when there is one. */
   dueDate?: ISODate;
   /** Months left in the period including this one (1 for weekly/monthly). */
@@ -95,12 +111,14 @@ export function validateTarget(t: Target): void {
   }
 }
 
-/** How many times `weekday` occurs in `month` (4 or 5). */
-export function weekdaysInMonth(month: Month, weekday: number): number {
+/** How many times `weekday` occurs in `month` (4 or 5), optionally only on or after `fromDay`. */
+export function weekdaysInMonth(month: Month, weekday: number, fromDay = 1): number {
   const { year, month: m } = monthParts(month);
   const first = dayOfWeek(makeDate(year, m, 1));
-  const offset = (weekday - first + 7) % 7;
-  return Math.floor((daysInMonth(year, m) - 1 - offset) / 7) + 1;
+  const firstDay = 1 + ((weekday - first + 7) % 7);
+  const start = firstDay >= fromDay ? firstDay : firstDay + 7 * Math.ceil((fromDay - firstDay) / 7);
+  const last = daysInMonth(year, m);
+  return start > last ? 0 : Math.floor((last - start) / 7) + 1;
 }
 
 const ceilDiv = (n: number, d: number): number => (n <= 0 ? 0 : Math.ceil(n / d));
@@ -143,11 +161,13 @@ export function evaluateTarget(
   month: Month,
   cm: CategoryMonth,
   assignedByMonth: (m: Month) => Minor,
+  options: TargetOptions = {},
 ): TargetMonth {
   validateTarget(target);
   const A = target.amount;
   const assigned = cm.assigned;
   const B0 = cm.carriedIn;
+  const futureMonth = options.today !== undefined && compareMonths(month, monthOf(options.today)) > 0;
   const base = { categoryId: target.categoryId };
   const inactive = (): TargetMonth => ({
     ...base,
@@ -159,6 +179,7 @@ export function evaluateTarget(
     underfunded: minor(0),
     overfunded: minor(0),
     progressPercent: 100,
+    monthlyCost: minor(0),
     monthsRemaining: 0,
   });
   if (compareMonths(month, target.startMonth) < 0) return inactive();
@@ -166,30 +187,45 @@ export function evaluateTarget(
   let needed: number;
   let funded: number;
   let neededThisMonth: number;
+  /** What must be funded this month for "to go" (weekly: due days after creation only). */
+  let effectiveNeeded: number;
+  let monthlyCost: number;
   let monthsRemaining = 1;
   let dueDate: ISODate | undefined;
   const c = target.cadence;
 
   if (c.kind === 'weekly' || c.kind === 'monthly') {
     needed = c.kind === 'weekly' ? A * weekdaysInMonth(month, c.weekday) : A;
-    // "Set aside": only this month's assignment counts. "Refill": leftovers count too.
-    funded = target.behavior === 'setAside' ? assigned : B0 + assigned;
-    neededThisMonth = target.behavior === 'setAside' ? needed : Math.max(0, needed - B0);
+    effectiveNeeded = needed;
+    if (c.kind === 'weekly' && target.createdOn !== undefined && monthOf(target.createdOn) === month) {
+      effectiveNeeded = A * weekdaysInMonth(month, c.weekday, dateParts(target.createdOn).day);
+    }
+    // "Set aside": only this month's assignment counts. "Refill": leftovers count too, except
+    // when viewing a future month, where YNAB ignores funding from the prior period (trial
+    // 2026-11: Groceries $185 left over, Funded $0.00; also YNAB API docs, goal_under_funded).
+    const leftOver = target.behavior === 'setAside' || futureMonth ? 0 : B0;
+    funded = leftOver + assigned;
+    neededThisMonth = Math.max(0, effectiveNeeded - leftOver);
+    monthlyCost = needed;
     if (c.kind === 'monthly') {
       const { year, month: m } = monthParts(month);
       dueDate = makeDate(year, m, c.day === 'last' ? daysInMonth(year, m) : Math.min(c.day, daysInMonth(year, m)));
     }
   } else if (c.kind === 'custom' && c.due === undefined) {
-    // "Have a balance of", no date: just reach the amount.
+    // "Have a balance of", no date: progress only. YNAB never asks for money this month and
+    // leaves it out of Cost to Be Me (trial 2026-10: House Down Payment, no "Assign" prompt).
     needed = A;
+    effectiveNeeded = A;
     funded = B0 + assigned;
-    neededThisMonth = Math.max(0, A - B0);
+    neededThisMonth = 0;
+    monthlyCost = 0;
   } else {
     const period = periodDue(target, month);
     if (!period) return inactive();
     dueDate = period.dueDate;
     monthsRemaining = monthsBetween(month, period.dueMonth) + 1;
     needed = A;
+    effectiveNeeded = A;
     if (target.behavior === 'setAside') {
       const periodStart = addMonths(period.dueMonth, -(period.length - 1));
       let before = 0;
@@ -202,18 +238,19 @@ export function evaluateTarget(
       funded = B0 + assigned;
       neededThisMonth = ceilDiv(A - B0, monthsRemaining);
     }
+    monthlyCost = neededThisMonth;
   }
 
-  const toGo = Math.max(0, needed - funded);
+  const toGo = Math.max(0, effectiveNeeded - funded);
   const underfunded = Math.max(0, neededThisMonth - assigned);
   const overfunded = Math.max(0, assigned - neededThisMonth);
-  const progressPercent = needed > 0 ? Math.floor((100 * Math.min(Math.max(funded, 0), needed)) / needed) : 100;
+  const progressPercent =
+    toGo === 0 ? 100 : needed > 0 ? Math.floor((100 * Math.min(Math.max(funded, 0), needed)) / needed) : 100;
   const snoozed = target.snoozedMonths?.includes(month) ?? false;
   let status: TargetStatus;
   if (snoozed) status = 'snoozed';
-  else if (cm.available < 0) status = 'overspent';
   else if (underfunded > 0) status = 'underfunded';
-  else if (funded >= needed) status = 'funded';
+  else if (toGo === 0) status = 'funded';
   else status = 'onTrack';
 
   return {
@@ -226,6 +263,7 @@ export function evaluateTarget(
     underfunded: minor(snoozed ? 0 : underfunded),
     overfunded: minor(overfunded),
     progressPercent,
+    monthlyCost: minor(monthlyCost),
     ...(dueDate === undefined ? {} : { dueDate }),
     monthsRemaining,
   };
@@ -236,13 +274,14 @@ export function evaluateTargets(
   targets: readonly Target[],
   monthState: MonthState,
   assignedFor: (categoryId: Id, month: Month) => Minor,
+  options: TargetOptions = {},
 ): Record<Id, TargetMonth> {
   const out: Record<Id, TargetMonth> = {};
   for (const t of targets) {
     const cm = monthState.categories[t.categoryId];
     if (!cm) throw new ValidationError(`Target for unknown category ${t.categoryId}`);
     if (out[t.categoryId]) throw new ValidationError(`More than one target for ${t.categoryId}`);
-    out[t.categoryId] = evaluateTarget(t, monthState.month, cm, (m) => assignedFor(t.categoryId, m));
+    out[t.categoryId] = evaluateTarget(t, monthState.month, cm, (m) => assignedFor(t.categoryId, m), options);
   }
   return out;
 }
@@ -254,6 +293,8 @@ export function costToBeMe(evaluated: Record<Id, TargetMonth>, expectedIncome: M
   difference: Minor;
 } {
   let total = 0;
-  for (const t of Object.values(evaluated)) if (t.status !== 'inactive') total += t.neededThisMonth;
+  // Weekly/monthly targets count their full monthly amount; multi-month targets this month's
+  // share; "Have a balance of" with no date nothing (trial 2026-10: $1,390.01 exactly).
+  for (const t of Object.values(evaluated)) if (t.status !== 'inactive') total += t.monthlyCost;
   return { targets: minor(total), expectedIncome, difference: minor(expectedIncome - total) };
 }

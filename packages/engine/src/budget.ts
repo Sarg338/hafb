@@ -44,6 +44,10 @@ export interface CreditCardMonth {
   fundedSpending: Minor;
   /** Net money paid to the card this month (payments − cash advances). Reduces the category. */
   payments: Minor;
+  /** Card balance at the end of the month (negative = owed). */
+  balance: Minor;
+  /** Card spending this month that category money did not cover (this month's credit overspending on this card). */
+  unfundedSpending: Minor;
 }
 
 export interface CategoryMonth {
@@ -242,6 +246,7 @@ export function computeBudget(snapshot: BudgetSnapshot, options: ComputeOptions)
     return b;
   };
   const balances = new Map<Id, { cleared: number; working: number }>();
+  const cardMonthNet = new Map<Month, Map<Id, number>>();
   let hasUncategorized = false;
   let lineSeq = 0;
 
@@ -253,6 +258,15 @@ export function computeBudget(snapshot: BudgetSnapshot, options: ComputeOptions)
     bal.working += tx.amount;
     if (tx.cleared !== 'uncleared') bal.cleared += tx.amount;
     balances.set(account.id, bal);
+    if (account.onBudget && isCreditAccountType(account.type)) {
+      const m = monthOf(tx.date);
+      let byCard = cardMonthNet.get(m);
+      if (!byCard) {
+        byCard = new Map();
+        cardMonthNet.set(m, byCard);
+      }
+      byCard.set(account.id, (byCard.get(account.id) ?? 0) + tx.amount);
+    }
 
     for (const line of transactionLines(tx)) {
       lineSeq += 1;
@@ -337,12 +351,15 @@ export function computeBudget(snapshot: BudgetSnapshot, options: ComputeOptions)
   let cumulativeAssigned = 0;
   let rtaCorePrev = 0;
   let cashOverspendingPrev = 0;
+  const cardBalance = new Map<Id, number>();
 
   for (const month of months) {
     const bucket = buckets.get(month) ?? emptyBucket();
     const assignedHere = assigned.get(month);
     const categories: Record<Id, CategoryMonth> = {};
     const funded = new Map<Id, number>(); // card account → funded spending this month
+    const unfundedByCard = new Map<Id, number>();
+    for (const [cardId, net] of cardMonthNet.get(month) ?? []) cardBalance.set(cardId, (cardBalance.get(cardId) ?? 0) + net);
     let cashOverspending = 0;
 
     for (const id of regularIds) {
@@ -382,7 +399,10 @@ export function computeBudget(snapshot: BudgetSnapshot, options: ComputeOptions)
           unfunded -= take;
         }
       }
-      for (const [accountId, c] of cards) funded.set(accountId, (funded.get(accountId) ?? 0) + c.funded);
+      for (const [accountId, c] of cards) {
+        funded.set(accountId, (funded.get(accountId) ?? 0) + c.funded);
+        if (c.net < 0) unfundedByCard.set(accountId, (unfundedByCard.get(accountId) ?? 0) + (0 - c.net - c.funded));
+      }
       cashOverspending += cashOver;
       prevAvailable.set(id, available);
       categories[id] = {
@@ -418,7 +438,13 @@ export function computeBudget(snapshot: BudgetSnapshot, options: ComputeOptions)
         cashActivity: minor(activity),
         creditActivity: ZERO,
         overspending: { cash: minor(cashOver), credit: ZERO },
-        creditCard: { accountId: cardId, fundedSpending: minor(fundedSpending), payments: minor(payments) },
+        creditCard: {
+          accountId: cardId,
+          fundedSpending: minor(fundedSpending),
+          payments: minor(payments),
+          balance: minor(cardBalance.get(cardId) ?? 0),
+          unfundedSpending: minor(unfundedByCard.get(cardId) ?? 0),
+        },
       };
     }
 

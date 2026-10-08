@@ -48,8 +48,10 @@ function household() {
 describe('§11.1 Spending Breakdown', () => {
   it('ranks spending (outflows net of refunds) by group and category; net inflows go to their own section', () => {
     const r = spendingBreakdown(household(), { from: '2026-01', to: '2026-02' });
-    expect(r.total).toBe(455_000);
-    expect(r.averagePerMonth).toBe(227_500);
+    // YNAB trial 2026-10: the headline total is net of net-inflow categories; percentages use gross.
+    expect(r.total).toBe(453_000);
+    expect(r.grossSpending).toBe(455_000);
+    expect(r.averagePerMonth).toBe(226_500);
     expect(r.groups).toEqual([
       {
         groupId: 'needs',
@@ -68,7 +70,7 @@ describe('§11.1 Spending Breakdown', () => {
   it('filters by account and category', () => {
     expect(spendingBreakdown(household(), { from: '2026-01', to: '2026-02', accountIds: ['visa'] }).total).toBe(10_000);
     expect(spendingBreakdown(household(), { from: '2026-01', to: '2026-02', categoryIds: ['groceries'] }).total).toBe(55_000);
-    expect(spendingBreakdown(household(), { from: '2026-02', to: '2026-02' }).total).toBe(180_000);
+    expect(spendingBreakdown(household(), { from: '2026-02', to: '2026-02' }).total).toBe(178_000); // 180 − fun's 2 inflow
   });
 });
 
@@ -91,7 +93,7 @@ describe('§11.2 Spending Trends', () => {
 describe('§11.3 Net Worth', () => {
   it('sums positive balances as assets and negative balances as debts across all accounts, per month end', () => {
     expect(netWorth(household(), { from: '2025-12', to: '2026-02' })).toEqual([
-      { month: '2025-12', assets: 100_000, debts: 0, netWorth: 100_000, change: 100_000 },
+      { month: '2025-12', assets: 100_000, debts: 0, netWorth: 100_000, change: 0 }, // first month: no change (YNAB trial)
       { month: '2026-01', assets: 40_175_000, debts: -29_900_000, netWorth: 10_275_000, change: 10_175_000 },
       { month: '2026-02', assets: 40_297_000, debts: -29_900_000, netWorth: 10_397_000, change: 122_000 },
     ]);

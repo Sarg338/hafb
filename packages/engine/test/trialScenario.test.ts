@@ -1,6 +1,6 @@
-// The YNAB trial scenario (docs/ynab-trial-scenario.md), encoded so HAFB's predictions are
-// fixed *before* Sarg enters the same steps in YNAB. The snapshot file freezes every predicted
-// number; when YNAB's numbers come back they are compared with these, not fitted to them.
+// The YNAB trial scenario (docs/ynab-trial-scenario.md) as scripted. The predictions were frozen
+// *before* Sarg ran the trial (commit 7ace1fd keeps that version); after the trial the engine was
+// corrected against YNAB's real numbers (goldenTrial.test.ts) and this snapshot regenerated.
 // HAFB_PRINT_PREDICTIONS=1 prints the predictions as markdown for the doc.
 import { asISODate, minor, type Month } from '@hafb/shared';
 import { describe, expect, it } from 'vitest';
@@ -123,7 +123,7 @@ function predictions() {
   return out;
 }
 
-describe('YNAB trial scenario predictions (frozen before comparing with YNAB)', () => {
+describe('YNAB trial scenario predictions (as scripted; regenerated after the trial)', () => {
   it('matches the frozen predictions', () => {
     const p = predictions();
     if (process.env.HAFB_PRINT_PREDICTIONS) {

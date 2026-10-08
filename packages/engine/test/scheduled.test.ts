@@ -142,8 +142,8 @@ describe('upcoming within the month (§5.11 shortfall warning)', () => {
   it('sums occurrences after today through month end, per category, signed', () => {
     // gym: Mar 12 (past), Mar 26 → −20; refund +10 on Mar 20; phone −60 on Mar 25.
     expect(upcomingByCategory(schedules, '2026-03', d('2026-03-15'))).toEqual({ bills: -6_000, fun: -1_000 });
-    // A future month counts from its first day: phone Apr 25; gym Apr 9 and 23; 'past' Apr 1.
-    expect(upcomingByCategory(schedules, '2026-04', d('2026-03-15'))).toEqual({ bills: -15_999, fun: -4_000 });
+    // YNAB doesn't project scheduled transactions into future months (trial 2026-11).
+    expect(upcomingByCategory(schedules, '2026-04', d('2026-03-15'))).toEqual({});
   });
 
   it('available after upcoming, and the categories that would go negative', () => {
