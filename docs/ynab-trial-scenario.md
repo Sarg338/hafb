@@ -149,3 +149,13 @@ Plan name → **Fresh Start** (or "Make a fresh start"). Accept the defaults. Th
 
 - **Monthly loan interest:** after **Nov 1**, check whether YNAB posted an interest transaction to the Mortgage, and its amount.
 - **Changing an account's type:** create a checking account "Converted", add a $50.00 Dining out outflow, then try Edit → change its type to Credit Card. Note whether it's allowed and what the new payment category shows.
+
+## Part 9: Follow-up checks (after the first comparison, 2026-10-08)
+
+The first comparison is done (see `docs/budget-math.md` §12.2). Three checks remain. HAFB's predictions for them are recorded in the session log, made before you check.
+
+1. **Age of Money:** open the **Oct 5 Gas Station** transaction in `bank` and change it from an *inflow* of $200.00 to an **outflow** of $200.00. That gives YNAB its 10th outflow. Then open **Reflect → Age of Money** and note the number of days.
+2. **Weekly target rule:** in **October**, change **Groceries' Assigned** from 400.00 to **350.00**. Click Groceries and note the Target card (to go / "Assign $X more" / met). Then set it **back to 400.00**.
+3. **Fresh Start (last; it archives the plan):** do Part 8.
+
+I can take the screenshots after each step if you leave the plan open in Chrome.
