@@ -557,7 +557,7 @@ Each item needs real YNAB behavior to confirm. The optional YNAB free-trial scen
 | Q4 | Target formulas | ✅ **Verified** on 19 cards across 8 behaviors, plus the weekly creation-date rule: Groceries at $350 shows "Assign $50.00 more", as predicted (the "spending counts" alternative would have shown it met) |
 | Q5 | Average Assigned/Spent window | ✅ **Verified:** months the plan has |
 | Q6 | Underfunded with scheduled transactions | ✅ **Verified:** funded to the bill's total, current month only |
-| Q7 | Loan interest accrual | ⚠️ **Near-match.** Payoff date and 360 payments are exact; total interest differs by $0.50 over 30 years, and no rounding method tried reproduces YNAB's cents (YNAB's own totals disagree by $0.01) |
+| Q7 | Loan interest accrual | ⚠️ **Near-match, being chased to the cent** (Sarg: estimators must be as accurate as possible). Payoff date and 360 payments are exact; total interest differs by $0.50 over 30 years, and no rounding method tried yet reproduces YNAB's cents (YNAB's own totals disagree by $0.01). Next: YNAB's first posted monthly interest after 2026-11-01 (roadmap Timed follow-ups) |
 | Q8 | Converted-account card behavior (public export, 95 values) | ❓ Unexplained; optional trial extra |
 | Q9 | Split rows in the export | ✅ **Verified:** `Split (k/n)` rows, recombined on import |
 | Q10 | YNAB "Credit Card Interest" categorization | ⏳ Rolling out; not modeled |

@@ -17,6 +17,13 @@
   - Upcoming: undo/command architecture (S2.3), styling approach (S3.2), charting (S6.1), attachment storage (S7.6).
 - **Look and feel:** we use YNAB's *vocabulary and interaction patterns* (CLAUDE.md §9). We do **not** copy YNAB's branding, illustrations or visual trade dress. HAFB gets its own Windows-native visual identity.
 
+## Timed follow-ups
+
+| When | Check | Why | Status |
+|---|---|---|---|
+| **On or after 2026-11-01** (before the YNAB trial ends, early Nov) | Open the trial's mortgage account (`house`, in the archived plan) and record the **interest transaction YNAB posted**. HAFB predicts **$1,000.00** ($200,000 × 6.00% ÷ 12). | **Sarg's requirement: estimators must be as accurate as possible, not just the budget math.** The payoff simulator's total interest is $0.50 higher than YNAB's over 30 years (budget-math §13 Q7). The monthly posting pins down the per-month formula. If it matches, test the remaining simulator hypotheses (first-month proration from the account's start date, rounding of the final payment, floating-point accumulation) until the 30-year total matches to the cent. | ⏳ |
+| Optional, any time before the trial ends | Trial extra: try to change an unlinked checking account with transactions to Credit Card. | Shows whether YNAB still allows type conversion; that decides whether the public sample's 95 converted-card values (Q8) matter for import. | ⏳ |
+
 ## Milestones
 
 | Milestone | When | Meaning |
@@ -137,7 +144,7 @@ The 2026-10-08 research (YNAB What's New and help center) found that CLAUDE.md w
 | **S6.1 Reflect framework** (ADR: charts) | Choose charting (hand-rolled SVG vs a library; must pass the no-network audit). Reflect shell with 5 tabs; category and account tree pickers (Select All/None); timeframe presets and custom range with previous/next; summary side panel; drill-down transaction modal; export CSV/TSV and PNG. | Filters persist; exports open correctly in Excel. |
 | **S6.2 Spending Breakdown & Trends** | Donut by group/category, stack-ranked list, positive-inflow section; stacked bars over time with average line; Totals/Trends toggle. | Matches YNAB for the same filters on Sarg's data. |
 | **S6.3 Net Worth, Income v Expense, Age of Money** | Assets vs debts bars with net worth line; collapsible income/expense table with average and total; Age of Money chart (6m/1y/2y) with its < 10 outflows empty state; **Share Your Progress** PNG (amounts hidden). | Numbers tie to the engine; the PNG renders at high DPI. |
-| **S6.4 Loans & loan planner** | Loan setup (rate, escrow, fees, minimum payment, original principal), monthly interest posting (editable), paired category with Record Payment and Monthly Debt Payment target, payoff calculator (payment ↔ payoff date), what-if extra payments, payoff celebration. | Matches Sarg's actual loan statement within a documented tolerance. |
+| **S6.4 Loans & loan planner** | Loan setup (rate, escrow, fees, minimum payment, original principal), monthly interest posting (editable), paired category with Record Payment and Monthly Debt Payment target, payoff calculator (payment ↔ payoff date), what-if extra payments, payoff celebration. | Monthly interest and the payoff simulator (payoff date, payments, **total interest to the cent**) match YNAB; see Timed follow-ups. |
 | **S6.5 Bank file import** | CSV (column mapper remembered per account, date-format detection, swap inflow/outflow, semicolons), OFX/QFX (multi-file), QIF. Dedupe by FITID plus fuzzy match. Approve/reject/match/unmatch review (D4); auto-match to entered and scheduled transactions (≤ 10 days); CC payment pairing; skip rule (D13); rename rules applied; inflows default to Ready to Assign. | Sarg's real bank files import with zero duplicates on re-import. |
 | **S6.6 Export & backups + M3** | YNAB-format CSV export (verified to import back into YNAB); raw SQLite copy; backup settings (count, location) and restore UI. | **M3:** every non-server parity row is `done`. |
 
