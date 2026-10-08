@@ -15,6 +15,7 @@ import {
   createAccount,
   createCategory,
   createGroup,
+  categoryInUse,
   deleteCategory,
   deleteGroup,
   deletePayee,
@@ -379,6 +380,35 @@ describe('commands', () => {
         [OCT, usd(300)],
       ]);
       expect(budgetSnapshot(b.plan).categories.map((c) => c.id)).not.toContain(groceries);
+    });
+
+    it('an unused category is deleted without a reassignment (YNAB only asks when there is history)', () => {
+      const spare = b.run(createCategory(b.plan, ctx, { groupId: bills, name: 'Spare' })).categoryId;
+      expect(categoryInUse(b.plan, spare)).toEqual({ transactions: 0, scheduled: 0, months: 0 });
+      b.run(deleteCategory(b.plan, ctx, { categoryId: spare }));
+      expect(findRecord(b.plan, 'categories', spare)?.deletedAt).toBeDefined();
+      expect(b.plan.moneyMoves.filter((m) => m.kind === 'categoryDeleted')).toEqual([]);
+    });
+
+    it('a category with history needs somewhere for it to go', () => {
+      b.run(setAssigned(b.plan, ctx, { month: OCT, categoryId: groceries, amount: usd(10) }));
+      b.run(addTransaction(b.plan, ctx, { accountId: checking, date: TODAY, amount: usd(-3), categoryId: groceries }));
+      expect(categoryInUse(b.plan, groceries)).toEqual({ transactions: 1, scheduled: 0, months: 1 });
+      expect(() => deleteCategory(b.plan, ctx, { categoryId: groceries })).toThrow(/reassign/i);
+      // A deleted transaction no longer counts as history.
+      const t = live(b.plan).find((x) => x.categoryId === groceries);
+      b.run(deleteTransactions(b.plan, ctx, { transactionIds: [t?.id ?? ''] }));
+      expect(categoryInUse(b.plan, groceries).transactions).toBe(0);
+    });
+
+    it('a group whose categories are all unused is deleted without a reassignment', () => {
+      const other = b.run(createGroup(b.plan, ctx, { name: 'Someday' })).groupId;
+      b.run(createCategory(b.plan, ctx, { groupId: other, name: 'Boat' }));
+      b.run(deleteGroup(b.plan, ctx, { groupId: other }));
+      expect(findRecord(b.plan, 'categoryGroups', other)?.deletedAt).toBeDefined();
+      expect(() => deleteGroup(b.plan, ctx, { groupId: bills })).not.toThrow();
+      b.run(setAssigned(b.plan, ctx, { month: OCT, categoryId: rent, amount: usd(1) }));
+      expect(() => deleteGroup(b.plan, ctx, { groupId: bills })).toThrow(/reassign/i);
     });
 
     it('delete a group with its categories', () => {

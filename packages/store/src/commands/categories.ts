@@ -112,18 +112,51 @@ export function arrangeCategories(plan: PlanData, _ctx: CommandContext, args: { 
   return { label: 'Move categories', changes: d.build() };
 }
 
+export interface CategoryUse {
+  /** Live transactions (or split lines) categorized to it. */
+  transactions: number;
+  /** Live scheduled transactions (or their split lines) that use it. */
+  scheduled: number;
+  /** Months with a non-zero assigned amount. */
+  months: number;
+}
+
+/** What a category is used by: YNAB asks where to reassign only when there is something to move. */
+export function categoryInUse(plan: PlanData, categoryId: Id): CategoryUse {
+  const uses = (x: { categoryId: Id | null; subtransactions?: readonly { categoryId: Id | null }[] }): boolean =>
+    x.categoryId === categoryId || (x.subtransactions?.some((s) => s.categoryId === categoryId) ?? false);
+  return {
+    transactions: plan.transactions.filter((t) => t.deletedAt === undefined && uses(t)).length,
+    scheduled: plan.scheduled.filter((s) => s.deletedAt === undefined && uses(s)).length,
+    months: plan.assignments.filter((a) => a.categoryId === categoryId && a.assigned !== 0).length,
+  };
+}
+
+const unused = (u: CategoryUse): boolean => u.transactions === 0 && u.scheduled === 0 && u.months === 0;
+
 /**
  * Delete a category (YNAB: "reassign its transactions and money"). Every transaction, split line,
  * scheduled transaction and payee default that used it moves to `reassignTo`, and so does every
  * month's assigned amount, so the replacement's available balance is exactly the sum of both and
- * Ready to Assign does not change. The money moves are logged as `categoryDeleted`.
+ * Ready to Assign does not change. The money moves are logged as `categoryDeleted`. A category with
+ * no history (categoryInUse) needs no `reassignTo`.
  */
-export function deleteCategory(plan: PlanData, ctx: CommandContext, args: { categoryId: Id; reassignTo: Id }): Command {
+export function deleteCategory(plan: PlanData, ctx: CommandContext, args: { categoryId: Id; reassignTo?: Id }): Command {
   const d = new Draft(plan);
   const c = userCategory(d, args.categoryId);
-  checkReassignTarget(d, c, args.reassignTo);
-  removeCategory(d, ctx, c, args.reassignTo, ctx.newId());
+  const to = reassignTarget(plan, d, c, args.reassignTo);
+  removeCategory(d, ctx, c, to, ctx.newId());
   return { label: `Delete category: ${c.name}`, changes: d.build() };
+}
+
+/** The reassignment target, or null when the category has nothing to move. */
+function reassignTarget(plan: PlanData, d: Draft, c: CategoryRecord, to: Id | undefined): Id | null {
+  if (to === undefined) {
+    if (!unused(categoryInUse(plan, c.id))) throw new ValidationError(`${c.name} has transactions or money: pick a category to reassign them to`);
+    return null;
+  }
+  checkReassignTarget(d, c, to);
+  return to;
 }
 
 function checkReassignTarget(d: Draft, c: CategoryRecord, to: Id): void {
@@ -132,7 +165,16 @@ function checkReassignTarget(d: Draft, c: CategoryRecord, to: Id): void {
   liveCategory(d, to);
 }
 
-function removeCategory(d: Draft, ctx: CommandContext, c: CategoryRecord, to: Id, groupId: Id): void {
+function removeCategory(d: Draft, ctx: CommandContext, c: CategoryRecord, to: Id | null, groupId: Id): void {
+  if (to === null) {
+    // Nothing references it but defaults, views and pairings: clear those and delete.
+    for (const p of d.all('payees')) {
+      if (p.defaultCategoryId === c.id) d.put('payees', omit(p, 'defaultCategoryId'));
+    }
+    detach(d, c);
+    d.put('categories', { ...c, deletedAt: ctx.now });
+    return;
+  }
   const swap = <T extends { categoryId: Id | null }>(x: T): T => (x.categoryId === c.id ? { ...x, categoryId: to } : x);
   for (const t of d.all('transactions')) {
     const hit = t.categoryId === c.id || (t.subtransactions?.some((s) => s.categoryId === c.id) ?? false);
@@ -152,6 +194,12 @@ function removeCategory(d: Draft, ctx: CommandContext, c: CategoryRecord, to: Id
     const outflow = a.assigned > 0;
     recordMove(d, ctx, groupId, { month: a.month, from: outflow ? c.id : to, to: outflow ? to : c.id, amount: Math.abs(a.assigned), kind: 'categoryDeleted' });
   }
+  detach(d, c);
+  d.put('categories', { ...c, deletedAt: ctx.now });
+}
+
+/** Remove the category's target, its place in custom views, and a loan's pairing with it. */
+function detach(d: Draft, c: CategoryRecord): void {
   if (d.get('targets', c.id)) d.remove('targets', c.id);
   for (const v of d.all('focusedViews')) {
     if (v.categoryIds.includes(c.id)) d.put('focusedViews', { ...v, categoryIds: v.categoryIds.filter((x) => x !== c.id) });
@@ -163,20 +211,26 @@ function removeCategory(d: Draft, ctx: CommandContext, c: CategoryRecord, to: Id
       d.put('accounts', Object.keys(loan).length === 0 ? rest : { ...rest, loan });
     }
   }
-  d.put('categories', { ...c, deletedAt: ctx.now });
 }
 
-/** Delete a group and its categories, reassigning everything to `reassignTo` (outside the group). */
-export function deleteGroup(plan: PlanData, ctx: CommandContext, args: { groupId: Id; reassignTo: Id }): Command {
+/**
+ * Delete a group and its categories, reassigning everything to `reassignTo` (outside the group).
+ * When none of its categories has history, no `reassignTo` is needed.
+ */
+export function deleteGroup(plan: PlanData, ctx: CommandContext, args: { groupId: Id; reassignTo?: Id }): Command {
   const d = new Draft(plan);
   const g = userGroup(d, args.groupId);
-  const target = liveCategory(d, args.reassignTo);
-  if (target.groupId === g.id) throw new ValidationError('Reassign to a category outside the group being deleted');
+  if (args.reassignTo !== undefined) {
+    const target = liveCategory(d, args.reassignTo);
+    if (target.groupId === g.id) throw new ValidationError('Reassign to a category outside the group being deleted');
+  }
   const groupId = ctx.newId();
   for (const c of d.all('categories')) {
     if (c.groupId !== g.id || c.deletedAt !== undefined) continue;
-    checkReassignTarget(d, c, args.reassignTo);
-    removeCategory(d, ctx, c, args.reassignTo, groupId);
+    if (args.reassignTo === undefined && !unused(categoryInUse(plan, c.id))) {
+      throw new ValidationError(`${g.name} has categories with transactions or money: pick a category to reassign them to`);
+    }
+    removeCategory(d, ctx, c, args.reassignTo === undefined ? null : reassignTarget(plan, d, c, args.reassignTo), groupId);
   }
   d.put('categoryGroups', { ...g, deletedAt: ctx.now });
   return { label: `Delete group: ${g.name}`, changes: d.build() };
