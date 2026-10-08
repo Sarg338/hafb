@@ -36,13 +36,13 @@ export function crc32(bytes: Uint8Array): number {
 }
 
 async function inflateRaw(data: Uint8Array): Promise<Uint8Array> {
-  const input = new ReadableStream<Uint8Array>({
-    start(controller) {
-      controller.enqueue(data);
-      controller.close();
-    },
-  });
-  const reader = input.pipeThrough<Uint8Array>(new DecompressionStream('deflate-raw')).getReader();
+  // Writer API rather than pipeThrough: Node's and the DOM's stream typings disagree on pipeThrough.
+  const stream = new DecompressionStream('deflate-raw');
+  const writer = stream.writable.getWriter();
+  // A corrupt stream rejects here and in read() below; read() reports it.
+  // A copy backed by a plain ArrayBuffer: the DOM typings refuse a possibly shared buffer.
+  writer.write(new Uint8Array(data)).then(() => writer.close()).catch(() => undefined);
+  const reader: ReadableStreamDefaultReader<Uint8Array> = stream.readable.getReader();
   const chunks: Uint8Array[] = [];
   let length = 0;
   for (;;) {

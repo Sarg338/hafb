@@ -44,3 +44,5 @@ export {
   addMonthsToDate,
 } from './dates.ts';
 export { uuidv7, uuidv7Generator } from './uuid.ts';
+export type { MoneyFormat } from './format.ts';
+export { formatMoney, numberFormatSeparators } from './format.ts';
