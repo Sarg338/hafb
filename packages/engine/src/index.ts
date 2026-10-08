@@ -13,3 +13,6 @@ export * from './scheduled.ts';
 export * from './reconcile.ts';
 export * from './search.ts';
 export * from './payees.ts';
+export * from './ageOfMoney.ts';
+export * from './loans.ts';
+export * from './reports.ts';
