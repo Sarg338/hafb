@@ -1,0 +1,39 @@
+[package]
+name = "hafb"
+version = "0.0.1"
+description = "HAFB - Here's A Free Budget"
+license = "MIT"
+edition = "2024"
+rust-version = "1.85"
+publish = false
+
+[lib]
+name = "hafb_lib"
+crate-type = ["rlib"]
+
+[build-dependencies]
+tauri-build = { version = "=2.7.1", features = [] }
+
+[dependencies]
+# Default features only: no updater, no HTTP client, nothing that talks to the network.
+tauri = { version = "=2.12.1", features = [] }
+serde = { version = "1.0.229", features = ["derive"] }
+# `bundled` compiles SQLite into the binary: a known SQLite version, no system DLL.
+rusqlite = { version = "0.40.2", features = ["bundled"] }
+# Custom title bar that keeps Windows 11 Snap Layouts. Source audited 2026-10-08 (see ADR 0001); pinned exactly.
+tauri-plugin-frame = "=1.1.8"
+
+[target.'cfg(windows)'.dependencies]
+# Already in the tree via tauri-plugin-frame; used directly only for process start time (launch spike).
+windows-sys = { version = "0.61", features = [
+  "Win32_Foundation",
+  "Win32_System_SystemInformation",
+  "Win32_System_Threading",
+] }
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "abort"
+strip = true

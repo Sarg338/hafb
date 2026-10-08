@@ -1,0 +1,198 @@
+/* Phase 0: deliberately plain. Real styling (CSS modules, YNAB-density tokens) starts in Phase 3. */
+
+:root {
+  --bg: #f3f3f3;
+  --surface: #ffffff;
+  --text: #1b1b1b;
+  --muted: #5f5f5f;
+  --border: #d9d9d9;
+  --accent: #2f6f4f;
+  --row-alt: #f7f7f7;
+  --bad: #b3261e;
+  --good: #1e6b3a;
+  color-scheme: light dark;
+  font-family: 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif;
+  font-size: 14px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #202020;
+    --surface: #2b2b2b;
+    --text: #f0f0f0;
+    --muted: #a8a8a8;
+    --border: #3d3d3d;
+    --accent: #6cc59a;
+    --row-alt: #303030;
+    --bad: #f2b8b5;
+    --good: #8fd6a8;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+#root {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+/* Must stay 32px tall with 46px caption buttons: see TITLEBAR_HEIGHT in src-tauri/src/lib.rs. */
+.titlebar {
+  flex: none;
+  height: 32px;
+  display: flex;
+  align-items: stretch;
+  user-select: none;
+  background: var(--bg);
+}
+
+.titlebar-title {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  padding-left: 12px;
+  font-size: 12px;
+}
+
+/* Native title bar mode: Windows draws the caption, so hide ours. */
+html.native-titlebar .titlebar {
+  display: none;
+}
+
+a {
+  color: var(--accent);
+}
+
+.home {
+  padding: 24px;
+}
+
+.spike {
+  padding: 12px 16px 24px;
+}
+
+.spike nav {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.spike nav button[aria-pressed='true'] {
+  font-weight: 700;
+  outline: 2px solid var(--accent);
+}
+
+.spike section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.spike h2 {
+  margin: 0 0 8px;
+  font-size: 16px;
+}
+
+.spike .controls {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 8px 0;
+}
+
+.spike pre {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  padding: 8px;
+  white-space: pre-wrap;
+  font-family: 'Cascadia Mono', Consolas, monospace;
+  font-size: 12px;
+  margin: 8px 0;
+  user-select: text;
+}
+
+.spike .bad {
+  color: var(--bad);
+}
+
+.spike .good {
+  color: var(--good);
+}
+
+/* Grid spike */
+.grid-scroll {
+  height: 560px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  contain: strict;
+}
+
+.grid-header,
+.grid-row {
+  display: flex;
+  height: 30px;
+  align-items: center;
+}
+
+.grid-header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.grid-body {
+  position: relative;
+}
+
+.grid-row {
+  position: absolute;
+  left: 0;
+  top: 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.grid-row.alt {
+  background: var(--row-alt);
+}
+
+.grid-row:hover {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.grid-cell {
+  flex: none;
+  padding: 0 8px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.grid-cell.money {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}

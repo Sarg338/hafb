@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HAFB</title>
+  </head>
+  <body>
+    <!--
+      Custom title bar. tauri-plugin-frame appends its caption buttons to the element marked
+      data-tauri-frame-tb, so it must exist in static HTML before the plugin's script runs
+      (React mounts later). Its height/button width must match TITLEBAR_HEIGHT in src-tauri/src/lib.rs.
+    -->
+    <header class="titlebar" data-tauri-frame-tb data-tauri-drag-region>
+      <span class="titlebar-title" data-tauri-drag-region>HAFB · Phase 0 spike</span>
+    </header>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
