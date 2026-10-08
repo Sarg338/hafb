@@ -51,6 +51,9 @@ hafb/
   docs/
     decisions/               ← ADRs, one file per decision (NNNN-title.md)
     ynab-parity.md           ← the parity checklist (§6), kept current
+    roadmap.md               ← phases and sprints to v1.0 (§7), with exit criteria
+    ynab-references.md       ← YNAB pages used as parity sources
+    ui-references/ynab/      ← YNAB screenshots for design study (git-ignored; copyrighted)
     budget-math.md           ← worked examples for every rule in §5
   packages/
     engine/                  ← pure TS budget engine (no I/O, no DOM, no Tauri)
@@ -73,28 +76,57 @@ Monorepo with pnpm workspaces. `packages/engine` must never import from `apps/`.
 
 ## 4. Domain model
 
-Entities (table ≈ TS type ≈ Rust struct; keep them in lockstep via `packages/shared`):
+Entities (table ≈ TS type ≈ Rust struct; keep them in lockstep via `packages/shared`). Updated 2026-10-08 for YNAB's 2026 behavior (roadmap D1–D13).
 
-- **Budget** — name, currency (ISO 4217), decimal digits, date format, number format, first month, settings. One SQLite file = one Budget.
-- **Account** — name, type, `on_budget: bool`, `closed: bool`, note, sort order, last reconciled at.
-  - Budget account types: `checking`, `savings`, `cash`, `credit_card`, `line_of_credit`.
-  - Tracking account types: `asset`, `liability`, `mortgage`, `auto_loan`, `student_loan`, `personal_loan`, `medical_debt`, `other_debt`.
-  - Loan accounts additionally carry: interest rate (bps), escrow amount, minimum payment, original principal, payment schedule.
-- **CategoryGroup** — name, hidden, sort order, `is_system` (for the two system groups: *Credit Card Payments* and *Hidden Categories*; plus the implicit *Inflow* group that holds *Ready to Assign*).
-- **Category** — group, name, hidden, note, sort order, `credit_card_account_id` (set only for CC payment categories).
-- **Target** (category goal) — one per category, see §5.4 for types.
-- **Payee** — name, `transfer_account_id` (payees for transfers are system-managed), default category, note, deleted.
-- **PayeeRenameRule** — pattern (contains / starts with / equals, case-insensitive), target payee.
-- **Transaction** — account, date, payee, category (nullable for transfers to/from on-budget accounts and for tracking accounts), memo, amount (signed minor units; negative = outflow), `cleared: uncleared | cleared | reconciled`, flag color (nullable), `transfer_transaction_id` (the paired leg), `scheduled_transaction_id` (origin, if any), import id, deleted.
-- **Subtransaction** — parent transaction, category, payee (optional override), memo, amount, transfer leg. Parent amount must equal sum of subtransactions (invariant, enforced in engine and DB trigger).
-- **ScheduledTransaction** — everything a Transaction has, plus frequency (`never`, `daily`, `weekly`, `everyOtherWeek`, `twiceAMonth`, `every4Weeks`, `monthly`, `everyOtherMonth`, `every3Months`, `every4Months`, `twiceAYear`, `yearly`, `everyOtherYear`) and `next_date`. Scheduled sub-transactions too.
-- **MonthCategory** — (month, category) → `assigned` minor units. This is the only user-entered budget number. `activity` and `available` are always derived, never stored as authoritative (they may be cached with an invalidation key).
-- **MonthNote**, **CategoryNote** — free text.
-- **Reconciliation** — account, date, statement balance, adjustment transaction id.
+- **Budget** (user-facing name: **Plan**; YNAB renamed "budget" to "plan" in May 2025):
+  - Fields: name, currency (ISO 4217), decimal digits, date format, number format, first month, expected monthly income (for *Cost to Be Me*), `archived_at` (set by Fresh Start), settings.
+  - One SQLite file = one Plan.
+- **Account:** name, type, `on_budget: bool`, `closed: bool`, `starred: bool`, note, sort order, last reconciled at.
+  - Sidebar groups follow YNAB, plus **Starred** on top:
+    - **Cash:** `checking`, `savings`, `cash`.
+    - **Credit:** `credit_card`, `line_of_credit`.
+    - **Loans** (off-budget): `mortgage`, `auto_loan`, `student_loan`, `personal_loan`, `medical_debt`, `other_debt`.
+    - **Tracking** (off-budget): `asset`, `liability`.
+    - **Closed.**
+  - Loan accounts also carry: interest rate (bps), escrow amount, fees, minimum payment, original principal, payment schedule, `paired_category_id` (optional; one loan per category).
+  - Transactions in cash-type accounts are created **cleared** by default.
+- **CategoryGroup:** name, hidden, sort order, `is_system`.
+  - The system groups are *Credit Card Payments* and *Hidden Categories*, plus the implicit *Inflow* group that holds *Ready to Assign*.
+- **Category:** group, name, hidden, note, sort order, `credit_card_account_id` (set only for CC payment categories).
+- **Target:** one per category, cadence × behavior (§5.4).
+  - Fields: snoozed months, created/updated.
+  - Not versioned: an edit applies to all past and future months, as in YNAB.
+- **FocusedView:** name, sort order, category ids.
+  - Up to 12 custom views. The built-in views (Underfunded, Overfunded, Snoozed, Money Available, plus Overspent when applicable) store only their order.
+  - The selected view is a per-device preference, not stored in the file.
+- **Payee:** name, `transfer_account_id` (transfer payees are system-managed), default category, `default_category_fixed: bool`, `auto_categorize: bool`, note, deleted.
+- **PayeeRenameRule:** pattern (contains / starts with / equals, case-insensitive), target payee.
+- **Transaction:**
+  - Core fields: account, date, payee, category, memo, amount (signed minor units; negative = outflow).
+    - Category is nullable for transfers between on-budget accounts and for off-budget accounts.
+  - State: `cleared: uncleared | cleared | reconciled`, `approved: bool`, flag color (nullable).
+  - Links: `transfer_transaction_id` (the paired leg), `scheduled_transaction_id` (origin, if any).
+  - Import: import id (FITID or synthetic), matched-import metadata (original bank payee/memo as imported).
+  - Soft delete: deleted.
+- **Subtransaction:** parent transaction, category, payee (optional override), memo, amount, transfer leg.
+  - Invariant: the parent amount must equal the sum of its subtransactions. Enforced in the engine and by a DB trigger.
+- **ScheduledTransaction:** everything a Transaction has, plus a frequency and `next_date`.
+  - Frequencies: `never`, `daily`, `weekly`, `everyOtherWeek`, `twiceAMonth`, `every4Weeks`, `monthly`, `everyOtherMonth`, `every3Months`, `every4Months`, `twiceAYear`, `yearly`, `everyOtherYear`.
+  - Scheduled sub-transactions too. A day-of-month past a month's end clamps to the last day.
+- **MonthCategory:** (month, category) → `assigned` minor units.
+  - This is the only user-entered budget number.
+  - `activity` and `available` are always derived, never stored as authoritative. They may be cached with an invalidation key.
+- **MoneyMove:** a durable log of assignment changes (timestamp, month, from, to, amount, kind: move / auto-assign / assign-from-RTA / return-to-RTA / category-deleted / plan-reset).
+  - Feeds *Recent Moves* (34 days) and per-category assigned history (3 months).
+- **MonthNote**, **CategoryNote:** free text.
+- **Reconciliation:** account, date, statement (cleared) balance, adjustment transaction id.
+- **RejectedImport:** (account, import id), so rejected or deleted imports never re-import.
+- **ImportProfile:** per-account CSV column mapping, date format, swap-inflow/outflow, delimiter.
+- **Attachment:** transaction, MIME type, bytes (BLOB, *inside* the .hafb, so a plan is still one file), created.
 
-Soft deletes everywhere (`deleted_at`). Every mutating action goes through a command object so undo/redo (§6.9) is a replay of inverse commands.
+Soft deletes everywhere (`deleted_at`). Every mutating action goes through a command object so undo/redo (§6) is a replay of inverse commands.
 
-IDs: UUIDv7 (time-sortable, generated client-side).
+IDs: UUIDv7 (time-sortable). They are generated outside the engine and passed in, so the engine stays pure.
 
 ---
 
@@ -107,7 +139,7 @@ For each category and month:
 ```
 available(m) = available(m-1)_carried + assigned(m) + activity(m)
 ```
-- `activity(m)` = sum of transaction amounts in month `m` categorized to this category (outflows negative), across all **on-budget** accounts. Transactions in tracking accounts never touch categories.
+- `activity(m)` = sum of transaction amounts in month `m` categorized to this category (outflows negative), across all **on-budget** (Cash and Credit) accounts. Transactions in Loans and Tracking accounts never touch categories, except the on-budget leg of a transfer (§5.9).
 - `available(m-1)_carried`:
   - if `available(m-1) >= 0` → carries forward in full.
   - if `available(m-1) < 0` and the overspending is **cash** → carries as `0`; the shortfall reduces next month's Ready to Assign (see 5.3).
@@ -123,7 +155,7 @@ RTA(m) = RTA(m-1)
        + (assigned in future months is NOT subtracted here — see 5.2.1)
 ```
 - RTA can go negative; UI shows it red with "You assigned more than you have."
-- **5.2.1 Future months:** money assigned in a future month reduces RTA *in that future month and all months after it*, and YNAB also shows it as "Assigned in Future" in the current month's RTA breakdown, reducing the headline RTA number. Reproduce the breakdown popover: *Left over from last month / Assigned this month / Inflow this month / Assigned in future*.
+- **5.2.1 Future months:** money assigned in a future month reduces RTA *in that future month and all months after it*, and YNAB also shows it as "Assigned in Future" in the current month's RTA breakdown, reducing the headline RTA number. The breakdown popover was historically *Left over from last month / Assigned this month / Inflow this month / Assigned in future*. **Verify the current fields in YNAB before S4.3** (roadmap D11). The Inspector's *Available in [Month]* = left over + assigned + activity.
 - **Starting balances** of on-budget accounts are inflows to RTA (or outflows for a negative starting balance on a CC) dated to the account's start date.
 
 ### 5.3 Credit cards
@@ -133,28 +165,77 @@ RTA(m) = RTA(m-1)
 - Inflows (refunds) categorized on a CC account reverse the movement.
 - Interest/fees charged on the card are regular categorized outflows on the card (user categorizes them, usually to a "Interest & Fees" category).
 - The CC payment category's *available* is how much cash is set aside to pay the card. Account balance vs. available = the "pay in full" gap. Show it.
+- **Record Payment** pre-fills the lower of the payment category's available amount and the card's cleared balance.
+- **Underfunded alert** on the payment category (current month only) when available < card balance. If the card has a payoff target, the alert follows the target instead.
+- YNAB is rolling out **Credit Card Interest** categorization (Oct 2026): interest stays out of the plan and doesn't overspend a category. Its details are thin, so research it before implementing; keep it behind a flag.
 
 ### 5.4 Targets
-Types, each with a `due` or a cadence:
-1. **Needed for Spending** — `weekly` (by weekday), `monthly` (by day-of-month), `yearly` (by date), or `custom` (amount by a date, with/without repeat). Two refill modes: *Refill up to* (fund to the target amount) and *Set aside another* (add the target amount regardless of current available).
-2. **Savings Balance** — *By date* (reach balance X by date Y; underfunded = evenly spread remaining amount over remaining months, including this one) or *No date* (just reach X).
-3. **Monthly Savings Builder** — assign X every month.
-4. **Have a Balance of** — (YNAB's "Savings Balance, no date" in older naming; keep as alias for import).
+YNAB reworked targets in May 2024. A target is a **cadence** plus a **behavior**:
 
-Computed per (category, month): `target_amount`, `underfunded` (what you'd need to assign now to be on track), `funded`, `status` (`on_track | underfunded | funded | overspent | snoozed`), and the "Spending" vs "Savings" progress bar semantics (spending targets show *spent* progress for the period; savings targets show *available* vs *goal*).
-- **Snooze** — a target can be snoozed for the current month; underfunded = 0 that month, status = snoozed.
-- Targets with a due date in the past and `repeat` off become inactive after the due month.
+- **Cadence:**
+  - `weekly`: due on a weekday.
+  - `monthly`: due on a day of the month or the last day.
+  - `yearly`: due on a date.
+  - `custom`: an amount due by a date, either repeating every N months/years or one-time.
+- **Behavior:**
+  - **Set aside another…**: assign the amount every period regardless of what's available, so money builds up. YNAB labels this "most people choose this".
+  - **Refill up to…**: top the category up so Available reaches the amount each period; unspent money counts toward the next period.
+  - **Have a balance of…**: reach X by a date and don't spend from it. Allowed only on a non-repeating `custom` target. Underfunded = the remaining amount spread evenly over the remaining months, including this one.
+
+Rules:
+
+- An edit applies to all past and future months; targets aren't versioned.
+- Refunds don't count toward targets. Define this precisely in `docs/budget-math.md`.
+- **Legacy mapping** (YNAB import and old exports):
+
+  | Old type | New target |
+  |---|---|
+  | Needed for Spending | matching cadence + behavior |
+  | Savings Balance by date | custom + *Have a balance of* with a date |
+  | Target Balance (no date) | *Have a balance of* with no date |
+  | Monthly Savings Builder | monthly + *Set aside another* |
+
+- **Computed per (category, month):**
+  - Amounts: target amount, needed this month, funded, to go, `underfunded` (what to assign now to be on track).
+  - `status`: `on_track | underfunded | funded | overspent | snoozed`.
+  - Progress-bar data: rollover section, one section per week for weekly targets, an "extra" section when spending exceeds the target; light shade = spent, dark = available.
+  - Progress-ring percentage.
+- **Snooze:** for the current month only; underfunded = 0 that month and status = snoozed.
+- **Expiry:** a non-repeating target whose due month has passed becomes inactive.
+- **Cost to Be Me:** the sum of this month's target amounts compared with the plan's expected income.
+- **Edit Plan** can suggest target amounts from historical spending.
 
 ### 5.5 Auto-assign
-Buttons on the budget sheet (apply to selected categories or all visible):
-`Underfunded`, `Assigned Last Month`, `Spent Last Month`, `Average Assigned` (last 12 months), `Average Spent` (last 12 months), `Reset Available Amounts` (assign so available = 0), `Reset Assigned Amounts` (set assigned to 0).
-Each shows a preview total before committing. Averages use integer division with round-half-up to the currency's minor unit. All auto-assign actions are one undo step.
+These options act on the selected categories, or else on the current Focused View, or else on everything visible:
+- `Underfunded`.
+- `Assigned Last Month`.
+- `Spent Last Month`.
+- `Average Assigned` (last 12 months).
+- `Average Spent` (last 12 months).
+- `Reduce Overfunding` (bring categories back down to their target).
+- `Reset Available Amounts` (assign so available = 0).
+- `Reset Assigned Amounts` (set assigned to 0).
 
-### 5.6 Move money / cover overspending
-Move between any two categories (or RTA) within a month: `assigned` changes on both sides, net zero. "Cover overspending" is the same thing with a pre-filled amount.
+Each option shows its amount before committing. Averages use integer division with round-half-up to the currency's minor unit. Every auto-assign action is one undo step and logs `MoneyMove`s.
+
+### 5.6 Move money, cover overspending, Plan Reset
+- **Move money:** between any two categories (or Ready to Assign) within a month. `assigned` changes on both sides, net zero.
+- **Cover overspending:** the same thing with the amount pre-filled. It may also draw from **future months** that have money assigned (YNAB, Jun 2025).
+- **Plan Reset** (YNAB, Sep 2026):
+  - Returns every unspent dollar to Ready to Assign, including money assigned in future months, so the user can reassign from scratch.
+  - Credit card payment categories keep their money, and no category is left overspent.
+  - Nothing is saved until the user confirms, and the reset is one undo step.
+- Every change appends a `MoneyMove` (this drives *Recent Moves*).
 
 ### 5.7 Age of Money
-YNAB's definition: for each outflow (on-budget, non-transfer, cash accounts only), find how old the dollars spent are by FIFO-matching against inflows to RTA. Age of Money shown in the header = the average age across the last 10 outflows. Reproduce their FIFO exactly; there is a well-known community write-up — read it, encode it in `docs/budget-math.md` with examples, and test it.
+YNAB's published facts:
+- It's based on the last **10 outflows** from cash accounts.
+- **Credit card payments count** as outflows.
+- Transfers and starting balances are excluded.
+- It stays empty until there are 10 outflows.
+- It's shown on its own Reflect page (6-month, 1-year and 2-year ranges), no longer in the header.
+
+YNAB does not publish its matching algorithm. Start from the FIFO community write-up, **verify it against Sarg's real export** in S1.7, and document the observed algorithm with examples in `docs/budget-math.md`.
 
 ### 5.8 Reconciliation
 Enter statement balance → engine computes the difference between the **cleared** balance and the statement. If zero, mark all cleared transactions as reconciled. If not, offer to create an adjustment transaction (payee *"Reconciliation Balance Adjustment"*, categorized to RTA for on-budget accounts, uncategorized for tracking) then reconcile. Reconciled transactions warn on edit; editing one unlocks only that transaction.
@@ -166,57 +247,140 @@ Enter statement balance → engine computes the difference between the **cleared
 - Both legs share a `transfer_group`; editing amount/date on one leg updates the other. Deleting one deletes both.
 
 ### 5.10 Loan accounts
-Tracking accounts with interest. Each month, generate an interest transaction (`payee: Interest`) based on rate × balance (simple monthly accrual to start; document the formula YNAB uses and match it). Support "Loan Planner": what-if extra-payment simulations showing payoff date and interest saved. Escrow is tracked as a separate running amount that doesn't affect principal.
+Loans are their own off-budget account group.
+- **Interest:** calculated automatically each month and posted to the loan account (payee *Interest*). The user can edit it to match the lender. Document the accrual formula, match YNAB, and check it against a real statement.
+- **Mortgages:** carry escrow and fees. Each payment covers interest and escrow first, and the remainder goes to principal. Escrow is tracked separately and never reduces principal.
+- **Paired category** (optional, one loan per category):
+  - Payments to the loan must use it.
+  - It enables **Record Payment** and a **Monthly Debt Payment** target with a payoff calculator (enter a payment → payoff date and interest saved, or pick a date → required payment).
+- **Loan Planner:** what-if extra-payment simulations.
+- **Account behavior:**
+  - Loans don't auto-close at $0.
+  - Paying a loan off triggers a celebration.
+  - "Share Your Progress" exports a PNG with the amounts hidden.
+
+### 5.11 Scheduled transactions
+- Scheduled transactions don't affect the plan until their date. They live in a collapsible **Scheduled** section at the top of the register.
+- On the date, each one becomes a real transaction, shown **bold and unapproved**. There's no launch-time review prompt; this replaces the old CLAUDE.md rule.
+- Actions: *Enter Now*, *Skip*, *Make repeating* (Shift+T).
+- A day-of-month past the end of a month clamps to the last day.
+- **Shortfall warning:** if a category's available amount won't cover its upcoming scheduled outflows this month, flag it (calendar icon) and show "available after upcoming" in the inspector.
+
+### 5.12 Approval and matching
+- `approved` is false for imported and auto-entered transactions. **Unapproved transactions still count** in the plan.
+- Only unapproved transactions can be *rejected*. Rejected or deleted imports never re-import (`RejectedImport`).
+- **Auto-match:** an entered or scheduled transaction matches an import with the same amount within 10 days.
+  - The bank's amount wins.
+  - The user's payee, memo and date are kept.
+  - The import can be unmatched.
+- Approving one leg of a transfer approves the other. Credit card payment legs (checking ↔ card) are paired by amount within a few days.
+- **File import rules:**
+  - Skip transactions dated more than 3 days before the account's last reconciliation.
+  - Keep zero-amount rows.
+  - Imported inflows to cash accounts default to Ready to Assign.
+  - Apply payee rename rules.
+
+### 5.13 Payee defaults
+- A payee's default category changes only when **2 of its 3 most recent** transactions agree.
+- The user can pin a fixed default (`default_category_fixed`) or turn auto-categorization off (`auto_categorize = false`).
+- The category picker also suggests categories while the user types.
+
+### 5.14 Fresh Start
+- Archives the current plan: the file is kept, stamped *Archived* with today's date, and opens read-only.
+- Creates a new plan that keeps the category structure, scheduled transactions, targets, expected income, notes and payees.
+- Account starting balances are dated today. **Verify YNAB's exact starting-balance rule before S7.2**; the 2026-10-08 research says unlinked accounts start at $0, which needs confirming.
 
 ---
 
 ## 6. Feature parity checklist
 
-Full tracked list lives in `docs/ynab-parity.md` with status per item (`todo | in-progress | done | wontfix`). Summary by area, in build order:
+The full, current list lives in `docs/ynab-parity.md`: one row per feature, with source, sprint and status (`todo | in-progress | done | wontfix`). It was updated 2026-10-08 from YNAB's What's New and help center. The build order is in `docs/roadmap.md`. Summary by area:
 
-1. **Budget core** — categories/groups (add, rename, reorder via drag, hide/unhide, delete with reassignment), month navigation, assign, available, RTA with breakdown, overspending (cash + credit), move money, cover overspending, month notes, category notes, "Fresh Start" (new budget seeded from current categories/accounts with starting balances).
-2. **Accounts** — all account types above, add/edit/close/reopen, starting balance flow, reorder, account notes, on-budget/tracking sections in sidebar with totals, working balance / cleared balance / uncleared balance header.
-3. **Register** — add/edit/delete, inline editing (keyboard: Enter commits, Tab moves, Esc cancels, Ctrl+Enter save-and-add-another), split transactions with "remaining" helper, transfers with payee picker, flags (6 colors + custom names), cleared toggle with click cycling, memo, running balance column (optional), multi-select with bulk edit (date/payee/category/flag/cleared/delete/move to account), search with YNAB's filter syntax (`category:`, `payee:`, `memo:`, `amount:`, `is:cleared`, `before:`, `after:`, `>`, `<`), column sort, "All Accounts" register, uncategorized filter, date picker, amount field accepting math (`12.50+3`).
-4. **Scheduled transactions** — all frequencies, "Enter Now" / "Skip", upcoming section at top of register, auto-enter on launch for scheduled transactions whose date has passed (with a review prompt).
-5. **Credit cards** — §5.3 in full, plus the CC payment category's info popover (balance, available, "Pay in full" gap).
-6. **Targets & auto-assign** — §5.4 and §5.5 in full, with the right-hand inspector panel showing target progress, assigned/activity/available for the selection, and quick-budget buttons.
-7. **Payees** — payee manager (rename, combine, delete), rename rules (learned from edits: "Rename all future 'AMZN*' to 'Amazon'?"), default category per payee (learned from last use), transfer payees.
-8. **Reconciliation** — §5.8 with the lock icon, "Reconcile" modal, reconciled-transaction edit warnings.
-9. **Undo / redo** — Ctrl+Z / Ctrl+Y across every mutating action, with a toast describing what was undone. Command log persisted per session.
-10. **Reports (Reflect)** — Spending Breakdown (donut by group/category, drill-in), Spending Trends (stacked bar over time), Net Worth (assets vs debts line/bar), Income vs Expense (table by month, categories as rows). Each with date range, account filter, category filter. Export each as CSV/PNG.
-11. **Loan planner** — §5.10.
-12. **Import / export** —
-    - **YNAB migration:** import the YNAB export zip (`Plan.csv` + `Register.csv`). This is the #1 onboarding path; it must reproduce the user's budget *to the cent*, including historical assigned amounts, targets (YNAB doesn't export them — document this gap and offer a quick target re-entry screen), and CC payment categories. Golden tests use real anonymized exports.
-    - **Bank files:** OFX/QFX, QIF, CSV (with a column-mapping dialog that remembers per-account mappings). Duplicate detection via FITID / (date, amount, payee) fuzzy match with a review step.
-    - **Export:** full budget to CSV (matching YNAB's own export format so round-tripping to YNAB works), and a raw SQLite copy.
-    - **Backups:** automatic timestamped copies on open (keep last N, configurable), manual "Export backup", "Restore from backup".
-13. **Settings** — currency, number/date format, first month, theme (light/dark/system), font scale, default account for new transactions, keyboard shortcut reference, data folder location.
-14. **Polish** — all YNAB keyboard shortcuts reproduced (document them; press `?` for the overlay), native Windows title bar or well-behaved custom one (snap layouts must work), high-DPI, accessibility (screen reader labels on the grid), multiple budgets ("Open budget…", recent list).
-15. **Explicitly out of scope (wontfix):** bank sync / direct import, cloud sync, sharing a budget with another user over the network, mobile apps (the engine package is designed so one could be built later), YNAB Together / shared households.
+1. **Plan core:**
+   - Categories and groups: add, rename, drag reorder, hide/unhide, delete with reassignment.
+   - Month navigation; assign with math; Assigned/Activity/Available with colored pills and segmented progress bars.
+   - Ready to Assign banner (green / "All Money Assigned" / red), its breakdown, and future-month negative alerts.
+   - Overspending (cash + credit); move money; cover overspending (incl. from future months); Recent Moves; month and category notes.
+   - Display Options: progress bars on/off; balance style "differentiate without color".
+   - **Focused Views** (built-in + 12 custom), **Plan Reset**, **Hide Amounts**, **Templates**, **Fresh Start** (§5.14).
+2. **Inspector:** plan summary (Available in month), Cost to Be Me with expected income, Assigned in the Future, Auto-Assign with live amounts, category detail (available-balance breakdown, target progress, upcoming scheduled).
+3. **Accounts:**
+   - All types (§4), grouped Cash / Credit / Loans / Tracking / Closed, plus Starred.
+   - Add/edit/close/reopen, starting balance, reorder, notes, and the cleared + uncleared = working balance header.
+4. **Register:**
+   - **Editing:**
+     - Add/edit/delete inline (Enter commits, Tab moves, Esc cancels, Ctrl+Enter saves and adds another).
+     - Splits with an "amount remaining" helper.
+     - Transfers via a payee picker (Payments & Transfers group).
+   - **Fields:** flags (6 colors + custom names), cleared toggle, memo, optional running balance, photo attachments.
+   - **Selection & bulk actions:**
+     - Multi-select with a floating action bar and right-click menu.
+     - Bulk edit: categorize, memo, flag, date, payee, move account, delete.
+     - Duplicate (Shift+D).
+   - **Search & views:**
+     - YNAB criteria search (`Category: Dining Out, Outflow: >=30`, Before/After/On, `is:` …).
+     - Sort; view options (date presets incl. Last Month, show/hide reconciled).
+     - All Accounts register; uncategorized/unapproved banners.
+   - **Entry helpers:** date picker with YNAB keys; amount math (`+ − × ÷`).
+5. **Scheduled transactions:** §5.11 in full, all frequencies.
+6. **Credit cards:** §5.3 in full, plus the activity popover, Record Payment, pay-in-full gap and underfunded alert.
+7. **Targets & auto-assign:** §5.4 and §5.5 in full; the target editor and Edit Plan mode; snooze.
+8. **Payees:** payee manager (rename, combine, delete), learned rename rules, defaults per §5.13, transfer payees.
+9. **Reconciliation:** §5.8 with the lock icon, Reconcile flow (Shift+E), "Reconciled N days ago", reconciled-edit warnings.
+10. **Undo / redo:** Ctrl+Z and Ctrl+Shift+Z (Ctrl+Y also accepted, as the Windows convention) on every mutating action, with a toast describing what was undone.
+11. **Reflect:**
+    - Spending Breakdown (donut, stack-ranked, positive-inflow section, drill-in).
+    - Spending Trends (stacked bars over time, average line).
+    - Net Worth (assets vs debts, net worth line, Share Your Progress).
+    - Income v Expense (collapsible table with average and total).
+    - Age of Money (line chart).
+    - Category, account and timeframe filters; export as CSV/TSV and PNG.
+12. **Loans:** §5.10 in full, including the Loan Planner.
+13. **Import / export:**
+    - **YNAB migration** (`Plan.csv` + `Register.csv`):
+      - It's the #1 onboarding path and must reproduce the plan **to the cent**, including historical assigned amounts and CC payment categories.
+      - Targets aren't exported by YNAB: offer a quick re-entry screen.
+    - **Bank files:**
+      - Formats: CSV (column mapper remembered per account, swap inflow/outflow, semicolons), OFX/QFX (several files at once), QIF.
+      - Duplicate handling: FITID plus fuzzy matching, then an approve/reject/match review (§5.12).
+    - **Export:** YNAB-format CSV (round-trips to YNAB) and a raw SQLite copy.
+    - **Backups:** automatic on open (keep N), manual backup and restore.
+14. **Settings:** currency, number/date format, first month, theme (light/dark/system/high contrast), font scale, default account, data folder, shortcuts on/off, Hide Amounts.
+15. **Polish:**
+    - Every published YNAB shortcut (`?` overlay, hints in menus).
+    - A custom title bar with Snap Layouts (validated in Phase 0); high-DPI; WCAG 2.2 AA accessibility.
+    - Multiple plans with an open/recent list; onboarding and designed empty states.
+16. **Explicitly out of scope (wontfix):**
+    - Bank sync / Direct Import, pending transactions, retailer order-history links.
+    - Cloud sync; YNAB Together (shared plans, members, avatars).
+    - The "For You" feed; the API, widgets and assistants; mobile apps (the engine stays portable for a future one).
 
 ---
 
 ## 7. Build phases
 
-**Phase 0 — Spike (1 session).** Scaffold Tauri 2 + React + TS. Prove: SQLite read/write from a Tauri command, a 50k-row virtualized grid at 60 fps, custom title bar with working snap layouts, `.msi` build runs on Sarg's Windows PC. If any of these fails, switch stack per §2 and record the ADR. **Do not write budget features in Phase 0.**
+The full sprint plan with exit criteria is in `docs/roadmap.md`. Phases were renumbered on 2026-10-08 to add a design-system phase and a release phase.
 
-**Phase 1 — Engine.** `packages/engine` with the full domain model, all of §5, and a test suite that includes golden tests from a real YNAB export. No UI. Deliverable: `pnpm test` green, `docs/budget-math.md` complete.
-
-**Phase 2 — Shell + persistence.** SQLite schema + migrations, command/undo system, YNAB import script producing a loadable `.hafb` file.
-
-**Phase 3 — Budget sheet + accounts + register.** Checklist items 1–5. This is where the app becomes usable daily.
-
-**Phase 4 — Targets, payees, reconciliation, scheduled.** Items 6–9.
-
-**Phase 5 — Reports, loans, bank import, settings, polish.** Items 10–14.
+- **Phase 0, Spike:** done (ADR 0001).
+- **Phase 1, Engine:** all of §5 with tests first, plus golden tests from a real YNAB export. No UI.
+- **Phase 2, Persistence:** schema and migrations, commands and undo, YNAB import, plan files and backups.
+- **Phase 3, Design system & shell:** design direction, tokens and components, app shell, editable-grid foundation.
+- **Phase 4, Daily driver:** Plan screen, accounts, register, credit cards, undo. Ends with **M1**: two weeks of real use alongside YNAB.
+- **Phase 5, Planning power:** inspector, targets, auto-assign and Focused Views, scheduled, payees, reconciliation, Recent Moves (**M2**).
+- **Phase 6, Reflect & data:** reports, loans, bank-file import, export and backups (**M3**: feature parity).
+- **Phase 7, Polish:** settings, multiple plans, templates and Fresh Start, keyboard, accessibility, onboarding, attachments, visual polish.
+- **Phase 8, Release:** performance at scale, reliability, privacy audit, packaging, docs and beta → **v1.0**.
 
 Mark phase status here when it changes:
-- Phase 0: done. Validated on Sarg's machine 2026-10-08 (ADR 0001 §7). The spike screens (`apps/desktop/src/spike/`, `src-tauri/src/spike/`) are still in place; remove them when the real UI replaces them.
-- Phase 1: todo
+- Phase 0: done. Validated on Sarg's machine 2026-10-08 (ADR 0001 §7). The spike screens (`apps/desktop/src/spike/`, `src-tauri/src/spike/`) stay until S3.3 replaces them.
+- Phase 1: todo. The S1.0 spec changes (roadmap D1–D13) were approved by Sarg and applied 2026-10-08.
 - Phase 2: todo
 - Phase 3: todo
 - Phase 4: todo
 - Phase 5: todo
+- Phase 6: todo
+- Phase 7: todo
+- Phase 8: todo
 
 ---
 
