@@ -15,7 +15,7 @@
 - **Decisions get ADRs:**
   - `docs/decisions/NNNN-*.md`, one per choice.
   - Upcoming: undo/command architecture (S2.3), styling approach (S3.2), charting (S6.1), attachment storage (S7.6).
-- **Look and feel:** we use YNAB's *vocabulary and interaction patterns* (CLAUDE.md §9). We do **not** copy YNAB's branding, illustrations or visual trade dress. HAFB gets its own Windows-native visual identity.
+- **Look and feel** (Sarg, 2026-10-08): HAFB presents the plan, transactions and data **in a very similar way to YNAB**: the same screen structure, columns, available pills and progress bars, inspector, register layout and vocabulary (CLAUDE.md §9), so YNAB users feel at home. HAFB keeps its **own visual identity** (colors, logo, illustrations, typography details) and never copies YNAB's branding or artwork.
 
 ## Timed follow-ups
 
