@@ -125,12 +125,49 @@ export function accountBalance(d: Draft, accountId: Id): Minor {
   return minor(total);
 }
 
-/** Close an account. Like YNAB, the balance must be zero first (record a final transaction). */
-export function closeAccount(plan: PlanData, _ctx: CommandContext, args: { accountId: Id }): Command {
+/** The payee YNAB uses when you type a new working balance (verified in the YNAB trial, 2026-10-08). */
+export const MANUAL_BALANCE_ADJUSTMENT_PAYEE = 'Manual Balance Adjustment';
+
+/** Add a cleared, today-dated adjustment so the account's working balance becomes `target`. */
+function addAdjustment(d: Draft, ctx: CommandContext, a: AccountRecord, target: Minor): void {
+  const delta = target - accountBalance(d, a.id);
+  if (delta === 0) return;
+  const payee = payeeByName(d, ctx, MANUAL_BALANCE_ADJUSTMENT_PAYEE);
+  d.put('transactions', {
+    id: ctx.newId(),
+    accountId: a.id,
+    date: ctx.today,
+    amount: minor(delta),
+    payeeId: payee.id,
+    categoryId: a.onBudget ? READY_TO_ASSIGN : null,
+    cleared: 'cleared',
+    createdAt: ctx.now,
+  });
+}
+
+/**
+ * Edit Account → Working Balance (YNAB): a "Manual Balance Adjustment" transaction, cleared and dated
+ * today, categorized to Ready to Assign on budget accounts (uncategorized on loans and tracking).
+ */
+export function adjustBalance(plan: PlanData, ctx: CommandContext, args: { accountId: Id; workingBalance: Minor }): Command {
+  const d = new Draft(plan);
+  const a = liveAccount(d, args.accountId);
+  addAdjustment(d, ctx, a, args.workingBalance);
+  return { label: `Adjust balance: ${a.name}`, changes: d.build() };
+}
+
+/**
+ * Close an account. With a balance, YNAB warns that it will be zeroed out with an adjustment
+ * transaction: pass `zeroOut` once the user has agreed; without it a balance is refused.
+ */
+export function closeAccount(plan: PlanData, ctx: CommandContext, args: { accountId: Id; zeroOut?: boolean }): Command {
   const d = new Draft(plan);
   const a = liveAccount(d, args.accountId);
   if (a.closed) throw new ValidationError(`${a.name} is already closed`);
-  if (accountBalance(d, a.id) !== 0) throw new ValidationError(`${a.name} must have a zero balance before it can be closed`);
+  if (accountBalance(d, a.id) !== 0) {
+    if (args.zeroOut !== true) throw new ValidationError(`${a.name} must have a zero balance before it can be closed`);
+    addAdjustment(d, ctx, a, minor(0));
+  }
   d.put('accounts', { ...a, closed: true });
   return { label: `Close account: ${a.name}`, changes: d.build() };
 }

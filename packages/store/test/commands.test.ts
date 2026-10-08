@@ -4,6 +4,8 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { findRecord } from '../src/changes.ts';
 import {
   accountBalance,
+  adjustBalance,
+  MANUAL_BALANCE_ADJUSTMENT_PAYEE,
   addTransaction,
   applyPlanChange,
   approveTransactions,
@@ -117,7 +119,27 @@ describe('commands', () => {
       expect(a?.note).toBeUndefined();
     });
 
-    it('closing needs a zero balance; reopen undoes it', () => {
+    it('editing the working balance adds a Manual Balance Adjustment (YNAB trial, 2026-10-08)', () => {
+      const before = rta(b.plan);
+      b.run(adjustBalance(b.plan, ctx, { accountId: checking, workingBalance: usd(1001) }));
+      const adj = live(b.plan).find((t) => t.accountId === checking && t.payeeId === b.plan.payees.find((p) => p.name === MANUAL_BALANCE_ADJUSTMENT_PAYEE)?.id);
+      expect(adj).toMatchObject({ amount: usd(1), categoryId: READY_TO_ASSIGN, cleared: 'cleared', date: TODAY });
+      expect(rta(b.plan)).toBe(before + usd(1));
+      expect(accountBalance(new Draft(b.plan), checking)).toBe(usd(1001));
+      // Off-budget accounts get no category; the same balance is a no-op.
+      b.run(adjustBalance(b.plan, ctx, { accountId: house, workingBalance: usd(-99000) }));
+      expect(live(b.plan).filter((t) => t.accountId === house).at(-1)).toMatchObject({ amount: usd(1000), categoryId: null });
+      expect(adjustBalance(b.plan, ctx, { accountId: house, workingBalance: usd(-99000) }).changes).toEqual({});
+    });
+
+    it('closing with a balance zeroes it first with an adjustment, like YNAB', () => {
+      b.run(closeAccount(b.plan, ctx, { accountId: savings, zeroOut: true }));
+      expect(findRecord(b.plan, 'accounts', savings)?.closed).toBe(true);
+      expect(accountBalance(new Draft(b.plan), savings)).toBe(0);
+      expect(live(b.plan).filter((t) => t.accountId === savings).at(-1)).toMatchObject({ amount: usd(-500), categoryId: READY_TO_ASSIGN });
+    });
+
+    it('closing needs a zero balance unless asked to zero it; reopen undoes it', () => {
       expect(() => closeAccount(b.plan, ctx, { accountId: savings })).toThrow(/zero balance/);
       b.run(addTransaction(b.plan, ctx, { accountId: savings, date: TODAY, amount: usd(-500), transferAccountId: checking }));
       expect(accountBalance(new Draft(b.plan), savings)).toBe(0);
