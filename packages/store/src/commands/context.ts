@@ -47,7 +47,12 @@ export class Draft {
   private readonly puts: PutMaps = emptyPutMaps();
   private readonly removes = new Map<EntityKind, Set<string>>();
 
-  constructor(readonly plan: PlanData) {}
+  // No parameter properties: Node's type stripping (scripts, smoke tests) only accepts erasable syntax.
+  readonly plan: PlanData;
+
+  constructor(plan: PlanData) {
+    this.plan = plan;
+  }
 
   get<K extends EntityKind>(kind: K, key: string): RecordOf<K> | undefined {
     const map: PutMaps[K] = this.puts[kind];
