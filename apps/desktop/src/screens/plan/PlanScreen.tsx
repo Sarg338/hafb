@@ -3,37 +3,34 @@
 // engine through planModel; edits go through store commands (CLAUDE.md §10).
 import { useCallback, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react';
 import type { Id } from '@hafb/engine';
-import { addMonths, minor, monthOf, monthParts, type ISODate, type Minor, type Month } from '@hafb/shared';
-import { applyPlanChange, setAssigned, setMonthNote, type PlanData } from '@hafb/store';
+import { minor, type ISODate, type Minor, type Month } from '@hafb/shared';
+import { coverOverspending, moveMoney, setAssigned, type PlanData } from '@hafb/store';
 import type { Actions } from '../../design/DesignApp.tsx';
 import { Inspector } from '../../design/Inspector.tsx';
 import { usePrefs, prefs } from '../../shell/prefs.ts';
-import { RtaBanner, type RtaState } from '../../ui/Banner.tsx';
 import { Button, IconButton } from '../../ui/Button.tsx';
 import { Chip } from '../../ui/Chip.tsx';
 import { cx } from '../../ui/cx.ts';
 import { DataGrid, type GridColumn } from '../../ui/grid/DataGrid.tsx';
 import { MoneyCellEditor } from '../../ui/grid/editors.tsx';
-import { MenuButton, type MenuItem } from '../../ui/Menu.tsx';
-import { MonthPicker } from '../../ui/MonthPicker.tsx';
+import type { EditEnd } from '../../ui/grid/keys.ts';
+import type { MenuItem } from '../../ui/Menu.tsx';
 import { Pill } from '../../ui/Pill.tsx';
-import { Popover } from '../../ui/Popover.tsx';
 import { ProgressBar } from '../../ui/ProgressBar.tsx';
 import { useShortcut } from '../../ui/shortcuts/ShortcutProvider.tsx';
 import { useTweened } from '../../ui/useTweened.ts';
 import { moneyText, type MoneyText } from '../shared/money.ts';
 import { NARROW_WINDOW, useMediaQuery } from '../shared/useMediaQuery.ts';
-import { assignChoices } from './assignOptions.ts';
-import { planModel } from './planModel.ts';
-import { planBounds } from './planMonths.ts';
+import { MovePopover, SourcePopover } from './MoneyPopovers.tsx';
+import { coverSources, futureShortfalls, laterMonths, moveTargets, parseSource } from './moneyMoves.ts';
+import { monthName, PlanHeader } from './PlanHeader.tsx';
+import { planModel, type PlanModel } from './planModel.ts';
 import { rectOf, usePlanEditing } from './PlanEditing.tsx';
 import { groupIds, HIDDEN_SECTION_ID, overspentCount, planRows, type PlanCategoryRow, type PlanGroupRow, type PlanRow, type ViewFilter } from './planRows.ts';
 import { usePlanDrag } from './usePlanDrag.ts';
 import styles from './PlanScreen.module.css';
 
-const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-export const monthName = (m: Month): string => MONTH_NAMES[monthParts(m).month - 1] ?? m;
-export const monthShort = (m: Month): string => `${monthName(m).slice(0, 3)} ${String(monthParts(m).year)}`;
+export { monthName, monthShort } from './PlanHeader.tsx';
 
 const VIEWS: { id: ViewFilter; label: string }[] = [
   { id: 'all', label: 'All' },
@@ -75,6 +72,12 @@ export function PlanScreen({ plan, planPath, today, month, setMonth, actions, hi
   );
 
   const rows = useMemo(() => planRows(model, filter), [model, filter]);
+  // Later months with money assigned: cover sources (YNAB, Jun 2025) and future shortfall alerts.
+  const later = useMemo(() => laterMonths(plan, month, today), [plan, month, today]);
+  const future = useMemo(
+    () => ({ shortfalls: futureShortfalls(later), months: later.filter((x) => x.ms.totals.assigned !== 0).map((x) => ({ month: x.month, assigned: x.ms.totals.assigned })) }),
+    [later],
+  );
   const rowInfo = useMemo(() => new Map(rows.map((r) => [r.id, { row: r.data, groupId: r.groupId }])), [rows]);
   const [request, setRequest] = useState<{ cell: { rowId: string; columnId: string }; edit: boolean; key: number } | undefined>(undefined);
   const editing = usePlanEditing({
@@ -162,6 +165,9 @@ export function PlanScreen({ plan, planPath, today, month, setMonth, actions, hi
         header: 'Available',
         width: moneyWidth,
         align: 'end',
+        editable: (r) => r.data.kind === 'category' && r.groupId !== HIDDEN_SECTION_ID,
+        editor: ({ row, done }) =>
+          row.data.kind === 'category' ? <AvailableEditor row={row.data} model={model} later={later} money={money} actions={actions} done={done} /> : null,
         render: (r) =>
           r.data.kind === 'group' ? (
             <span className={cx(styles.groupAmount, r.data.available < 0 && styles.negative)}>{money(r.data.available)}</span>
@@ -170,7 +176,7 @@ export function PlanScreen({ plan, planPath, today, month, setMonth, actions, hi
           ),
       },
     ],
-    [money, model.fmt, month, assign, p.showProgressBars, narrow, moneyWidth, nameActions],
+    [money, model, month, assign, p.showProgressBars, narrow, moneyWidth, nameActions, later, actions],
   );
 
   // Esc deselects all (YNAB), when the grid is navigating rather than editing.
@@ -203,25 +209,11 @@ export function PlanScreen({ plan, planPath, today, month, setMonth, actions, hi
     <div className={styles.main}>
       <section className={styles.work} aria-label={`Plan for ${monthName(month)}`}>
         <PlanHeader
-          plan={plan}
+          model={model}
           today={today}
-          month={month}
           setMonth={setMonth}
-          readyToAssign={model.ms.readyToAssign}
           money={money}
-          assignMenu={assignChoices(model, [...model.views.keys()], 'all').map((c) => ({
-            id: c.id,
-            label: c.label,
-            detail: money(c.change.total),
-            disabled: c.commit.deltas.length === 0,
-          }))}
-          onAssign={(id) => {
-            const choice = assignChoices(model, [...model.views.keys()], 'all').find((c) => c.id === id);
-            if (choice) actions.run((pl, ctx) => applyPlanChange(pl, ctx, { change: choice.commit, kind: 'autoAssign', label: `Auto-Assign: ${choice.label}` }));
-          }}
-          onNote={(text) => {
-            actions.run((pl, ctx) => setMonthNote(pl, ctx, { month, note: text }));
-          }}
+          actions={actions}
           hideAmounts={p.hideAmounts}
           displayItems={displayItems}
           onDisplay={(id) => {
@@ -296,12 +288,12 @@ export function PlanScreen({ plan, planPath, today, month, setMonth, actions, hi
         {editing.element}
       </section>
       {inspectorEdge !== undefined && <div className={styles.inspectorEdge}>{inspectorEdge}</div>}
-      <Inspector model={model} selected={selected} actions={actions} />
+      <Inspector model={model} selected={selected} actions={actions} money={money} future={future} />
     </div>
   );
 }
 
-const EDIT_ON_CLICK = ['assigned'] as const;
+const EDIT_ON_CLICK = ['assigned', 'available'] as const;
 
 interface NameActions {
   rename: (id: string, el: Element) => void;
@@ -381,159 +373,81 @@ function GroupName({ id, row, on }: { id: string; row: PlanGroupRow; on: NameAct
   );
 }
 
+/** Click or Enter on Available: Move money (YNAB's popover), or Cover overspending when negative. */
+function AvailableEditor({
+  row,
+  model,
+  later,
+  money,
+  actions,
+  done,
+}: {
+  row: PlanCategoryRow;
+  model: PlanModel;
+  later: ReturnType<typeof laterMonths>;
+  money: MoneyText;
+  actions: Actions;
+  done: (end: EditEnd) => void;
+}) {
+  const anchor = useRef<HTMLSpanElement>(null);
+  const month = model.month;
+  const finished = useRef(false);
+  const end = (how: EditEnd): void => {
+    if (finished.current) return;
+    finished.current = true;
+    done(how);
+  };
+  return (
+    <>
+      <span ref={anchor}>
+        <AvailablePill row={row} money={money} />
+      </span>
+      {row.available < 0 ? (
+        <SourcePopover
+          anchor={anchor}
+          title="Cover overspending from"
+          format={model.fmt}
+          sources={coverSources(model, row.id, later)}
+          empty="Nothing has money to cover this with. Assign money to it, or move some in once you have it."
+          onClose={() => {
+            end('cancel');
+          }}
+          onSubmit={(sourceId) => {
+            const source = parseSource(sourceId);
+            const has = coverSources(model, row.id, later).amounts.get(sourceId) ?? 0;
+            const amount = minor(Math.min(0 - row.available, has));
+            end('commit');
+            if (amount > 0) {
+              actions.run((p, ctx) =>
+                coverOverspending(p, ctx, { month, categoryId: row.id, sources: [{ from: source.from, amount, ...(source.month ? { month: source.month } : {}) }] }),
+              );
+            }
+          }}
+        />
+      ) : (
+        <MovePopover
+          anchor={anchor}
+          available={row.available}
+          format={model.fmt}
+          targets={moveTargets(model, row.id)}
+          onClose={() => {
+            end('cancel');
+          }}
+          onSubmit={(to, amount) => {
+            end('commit');
+            actions.run((p, ctx) => moveMoney(p, ctx, { month, from: row.id, to, amount }));
+          }}
+        />
+      )}
+    </>
+  );
+}
+
 function AvailablePill({ row, money }: { row: PlanCategoryRow; money: MoneyText }) {
   const shown = useTweened(row.available);
   return (
     <Pill state={row.view.state} credit={row.view.credit} {...(row.view.message ? { title: row.view.message } : {})}>
       {money(minor(shown))}
     </Pill>
-  );
-}
-
-// ---- header ---------------------------------------------------------------------------------------
-
-function PlanHeader({
-  plan,
-  today,
-  month,
-  setMonth,
-  readyToAssign,
-  money,
-  assignMenu,
-  onAssign,
-  onNote,
-  hideAmounts,
-  displayItems,
-  onDisplay,
-}: {
-  plan: PlanData;
-  today: ISODate;
-  month: Month;
-  setMonth: (m: Month) => void;
-  readyToAssign: Minor;
-  money: MoneyText;
-  assignMenu: MenuItem[];
-  onAssign: (id: string) => void;
-  onNote: (text: string) => void;
-  hideAmounts: boolean;
-  displayItems: MenuItem[];
-  onDisplay: (id: string) => void;
-}) {
-  const current = monthOf(today);
-  const bounds = useMemo(() => planBounds(plan, today), [plan, today]);
-  const [picking, setPicking] = useState(false);
-  const titleRef = useRef<HTMLButtonElement>(null);
-  const shownRta = useTweened(readyToAssign);
-  const rtaState: RtaState = readyToAssign > 0 ? 'positive' : readyToAssign === 0 ? 'zero' : 'negative';
-  const note = plan.monthNotes.find((n) => n.month === month)?.note ?? '';
-
-  return (
-    <header className={styles.head}>
-      <div className={styles.month}>
-        <IconButton icon="chevronLeft" label="Previous month" disabled={month <= bounds.min} onClick={() => {
-          setMonth(addMonths(month, -1));
-        }} />
-        <div>
-          <h1 className={styles.title}>
-            <button
-              ref={titleRef}
-              type="button"
-              className={styles.titleButton}
-              aria-haspopup="dialog"
-              aria-expanded={picking}
-              aria-label={`${monthName(month)} ${String(monthParts(month).year)}. Choose a month`}
-              onClick={() => {
-                setPicking(!picking);
-              }}
-            >
-              {monthShort(month)}
-            </button>
-          </h1>
-          <MonthNote key={month} note={note} onSave={onNote} />
-        </div>
-        <IconButton icon="chevronRight" label="Next month" disabled={month >= bounds.max} onClick={() => {
-          setMonth(addMonths(month, 1));
-        }} />
-        <Popover open={picking} onClose={() => {
-          setPicking(false);
-          titleRef.current?.focus();
-        }} anchor={titleRef} role="dialog" label="Choose a month" placement="bottom-start">
-          <MonthPicker
-            value={month}
-            current={current}
-            min={bounds.min}
-            max={bounds.max}
-            onSelect={(m) => {
-              setPicking(false);
-              setMonth(m);
-              titleRef.current?.focus();
-            }}
-          />
-        </Popover>
-      </div>
-
-      <RtaBanner
-        state={rtaState}
-        amount={money(minor(shownRta))}
-        action={<MenuButton label="Assign" variant="primary" items={assignMenu} onSelect={onAssign} placement="bottom-end" />}
-      />
-
-      <div className={styles.headRight}>
-        <IconButton
-          icon={hideAmounts ? 'eye' : 'eyeOff'}
-          label={hideAmounts ? 'Show amounts' : 'Hide amounts'}
-          iconSize={20}
-          aria-pressed={hideAmounts}
-          onClick={() => {
-            prefs.update({ hideAmounts: !hideAmounts });
-          }}
-        />
-        <MenuButton
-          label="Display options"
-          items={displayItems}
-          onSelect={onDisplay}
-          placement="bottom-end"
-          trigger={(t) => <IconButton {...t} icon="more" label="Display options" iconSize={20} />}
-        />
-      </div>
-    </header>
-  );
-}
-
-function MonthNote({ note, onSave }: { note: string; onSave: (text: string) => void }) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(note);
-  if (!editing) {
-    return (
-      <button type="button" className={styles.noteButton} onClick={() => {
-        setDraft(note);
-        setEditing(true);
-      }}>
-        {note === '' ? 'Enter a note…' : note}
-      </button>
-    );
-  }
-  return (
-    <input
-      autoFocus
-      className={styles.noteInput}
-      aria-label="Month note"
-      value={draft}
-      onChange={(e) => {
-        setDraft(e.target.value);
-      }}
-      onBlur={() => {
-        setEditing(false);
-        if (draft !== note) onSave(draft);
-      }}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') e.currentTarget.blur();
-        if (e.key === 'Escape') {
-          e.stopPropagation();
-          setDraft(note);
-          setEditing(false);
-        }
-      }}
-    />
   );
 }

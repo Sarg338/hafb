@@ -399,3 +399,122 @@ void describe('plan editing', () => {
     assert.deepEqual(reopened, ['Streaming', 'Mortgage', 'Car Payment']);
   });
 });
+
+// ---- S4.3 exit: moving money, and fixing overspending with the keyboard only ------------------------
+void describe('moving money', () => {
+  let box: Sandbox;
+  let app: App;
+  before(async () => {
+    box = makeSandbox();
+    app = await launch(box, ['--open', box.planPath]);
+    await app.page.getByRole('treegrid', { name: 'Categories' }).waitFor();
+  });
+  after(async () => {
+    await app.close();
+    box.cleanup();
+  });
+
+  const cell = (page: Page, name: string, col: string) =>
+    page.locator('[role=row]', { has: page.locator('[data-drag-id]', { hasText: new RegExp(`^${name}$`) }) }).locator(`[data-col=${col}]`);
+  // The pill's text without its screen-reader prefix ("overspent: ").
+  const shown = async (page: Page, name: string): Promise<string> => norm(await cell(page, name, 'available').innerText()).replace(/^[a-z ]+: /, '');
+  const focusInfo = (page: Page) =>
+    page.evaluate(() => {
+      const a = document.activeElement;
+      return { col: a?.getAttribute('data-col') ?? null, row: a?.closest('[role=row]')?.querySelector('[data-drag-id]')?.textContent ?? null };
+    });
+
+  void test('cover overspending with the keyboard only (YNAB workflow)', async () => {
+    const { page } = app;
+    // Into the grid by Tab from the toolbar, then arrows to the overspent category's Available.
+    // The grid moves focus on the next frame: give each key a moment before reading where it went.
+    const press = async (key: string): Promise<void> => {
+      await page.keyboard.press(key);
+      await page.waitForTimeout(60);
+    };
+    await page.getByRole('button', { name: 'Category Group' }).focus();
+    for (let i = 0; i < 15 && !(await page.evaluate(() => document.activeElement?.hasAttribute('data-cell') ?? false)); i++) await press('Tab');
+    for (let i = 0; i < 60 && (await focusInfo(page)).row !== 'Car Maintenance'; i++) await press('ArrowDown');
+    await press('End');
+    assert.deepEqual(await focusInfo(page), { col: 'available', row: 'Car Maintenance' });
+    assert.match(await shown(page, 'Car Maintenance'), /^-\$/);
+    await page.keyboard.press('Enter');
+    await page.getByRole('dialog', { name: 'Cover overspending from' }).waitFor();
+    await page.keyboard.type('Groceries');
+    await page.keyboard.press('Enter');
+    await page.keyboard.press('Tab');
+    await page.keyboard.press('Tab');
+    await page.keyboard.press('Enter');
+    await page.getByRole('dialog', { name: 'Cover overspending from' }).waitFor({ state: 'detached' });
+    await page.waitForTimeout(400);
+    assert.equal(await shown(page, 'Car Maintenance'), '$0.00');
+    assert.deepEqual(await focusInfo(page), { col: 'available', row: 'Car Maintenance' });
+    // One undo puts it back.
+    await page.keyboard.press('Control+z');
+    await page.waitForTimeout(400);
+    assert.match(await shown(page, 'Car Maintenance'), /^-\$/);
+  });
+
+  void test('move money keeps Ready to Assign; the breakdown adds up', async () => {
+    const { page } = app;
+    const before = await rta(page);
+    await cell(page, 'Groceries', 'available').click();
+    const dialog = page.getByRole('dialog', { name: 'Move money' });
+    await dialog.waitFor();
+    await page.waitForTimeout(100);
+    await page.keyboard.press('Control+a');
+    await page.keyboard.type('20');
+    await dialog.getByRole('combobox').fill('Ready to Assign');
+    await page.keyboard.press('Enter');
+    await dialog.getByRole('button', { name: 'OK' }).click();
+    const after = await rtaSettled(page, before);
+    const cents = (s: string): number => Math.round(Number(s.replace(/[^\d.-]/g, '')) * 100);
+    assert.equal(cents(after) - cents(before), 2000);
+    await page.locator('button:has([data-part=rta-amount])').click();
+    const bd = page.getByRole('dialog', { name: 'Ready to Assign Breakdown' });
+    await bd.waitFor();
+    assert.ok((await bd.innerText()).includes(after), 'the breakdown total is the banner amount');
+    await page.keyboard.press('Escape');
+  });
+
+  void test('over-assigning shows Fix This; future-month shortfalls warn without taking this month below zero', async () => {
+    const { page } = app;
+    const assignManually = async (amount: string, to: string): Promise<void> => {
+      await page.getByRole('button', { name: 'Assign', exact: true }).click();
+      const pop = page.getByRole('dialog', { name: 'Assign' });
+      await pop.getByRole('radio', { name: 'Manually' }).click();
+      await page.waitForTimeout(150);
+      await page.keyboard.press('Control+a');
+      await page.keyboard.type(amount);
+      await pop.getByRole('combobox').fill(to);
+      await page.keyboard.press('Enter');
+      await pop.getByRole('button', { name: 'Assign', exact: true }).click();
+      await pop.waitFor({ state: 'detached' });
+      await page.waitForTimeout(400);
+    };
+    await assignManually('5000', 'Gifts');
+    assert.match(await rta(page), /^-\$/);
+    await page.getByRole('button', { name: 'Fix This' }).click();
+    const fix = page.getByRole('dialog', { name: 'Un-assign money from' });
+    await fix.getByRole('combobox').fill('Gifts');
+    await page.keyboard.press('Enter');
+    await fix.getByRole('button', { name: 'OK' }).click();
+    await page.waitForTimeout(400);
+    assert.equal(await rta(page), '$0.00');
+    // November: assign more than there is; October stays at $0.00, with a warning in the inspector.
+    await page.getByRole('button', { name: 'Next month' }).click();
+    await page.getByRole('button', { name: 'Today' }).waitFor();
+    // November already starts short (October's cash overspending comes off it), so it shows Fix
+    // This rather than Assign; assign in the grid instead.
+    await assignVia(page, 'Groceries', '9000');
+    await page.waitForTimeout(400);
+    assert.match(await rta(page), /^-\$/);
+    await page.getByRole('button', { name: 'Today' }).click();
+    await page.waitForTimeout(500);
+    assert.equal(await rta(page), '$0.00');
+    // Esc deselects (the inspector then shows the month), as in YNAB.
+    await cell(page, 'Groceries', 'activity').click();
+    await page.keyboard.press('Escape');
+    await page.locator('section', { hasText: 'Assigned in Future Months' }).getByText(/November is .* short/).waitFor();
+  });
+});

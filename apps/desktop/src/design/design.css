@@ -708,7 +708,9 @@
   background: var(--c-bar-funded-spent);
 }
 
-.hd-bar[data-state='underfunded'] .fill {
+.hd-bar[data-state='underfunded'] .fill,
+.hd-bar[data-state='creditOverspent'] .fill,
+.hd-bar[data-state='creditOverspent'] .spent {
   background: var(--c-bar-underfunded);
 }
 
@@ -772,7 +774,8 @@
   color: var(--c-funded-fg);
 }
 
-.hd-pill[data-state='underfunded'] {
+.hd-pill[data-state='underfunded'],
+.hd-pill[data-state='creditOverspent'] {
   background: var(--c-underfunded-bg);
   color: var(--c-underfunded-fg);
 }
@@ -806,7 +809,8 @@
   border: 1.5px dashed currentColor; /* scan-ok: without-colour state shape, not a theme choice */
 }
 
-.hd[data-nocolor='true'] .hd-pill[data-state='overspent'] {
+.hd[data-nocolor='true'] .hd-pill[data-state='overspent'],
+.hd[data-nocolor='true'] .hd-pill[data-state='creditOverspent'] {
   border: 2px solid currentColor;
 }
 

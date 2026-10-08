@@ -1,12 +1,14 @@
 import { Icon, type IconName } from './Icon.tsx';
+import type { MoneyState } from './moneyState.ts';
 import styles from './Pill.module.css';
 
-export type MoneyState = 'funded' | 'underfunded' | 'overspent' | 'zero' | 'snoozed';
+export type { MoneyState };
 
 const STATE_ICON: Partial<Record<MoneyState, IconName>> = {
   funded: 'checkmark',
   underfunded: 'clock',
   overspent: 'warning',
+  creditOverspent: 'warning',
   snoozed: 'snooze',
 };
 
@@ -14,6 +16,7 @@ const STATE_LABEL: Record<MoneyState, string> = {
   funded: 'funded',
   underfunded: 'underfunded',
   overspent: 'overspent',
+  creditOverspent: 'overspent on credit',
   zero: 'empty',
   snoozed: 'snoozed',
 };

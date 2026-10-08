@@ -1,18 +1,54 @@
-import type { ReactNode } from 'react';
+import type { ReactNode, Ref } from 'react';
 import styles from './Banner.module.css';
 import { Icon, type IconName } from './Icon.tsx';
 
 export type RtaState = 'positive' | 'zero' | 'negative';
 
-/** The Ready to Assign banner (DESIGN.md): amount, caption, and the Assign action. */
-export function RtaBanner({ state, amount, action }: { state: RtaState; amount: string; action?: ReactNode }) {
+/**
+ * The Ready to Assign banner (DESIGN.md): amount, caption, and the Assign action. With `onDetails`,
+ * the amount opens the Ready to Assign breakdown (YNAB: click the banner).
+ */
+export function RtaBanner({
+  state,
+  amount,
+  action,
+  onDetails,
+  detailsExpanded = false,
+  detailsRef,
+}: {
+  state: RtaState;
+  amount: string;
+  action?: ReactNode;
+  onDetails?: () => void;
+  detailsExpanded?: boolean;
+  detailsRef?: Ref<HTMLButtonElement>;
+}) {
   const caption = state === 'zero' ? 'All Money Assigned' : state === 'negative' ? 'You assigned more than you have' : 'Ready to Assign';
+  const body = (
+    <>
+      <div className={styles.amount} data-part="rta-amount">
+        {amount}
+      </div>
+      <div className={styles.caption}>{caption}</div>
+    </>
+  );
   return (
     <div className={styles.rta} data-state={state} role="status" aria-live="polite">
-      <div>
-        <div className={styles.amount} data-part="rta-amount">{amount}</div>
-        <div className={styles.caption}>{caption}</div>
-      </div>
+      {onDetails ? (
+        <button
+          ref={detailsRef}
+          type="button"
+          className={styles.details}
+          aria-haspopup="dialog"
+          aria-expanded={detailsExpanded}
+          title="Ready to Assign breakdown"
+          onClick={onDetails}
+        >
+          {body}
+        </button>
+      ) : (
+        <div>{body}</div>
+      )}
       {action}
     </div>
   );

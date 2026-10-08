@@ -6,6 +6,7 @@ import chevronRight16 from '@fluentui/svg-icons/icons/chevron_right_16_regular.s
 import chevronDown16 from '@fluentui/svg-icons/icons/chevron_down_16_regular.svg?raw';
 import chevronUp16 from '@fluentui/svg-icons/icons/chevron_up_16_regular.svg?raw';
 import add16 from '@fluentui/svg-icons/icons/add_16_regular.svg?raw';
+import subtract16 from '@fluentui/svg-icons/icons/subtract_16_regular.svg?raw';
 import undo16 from '@fluentui/svg-icons/icons/arrow_undo_16_regular.svg?raw';
 import redo16 from '@fluentui/svg-icons/icons/arrow_redo_16_regular.svg?raw';
 import history16 from '@fluentui/svg-icons/icons/history_16_regular.svg?raw';
@@ -55,6 +56,7 @@ import chevronRight20 from '@fluentui/svg-icons/icons/chevron_right_20_regular.s
 import chevronDown20 from '@fluentui/svg-icons/icons/chevron_down_20_regular.svg?raw';
 import chevronUp20 from '@fluentui/svg-icons/icons/chevron_up_20_regular.svg?raw';
 import add20 from '@fluentui/svg-icons/icons/add_20_regular.svg?raw';
+import subtract20 from '@fluentui/svg-icons/icons/subtract_20_regular.svg?raw';
 import undo20 from '@fluentui/svg-icons/icons/arrow_undo_20_regular.svg?raw';
 import redo20 from '@fluentui/svg-icons/icons/arrow_redo_20_regular.svg?raw';
 import history20 from '@fluentui/svg-icons/icons/history_20_regular.svg?raw';
@@ -106,6 +108,7 @@ const ICONS = {
   chevronDown: { 16: chevronDown16, 20: chevronDown20 },
   chevronUp: { 16: chevronUp16, 20: chevronUp20 },
   add: { 16: add16, 20: add20 },
+  subtract: { 16: subtract16, 20: subtract20 },
   undo: { 16: undo16, 20: undo20 },
   redo: { 16: redo16, 20: redo20 },
   history: { 16: history16, 20: history20 },

@@ -4,7 +4,9 @@
 import type { CategoryMonth, Target, TargetMonth } from '@hafb/engine';
 import { dateParts, formatMoney, neg, type Minor, type MoneyFormat } from '@hafb/shared';
 
-export type MoneyState = 'funded' | 'underfunded' | 'overspent' | 'zero' | 'snoozed';
+import type { MoneyState } from '../../ui/moneyState.ts';
+
+export type { MoneyState };
 
 export interface BarView {
   /** One segment per week for weekly targets, otherwise one. */
@@ -53,12 +55,15 @@ export function categoryView(cm: CategoryMonth, fmt: MoneyFormat, target?: Targe
 
   if (cm.available < 0) {
     const bar: BarView | undefined = tm ? { segments: 1, fillPercent: 100, spentPercent: 100 } : undefined;
+    // YNAB: overspending entirely on credit is yellow (it becomes card debt, not a Ready to Assign
+    // shortfall); any cash overspending makes it red.
+    const creditOnly = credit && cm.overspending.cash === 0;
     return {
-      state: 'overspent',
-      barState: 'overspent',
+      state: creditOnly ? 'creditOverspent' : 'overspent',
+      barState: creditOnly ? 'creditOverspent' : 'overspent',
       credit,
       message: credit ? `Overspent ${money(neg(cm.available))} on credit` : `Overspent ${money(neg(cm.available))}`,
-      messageTone: 'bad',
+      messageTone: creditOnly ? 'warn' : 'bad',
       ...(bar ? { bar } : {}),
     };
   }

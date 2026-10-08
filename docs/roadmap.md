@@ -181,6 +181,19 @@ The 2026-10-08 research (YNAB What's New and help center) found that CLAUDE.md w
     - Hides, deletes and moves toast with Undo, and a newer toast replaces an older Undo toast.
     - Credit Card Payments stays first, and its categories can't leave it.
   - Exit check: smoke tests in the release app cover rename, add, hide, delete-with-reassign and drag, each undone. Ready to Assign is unchanged, and a dragged order survives a relaunch.
+- **S4.3 done (2026-10-08).** Built from YNAB itself: Sarg's trial plan, driven directly, with every test edit undone.
+  - Moving money:
+    - Click or Enter on Available opens **Move** ("Move [full Available] To [category]") or **Cover overspending from** [Ready to Assign, categories with money, money assigned in future months].
+    - **Assign** opens tabs: Auto (the options with amounts) and Manually ("Assign [Ready to Assign] To").
+  - Ready to Assign:
+    - The **Ready to Assign Breakdown** shows non-zero lines and the total.
+    - Negative shows **Fix This** ("Un-assign money from").
+    - A **Today** button appears off the current month.
+    - *Assigned in Future Months* in the inspector warns when a later month is short.
+  - Rule corrections from YNAB:
+    - Future assignments never take this month below zero. The engine changed, with tests (budget-math §2, examples 2.5–2.6).
+    - Overspending only on credit is yellow with a card icon; cash overspending stays red.
+  - Exit check: smoke tests in the release app cover overspending fixed with the keyboard only, move money with the breakdown total, and Fix This plus the future-month shortfall.
 
 ## Phase 5: Planning power → **M2**
 

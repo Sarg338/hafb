@@ -24,7 +24,8 @@
   color: var(--c-funded-fg);
 }
 
-.pill[data-state='underfunded'] {
+.pill[data-state='underfunded'],
+.pill[data-state='creditOverspent'] {
   background: var(--c-underfunded-bg);
   color: var(--c-underfunded-fg);
 }
@@ -54,7 +55,8 @@
   border: 1.5px dashed currentColor; /* scan-ok: without-colour state shape, not a theme choice */
 }
 
-:where([data-nocolor='true']) .pill[data-state='overspent'] {
+:where([data-nocolor='true']) .pill[data-state='overspent'],
+:where([data-nocolor='true']) .pill[data-state='creditOverspent'] {
   border: 2px solid currentColor;
 }
 

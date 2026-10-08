@@ -21,7 +21,8 @@ describe('sample household', () => {
 
   it('covers every Available state', () => {
     expect(byName('Electric').view.state).toBe('underfunded');
-    expect(byName('Dining Out').view).toMatchObject({ state: 'overspent', credit: true });
+    // Overspent only on credit: yellow with a card icon, as YNAB draws it (cash overspending is red).
+    expect(byName('Dining Out').view).toMatchObject({ state: 'creditOverspent', credit: true, messageTone: 'warn' });
     expect(byName('Car Maintenance').view).toMatchObject({ state: 'overspent', credit: false });
     expect(byName('New Laptop').view.state).toBe('snoozed');
     expect(byName('Groceries').view.state).toBe('funded');

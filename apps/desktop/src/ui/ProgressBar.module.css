@@ -31,12 +31,17 @@
   background: var(--c-bar-funded-spent);
 }
 
-.bar[data-state='underfunded'] .fill {
+.bar[data-state='underfunded'] .fill,
+.bar[data-state='creditOverspent'] .fill {
   background: var(--c-bar-underfunded);
 }
 
 .bar[data-state='underfunded'] .spent {
   background: var(--c-bar-underfunded-spent);
+}
+
+.bar[data-state='creditOverspent'] .spent {
+  background: var(--c-bar-underfunded);
 }
 
 .bar[data-state='overspent'] .fill,

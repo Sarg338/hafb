@@ -307,7 +307,7 @@ export function Pill({ view, value, money }: { view: CategoryView; value: Minor;
   const shown = useTweened(value);
   const amount = money(minor(shown));
   const icon = view.state === 'funded' ? 'checkmark' : view.state === 'underfunded' ? 'clock' : view.state === 'overspent' ? 'warning' : view.state === 'snoozed' ? 'snooze' : null;
-  const label = { funded: 'funded', underfunded: 'underfunded', overspent: 'overspent', zero: 'empty', snoozed: 'snoozed' }[view.state];
+  const label = { funded: 'funded', underfunded: 'underfunded', overspent: 'overspent', creditOverspent: 'overspent on credit', zero: 'empty', snoozed: 'snoozed' }[view.state];
   return (
     <span className="hd-pill" data-state={view.state} title={view.message || undefined}>
       {view.credit && <Icon name="card" className="always" />}

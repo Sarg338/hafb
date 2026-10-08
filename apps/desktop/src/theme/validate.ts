@@ -33,6 +33,8 @@ export const TEXT_PAIRS: readonly [ColorToken, ColorToken][] = [
   ['rtaPositiveFg', 'rtaPositiveBg'],
   ['rtaZeroFg', 'rtaZeroBg'],
   ['rtaNegativeFg', 'rtaNegativeBg'],
+  // Fix This: the banner colour as text on a solid overspent button (S4.3).
+  ['rtaNegativeBg', 'overspentFg'],
   ['text', 'accentSoft'],
   // Status text is drawn on rows: plain, hovered and selected.
   ['warnText', 'surface'],

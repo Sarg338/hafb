@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { autoAssign, costToBeMe, limitToReadyToAssign, type AutoAssignOption, type Id } from '@hafb/engine';
-import { addMonths, minor, neg, type Minor } from '@hafb/shared';
+import { addMonths, minor, monthParts, neg, type Minor, type Month } from '@hafb/shared';
 import { usePrefs } from '../shell/prefs.ts';
 import { moneyText } from '../screens/shared/money.ts';
 import { applyPlanChange, setAssigned, setCategoryNote } from '@hafb/store';
@@ -21,9 +21,28 @@ const OPTIONS: { id: AutoAssignOption; label: string; group: number }[] = [
   { id: 'resetAssigned', label: 'Reset Assigned Amounts', group: 2 },
 ];
 
-export function Inspector({ model, selected, actions }: { model: PlanModel; selected: ReadonlySet<Id>; actions: Actions }) {
+export interface FutureMonths {
+  /** Later months with money assigned. */
+  months: readonly { month: Month; assigned: Minor }[];
+  /** Later months whose Ready to Assign is negative (YNAB shows a warning). */
+  shortfalls: readonly { month: Month; readyToAssign: Minor }[];
+}
+
+export function Inspector({
+  model,
+  selected,
+  actions,
+  money: moneyProp,
+  future,
+}: {
+  model: PlanModel;
+  selected: ReadonlySet<Id>;
+  actions: Actions;
+  money?: (m: Minor) => string;
+  future?: FutureMonths;
+}) {
   const { hideAmounts } = usePrefs();
-  const money = moneyText(model.fmt, hideAmounts);
+  const money = moneyProp ?? moneyText(model.fmt, hideAmounts);
   const ids = [...selected].filter((id) => model.ms.categories[id] !== undefined);
   const first = ids[0];
   return (
@@ -35,9 +54,51 @@ export function Inspector({ model, selected, actions }: { model: PlanModel; sele
           {ids.length > 1 ? <SelectionTotals model={model} ids={ids} money={money} /> : <MonthSummary model={model} money={money} />}
           <AutoAssign model={model} ids={ids.length > 0 ? ids : [...model.views.keys()]} actions={actions} money={money} scope={ids.length > 0 ? 'selection' : 'all'} />
           {ids.length === 0 && <CostToBeMe model={model} money={money} />}
+          {ids.length === 0 && future && future.months.length > 0 && <AssignedInFuture future={future} money={money} />}
         </>
       )}
     </aside>
+  );
+}
+
+/** "Assigned in Future Months" (YNAB): what later months already have, with a warning when one is short. */
+function AssignedInFuture({ future, money }: { future: FutureMonths; money: (m: Minor) => string }) {
+  const [open, setOpen] = useState(future.shortfalls.length > 0);
+  const total = minor(future.months.reduce((s, m) => s + m.assigned, 0));
+  const short = new Map(future.shortfalls.map((s) => [s.month, s.readyToAssign]));
+  return (
+    <section className="hd-card">
+      <h2>
+        <button type="button" className="hd-iconbtn" style={{ width: 22, height: 22, marginLeft: -4 }} aria-expanded={open} aria-label={open ? 'Collapse Assigned in Future Months' : 'Expand Assigned in Future Months'} onClick={() => {
+          setOpen(!open);
+        }}>
+          <Icon name={open ? 'chevronDown' : 'chevronRight'} />
+        </button>
+        {future.shortfalls.length > 0 && <Icon name="warning" />}
+        Assigned in Future Months
+        <span className="num" style={{ marginLeft: 'auto', fontWeight: 400 }}>
+          {money(total)}
+        </span>
+      </h2>
+      {open && (
+        <>
+          {future.months.map((m) => (
+            <div className="hd-line" key={m.month}>
+              <span>
+                {monthName(m.month)} {String(monthParts(m.month).year)}
+              </span>
+              <span className="num">{money(m.assigned)}</span>
+            </div>
+          ))}
+          {future.shortfalls.map((s) => (
+            <p className="hd-note" key={s.month}>
+              {monthName(s.month)} is {money(neg(s.readyToAssign))} short: more is assigned there than you'll have. Move some back, or wait for more income.
+            </p>
+          ))}
+          {short.size === 0 && <p className="hd-note">This money is set aside for later; this month's Ready to Assign already counts it.</p>}
+        </>
+      )}
+    </section>
   );
 }
 
