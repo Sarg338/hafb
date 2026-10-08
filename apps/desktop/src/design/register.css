@@ -1,0 +1,456 @@
+/* S3.1 Register mockup. Tokens only (src/theme/tokens.ts); rows at the register density (30 px). */
+
+.rg-work {
+  position: relative;
+}
+
+.rg-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px 32px;
+  padding: 16px 20px 14px;
+}
+
+.rg-title {
+  min-width: 0;
+  margin-right: auto;
+}
+
+.rg-title h1 {
+  margin: 0;
+  font: 600 20px/1.2 var(--font-display);
+  letter-spacing: -0.01em;
+}
+
+.rg-title p {
+  margin: 3px 0 0;
+  font-size: 12.5px;
+}
+
+.rg-balances {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.rg-balances > div {
+  display: grid;
+  gap: 2px;
+}
+
+.rg-balances strong {
+  font: 600 16px/1.2 var(--font-display);
+  text-align: left;
+}
+
+.rg-balances span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--c-text-muted);
+  font-size: 12px;
+}
+
+.rg-balances .rg-ok {
+  color: var(--c-bar-funded);
+}
+
+.rg-op {
+  color: var(--c-text-subtle);
+  font-size: 18px;
+  font-weight: 300;
+}
+
+.rg-working {
+  padding: 6px 12px;
+  border-radius: var(--radius-lg);
+  background: var(--c-surface-alt);
+}
+
+.rg-reconcile {
+  display: grid;
+  justify-items: end;
+  gap: 4px;
+}
+
+.rg-reconcile small {
+  font-size: 11.5px;
+}
+
+/* ---------------------------------------------------------------- toolbar */
+
+.rg-toolbar {
+  gap: 4px;
+}
+
+.rg-viewchip {
+  height: 30px;
+}
+
+.rg-search {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: 260px;
+  height: 30px;
+  margin-left: 6px;
+  padding: 0 6px 0 10px;
+  border: 1px solid var(--c-input-border);
+  border-radius: var(--radius);
+  background: var(--c-input);
+  color: var(--c-text-muted);
+}
+
+.rg-search:focus-within {
+  border-color: var(--c-focus);
+  box-shadow: 0 0 0 1px var(--c-focus);
+}
+
+.rg-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--c-text);
+  font: inherit;
+}
+
+.rg-search input::placeholder {
+  color: var(--c-text-subtle);
+}
+
+.rg-search kbd {
+  padding: 1px 5px;
+  border: 1px solid var(--c-border-strong);
+  border-radius: 3px;
+  color: var(--c-text-subtle);
+  font: 11px/1.4 var(--font-ui);
+}
+
+/* ---------------------------------------------------------------- approval banner */
+
+.rg-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 10px 14px 0;
+  padding: 8px 10px 8px 14px;
+  border: 1px solid var(--c-selected-border);
+  border-radius: var(--radius-lg);
+  background: var(--c-accent-soft);
+  color: var(--c-text);
+}
+
+.rg-banner > .icon {
+  color: var(--c-accent);
+}
+
+.rg-banner .spacer {
+  flex: 1;
+}
+
+.rg-banner .hd-secondary,
+.rg-banner .hd-primary {
+  height: 30px;
+}
+
+/* ---------------------------------------------------------------- grid */
+
+.rg-grid {
+  margin-top: 6px;
+}
+
+.rg-grid col.flag {
+  width: 34px;
+}
+
+.rg-grid col.account {
+  width: 148px;
+}
+
+.rg-grid col.date {
+  width: 98px;
+}
+
+.rg-grid col.payee {
+  width: 196px;
+}
+
+.rg-grid col.category {
+  width: 176px;
+}
+
+.rg-grid col.money {
+  width: 104px;
+}
+
+.rg-grid col.cleared {
+  width: 44px;
+}
+
+.rg-grid th {
+  padding: 0 10px;
+}
+
+.rg-grid th.flag,
+.rg-grid th.cleared,
+.rg-grid td.flag,
+.rg-grid td.cleared {
+  padding: 0;
+  text-align: center;
+}
+
+.rg-grid th .icon {
+  vertical-align: middle;
+}
+
+.rg-grid td {
+  height: var(--row-register);
+  padding: 0 10px;
+}
+
+.rg-grid td.ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rg-grid td.date {
+  font-variant-numeric: tabular-nums;
+}
+
+.rg-row:hover td {
+  background: var(--c-hover);
+}
+
+.rg-row[aria-selected='true'] td,
+.rg-sub[aria-selected='true'] td {
+  background: var(--c-selected);
+  color: var(--c-selected-text);
+}
+
+.rg-row[aria-selected='true'] td:first-child {
+  box-shadow: inset 3px 0 0 var(--c-selected-border);
+}
+
+.rg-row.unapproved td {
+  font-weight: 600;
+}
+
+.rg-payee {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+}
+
+.rg-dot {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--c-accent);
+}
+
+.rg-transfer,
+.rg-inline {
+  margin-right: 4px;
+  color: var(--c-text-muted);
+  vertical-align: -3px;
+}
+
+.rg-sub td {
+  height: 26px;
+  border-bottom-style: dashed;
+  font-size: 12.5px;
+}
+
+.rg-sub td:nth-child(5),
+.rg-sub td:nth-child(6) {
+  padding-left: 26px;
+}
+
+.rg-flag,
+.rg-cleared {
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--c-text-subtle);
+}
+
+.rg-flag {
+  opacity: 0;
+}
+
+.rg-flag.on,
+.rg-row:hover .rg-flag,
+.rg-flag:focus-visible {
+  opacity: 1;
+}
+
+.rg-flag:hover,
+.rg-cleared:hover {
+  background: var(--c-hover);
+}
+
+.rg-cleared.cleared {
+  color: var(--c-bar-funded);
+}
+
+.rg-cleared.reconciled {
+  color: var(--c-text-muted);
+  cursor: default;
+}
+
+.rg-schedhead td {
+  height: 32px;
+  background: var(--c-surface-alt);
+}
+
+.rg-schedhead button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  font-weight: 600;
+}
+
+.rg-schedhead button:hover {
+  background: var(--c-hover);
+}
+
+.rg-empty td {
+  height: 44px;
+  color: var(--c-text-muted);
+  text-align: center;
+}
+
+/* ---------------------------------------------------------------- inline edit */
+
+.rg-edit td {
+  height: 36px;
+  padding: 0 4px;
+  border-bottom: 0;
+  background: var(--c-selected);
+}
+
+.rg-edit td.check {
+  padding-left: 14px;
+  box-shadow: inset 3px 0 0 var(--c-selected-border);
+}
+
+.rg-input {
+  width: 100%;
+  height: 26px;
+  padding: 0 6px;
+  border: 1px solid var(--c-input-border);
+  border-radius: var(--radius);
+  background: var(--c-input);
+  color: var(--c-text);
+  font: inherit;
+}
+
+.rg-input:focus {
+  border-color: var(--c-focus);
+  outline: 1px solid var(--c-focus);
+  outline-offset: 0;
+}
+
+.rg-input:disabled {
+  border-style: dashed;
+  color: var(--c-text-subtle);
+}
+
+.rg-input.num {
+  text-align: right;
+}
+
+.rg-editactions td {
+  height: 42px;
+  padding: 0 12px;
+  background: var(--c-selected);
+  text-align: right;
+  box-shadow: inset 3px 0 0 var(--c-selected-border);
+}
+
+.rg-editactions td > * {
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+.rg-editactions .muted {
+  font-size: 12px;
+}
+
+/* ---------------------------------------------------------------- bulk actions */
+
+.rg-bulk {
+  position: absolute;
+  left: 50%;
+  bottom: 20px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 6px 6px 16px;
+  border: 1px solid var(--c-border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--c-raised);
+  box-shadow: 0 8px 24px var(--c-shadow);
+  transform: translateX(-50%);
+  animation: rg-bulk-in var(--t-move) var(--ease);
+}
+
+.rg-bulk strong {
+  margin-right: 8px;
+}
+
+.rg-bulkselect {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 4px 0 8px;
+  border-radius: var(--radius);
+  color: var(--c-link);
+}
+
+.rg-bulkselect:hover {
+  background: var(--c-hover);
+}
+
+.rg-bulkselect select {
+  border: 0;
+  background: transparent;
+  color: var(--c-link);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.rg-bulkselect select option,
+.rg-bulkselect select optgroup {
+  background: var(--c-raised);
+  color: var(--c-text);
+}
+
+.hd .rg-danger {
+  color: var(--c-negative);
+}
+
+@keyframes rg-bulk-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 8px);
+  }
+}

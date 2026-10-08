@@ -62,6 +62,9 @@ export function PlanHome() {
       </section>
 
       <p>
+        <a href="#/design">Design mockups (S3.1) →</a>
+      </p>
+      <p>
         <a href="#/spike">Phase 0 spike screens →</a>
       </p>
     </main>

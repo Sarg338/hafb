@@ -60,7 +60,8 @@ body {
   display: flex;
   align-items: stretch;
   user-select: none;
-  background: var(--bg);
+  background: var(--c-titlebar, var(--bg));
+  color: var(--c-text, var(--text));
 }
 
 .titlebar-title {

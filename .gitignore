@@ -21,3 +21,8 @@ docs/ui-references/ynab/
 
 # Local-only test data (third-party exports, personal data): never committed
 packages/engine/test/fixtures/local/
+
+# Impeccable working files (screenshots, decision-page state)
+.impeccable/review/
+.impeccable/questions/
+.impeccable/direction-round*.json

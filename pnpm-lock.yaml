@@ -215,6 +215,9 @@ importers:
         specifier: 19.3.0
         version: 19.3.0(react@19.3.0)
     devDependencies:
+      '@fluentui/svg-icons':
+        specifier: 1.1.341
+        version: 1.1.341
       '@tauri-apps/cli':
         specifier: 2.12.1
         version: 2.12.1
@@ -369,6 +372,9 @@ packages:
   '@eslint/plugin-kit@0.7.3':
     resolution: {integrity: sha512-IkO+/KEUvwbVpiURZg+P7zF74z5Jxe0UgJxVni+RtoHQ6IZieXaO02kmadomap/q+l6bc/jdPGGqTjhuZnuz1Q==}
     engines: {node: ^20.19.0 || ^22.13.0 || >=24}
+
+  '@fluentui/svg-icons@1.1.341':
+    resolution: {integrity: sha512-BFuq3Eci/fhtp4IhMUB46Bs8xwuQ2dHY8XCFI3A3LhuSMtd2LG6RT4oNJw+xudsxLnBP4pzJlHzy1mzATnSF2Q==}
 
   '@humanfs/core@0.19.2':
     resolution: {integrity: sha512-UhXNm+CFMWcbChXywFwkmhqjs3PRCmcSa/hfBgLIb7oQ5HNb1wS0icWsGtSAUNgefHeI+eBrA8I1fxmbHsGdvA==}
@@ -1491,6 +1497,8 @@ snapshots:
     dependencies:
       '@eslint/core': 1.2.1
       levn: 0.4.1
+
+  '@fluentui/svg-icons@1.1.341': {}
 
   '@humanfs/core@0.19.2':
     dependencies:
