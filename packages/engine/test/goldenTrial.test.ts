@@ -12,6 +12,7 @@ import {
   computeBudget,
   costToBeMe,
   evaluateTargets,
+  freshStart,
   incomeVsExpense,
   monthState,
   netWorth,
@@ -47,6 +48,14 @@ interface Observed {
   };
   loan: { payoff: string; payments: number; interest: number };
   followUps?: { ageOfMoneyAfterFuelFix: number; groceriesAt350: { assignMore: number; toGo: number } };
+  freshStart?: {
+    readyToAssign: number;
+    balances: Record<string, number>;
+    startingBalance: { date: string; amount: number };
+    costToBeMe: number;
+    underfunded: number;
+    nextMonthCostToBeMe: number;
+  };
 }
 
 /** "🛒 Groceries" → "Groceries" */
@@ -207,6 +216,21 @@ describe.skipIf(!present)('golden: Sarg’s YNAB trial plan (local only)', () =>
     const st3 = computeBudget(s3, { today, throughMonth: '2026-11' });
     const g = evaluateTargets(targets, monthState(st3, '2026-10'), (c, mm) => monthState(st3, mm).categories[c]?.assigned ?? minor(0), { today })[id('Groceries')];
     expect([g?.underfunded, g?.toGo]).toEqual([f.groceriesAt350.assignMore, f.groceriesAt350.toGo]);
+  });
+
+  it('Fresh Start: $0 starting balances; carried-over targets give YNAB’s numbers', () => {
+    const f = obs.freshStart;
+    if (!f) return;
+    const fresh = freshStart(snapshot, state, today);
+    const fs = computeBudget(fresh, { today, throughMonth: '2026-11' });
+    expect(monthState(fs, '2026-10').readyToAssign).toBe(f.readyToAssign);
+    for (const [name, bal] of Object.entries(f.balances)) expect([name, fs.accountBalances[`acct:${name}`]?.working]).toEqual([name, bal]);
+    expect(fresh.transactions.every((t) => t.amount === 0 && t.date === f.startingBalance.date && t.isStartingBalance === true)).toBe(true);
+    const ev = (m: Month) => evaluateTargets(targets, monthState(fs, m), (c, mm) => monthState(fs, mm).categories[c]?.assigned ?? minor(0), { today });
+    expect(costToBeMe(ev('2026-10'), minor(0)).targets).toBe(f.costToBeMe);
+    expect(costToBeMe(ev('2026-11'), minor(0)).targets).toBe(f.nextMonthCostToBeMe);
+    const input = { state: fs, month: '2026-10' as Month, categoryIds: fresh.categories.map((c) => c.id), targets, evaluated: ev('2026-10'), scheduledOutflows: scheduledOutflows('2026-10'), paymentCategoryIds: paymentIds };
+    expect(autoAssign('underfunded', input).total).toBe(f.underfunded);
   });
 
   it('mortgage payoff: date and payment count exact; interest differs by a known $0.50', () => {

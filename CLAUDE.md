@@ -229,6 +229,7 @@ Verified against YNAB (trial):
 - "Spent" is −activity with its sign, and payment categories are skipped.
 - Options that look back do nothing when the plan has no earlier month; averages use the months the plan has.
 - Underfunded also covers scheduled bills with no target (current month) and a payment category's uncovered card debt (minus this month's credit overspending).
+- Underfunded *shows* the full need; committing stops when Ready to Assign runs out, in priority order.
 - Reset options act only on selected categories.
 
 ### 5.6 Move money, cover overspending, Plan Reset
@@ -301,7 +302,7 @@ Loans are their own off-budget account group.
 ### 5.14 Fresh Start
 - Archives the current plan: the file is kept, stamped *Archived* with today's date, and opens read-only.
 - Creates a new plan that keeps the category structure, scheduled transactions, targets, expected income, notes and payees.
-- Account starting balances are dated today. **Verify YNAB's exact starting-balance rule before S7.2**; the 2026-10-08 research says unlinked accounts start at $0, which needs confirming.
+- Every account restarts with a **$0** "Starting Balance" transaction dated today (unlinked accounts in YNAB; HAFB never links banks). The user then enters today's balance. Verified on YNAB (trial, 2026-10-08).
 
 ---
 
@@ -386,7 +387,7 @@ The full sprint plan with exit criteria is in `docs/roadmap.md`. Phases were ren
 
 Mark phase status here when it changes:
 - Phase 0: done. Validated on Sarg's machine 2026-10-08 (ADR 0001 §7). The spike screens (`apps/desktop/src/spike/`, `src-tauri/src/spike/`) stay until S3.3 replaces them.
-- Phase 1: done, signed off by Sarg 2026-10-08. Verified against two real YNAB sources (budget-math §12): the public export (98.4% exact, every regular category exact) and Sarg's YNAB trial plan (every value YNAB showed matches after 9 rule corrections; mortgage interest within $0.50). Age of Money and the weekly-target rule were confirmed by follow-up checks. Remaining open items are in budget-math §13 (Fresh Start balances, mortgage interest cents, the public sample's converted card).
+- Phase 1: done, signed off by Sarg 2026-10-08. Verified against two real YNAB sources (budget-math §12): the public export (98.4% exact, every regular category exact) and Sarg's YNAB trial plan (every value YNAB showed matches after 9 rule corrections; mortgage interest within $0.50). Age of Money and the weekly-target rule were confirmed by follow-up checks. Fresh Start was confirmed too. Remaining open items are in budget-math §13: mortgage interest cents, the public sample's converted card, Credit Card Interest (rolling out) and recurrence edge cases.
 - Phase 2: todo
 - Phase 3: todo
 - Phase 4: todo

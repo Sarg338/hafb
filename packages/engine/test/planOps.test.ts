@@ -9,6 +9,7 @@ import {
   coverOverspending,
   evaluateTargets,
   freshStart,
+  limitToReadyToAssign,
   monthState,
   moveMoney,
   planReset,
@@ -141,13 +142,12 @@ describe('§7.3 auto-assign', () => {
       ['fun', 20_000],
       ['gifts', 12_000],
     ]);
-    const limited = autoAssign('underfunded', {
-      state: run(applyAssignmentDeltas(s, [{ month: '2026-03', categoryId: 'gifts', delta: minor(200_000) }])),
-      month: '2026-03',
-      categoryIds: order,
-      targets,
-      evaluated,
-    });
+    const st2 = run(applyAssignmentDeltas(s, [{ month: '2026-03', categoryId: 'gifts', delta: minor(200_000) }]));
+    const preview = autoAssign('underfunded', { state: st2, month: '2026-03', categoryIds: order, targets, evaluated });
+    // The preview shows the whole need (YNAB trial: $1,305.01 shown with Ready to Assign at $0)…
+    expect(preview.total).toBe(192_000);
+    // …and committing stops where Ready to Assign runs out, in priority order.
+    const limited = limitToReadyToAssign(preview, monthState(st2, '2026-03').readyToAssign);
     // Only 130.00 left: cover the 100 overspending, then 30 toward rent, then stop.
     expect(limited.deltas.map((d) => [d.categoryId, d.delta])).toEqual([
       ['food', 10_000],
@@ -188,16 +188,18 @@ describe('§7.4 Plan Reset and Fresh Start', () => {
     expect(ms.breakdown.assignedInFuture).toBe(0);
   });
 
-  it('Fresh Start keeps structure and starts each open account at its balance today', () => {
+  it('Fresh Start keeps structure; every unlinked account restarts at a $0 starting balance (YNAB trial)', () => {
     const s = base().build();
     const st = run(s);
     const fresh = freshStart(s, st, asISODate('2026-03-15'));
     expect(fresh.assignments).toEqual([]);
     expect(fresh.categories).toEqual(s.categories);
-    expect(fresh.transactions).toEqual([
-      expect.objectContaining({ accountId: 'checking', amount: st.accountBalances.checking?.working, categoryId: READY_TO_ASSIGN }),
+    expect(fresh.transactions.map((t) => [t.accountId, t.amount, t.categoryId, t.date, t.isStartingBalance])).toEqual([
+      ['checking', 0, READY_TO_ASSIGN, '2026-03-15', true],
+      ['visa', 0, READY_TO_ASSIGN, '2026-03-15', true],
     ]);
     const freshState = computeBudget(fresh, { today: asISODate('2026-03-15') });
-    expect(monthState(freshState, '2026-03').readyToAssign).toBe(st.accountBalances.checking?.working);
+    expect(monthState(freshState, '2026-03').readyToAssign).toBe(0);
+    expect(freshState.accountBalances.checking?.working).toBe(0);
   });
 });

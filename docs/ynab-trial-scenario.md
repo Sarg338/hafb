@@ -23,7 +23,7 @@ Keep your existing **bank** account. Its $1,000.00 starting balance is part of t
 
 Use these existing categories, and **rename nothing**: Groceries, Dining out, Transportation, Rent/Mortgage, Phone & Internet, Utilities, Entertainment, Vacation, Emergency fund.
 
-Add a category group **HAFB Test** containing three new categories: **Gifts**, **Car Fund**, **House Down Payment**.
+Add a category group **Test Group** (keep names generic; never use the project name in YNAB) containing three new categories: **Gifts**, **Car Fund**, **House Down Payment**.
 
 Make sure **no other category has a target**: Medical expenses, Stuff I forgot to plan for, YNAB subscription.
 

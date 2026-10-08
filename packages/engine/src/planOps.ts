@@ -140,8 +140,8 @@ function previousMonths(state: BudgetState, month: Month, count: number): Month[
 
 /**
  * Auto-Assign (§5.5). Returns the deltas and their total for preview; nothing is applied.
- * "Underfunded" follows YNAB's documented priority order and stops when Ready to Assign
- * reaches 0: overspent categories, then dated weekly/monthly targets and scheduled
+ * "Underfunded" lists the full need in YNAB's documented priority order (commit it through
+ * limitToReadyToAssign, which stops when Ready to Assign reaches 0): overspent categories, then dated weekly/monthly targets and scheduled
  * transactions by due date, then end-of-month targets, then future-dated targets by due
  * date, then credit card payment categories; ties in category order.
  */
@@ -200,12 +200,12 @@ export function autoAssign(option: AutoAssignOption, input: AutoAssignInput): Pl
       }
       break;
     case 'underfunded':
-      return underfunded(input, ms.readyToAssign);
+      return underfunded(input);
   }
   return change(deltas);
 }
 
-function underfunded(input: AutoAssignInput, readyToAssign: Minor): PlanChange {
+function underfunded(input: AutoAssignInput): PlanChange {
   const { state, month, categoryIds } = input;
   const ms = monthState(state, month);
   const order = new Map(categoryIds.map((id, i) => [id, i]));
@@ -261,12 +261,27 @@ function underfunded(input: AutoAssignInput, readyToAssign: Minor): PlanChange {
     if (amount > 0) needs.push({ id, amount, tier, due });
   }
   needs.sort((a, b) => a.tier - b.tier || (a.due < b.due ? -1 : a.due > b.due ? 1 : 0) || (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
+  // The preview is the full need, in priority order (YNAB trial: $1,305.01 shown with Ready to
+  // Assign at $0). Committing applies limitToReadyToAssign, which stops where the money runs out.
+  return change(needs.map((n) => ({ month, categoryId: n.id, delta: minor(n.amount) })));
+}
+
+/**
+ * Apply a positive change (Underfunded) only as far as Ready to Assign goes, in the change's
+ * order (which is YNAB's priority order). "If Ready to Assign reaches $0.00 at any point in this
+ * order, the funding will automatically stop" (YNAB, Underfunded guide). Negative deltas pass.
+ */
+export function limitToReadyToAssign(planChange: PlanChange, readyToAssign: Minor): PlanChange {
   let remaining: number = readyToAssign;
   const deltas: AssignmentDelta[] = [];
-  for (const n of needs) {
+  for (const d of planChange.deltas) {
+    if (d.delta <= 0) {
+      deltas.push(d);
+      continue;
+    }
     if (remaining <= 0) break;
-    const give = Math.min(n.amount, remaining);
-    deltas.push({ month, categoryId: n.id, delta: minor(give) });
+    const give = Math.min(d.delta, remaining);
+    deltas.push({ ...d, delta: minor(give) });
     remaining -= give;
   }
   return change(deltas);
@@ -295,27 +310,25 @@ export function planReset(state: BudgetState, month: Month, categoryIds: readonl
 }
 
 /**
- * Fresh Start (§5.14): a new plan keeping structure, targets and accounts, with one
- * starting-balance transaction per open account dated `today` and no history.
- * ASSUMPTION (D12, verify before S7.2): starting balance = the account's working balance.
+ * Fresh Start (§5.14), verified on YNAB (trial 2026-10-08): a new plan that keeps the category
+ * groups, categories (and, outside the snapshot, targets and scheduled transactions) and every
+ * open account. Accounts that aren't bank-linked — every HAFB account — restart at **$0**: one
+ * $0 "Starting Balance" transaction dated today (on-budget → Ready to Assign), for the user to
+ * update with today's balance. No history, no assignments. The old plan is archived unchanged.
  */
 export function freshStart(snapshot: BudgetSnapshot, state: BudgetState, today: ISODate): BudgetSnapshot {
-  const transactions: Transaction[] = [];
-  for (const a of snapshot.accounts) {
-    if (a.closed) continue;
-    const balance = state.accountBalances[a.id]?.working ?? ZERO;
-    if (balance === 0) continue;
-    transactions.push({
+  const transactions: Transaction[] = snapshot.accounts
+    .filter((a) => !a.closed)
+    .map((a) => ({
       id: `fresh-start:${a.id}`,
       accountId: a.id,
       date: today,
-      amount: balance,
+      amount: ZERO,
       categoryId: a.onBudget ? READY_TO_ASSIGN : null,
-      cleared: 'reconciled',
+      cleared: 'cleared',
       memo: 'Starting Balance',
       isStartingBalance: true,
-    });
-  }
+    }));
   return {
     settings: { ...snapshot.settings, firstMonth: state.currentMonth },
     accounts: snapshot.accounts.filter((a) => !a.closed),

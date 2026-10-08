@@ -182,10 +182,11 @@ Every operation is pure. It returns assignment deltas and their total (the amoun
   - Current month: every non-payment category's Available is brought to 0. Positive balances return to Ready to Assign; overspending is covered.
   - Every future month's assignments return too.
   - Payment categories are never drawn from, but covered credit overspending does flow into them.
-- **7.5 Fresh Start:**
-  - Keeps the structure, accounts and categories.
-  - Each open account gets one starting-balance transaction dated today, equal to its current balance (on-budget → Ready to Assign).
-  - **D12:** YNAB's exact starting-balance rule is unverified (§13).
+- **7.5 Fresh Start** (verified on YNAB, trial 2026-10-08):
+  - The new plan keeps category groups, categories, targets, scheduled transactions and every open account.
+  - Accounts that aren't bank-linked (every HAFB account) restart at **$0**: one $0 "Starting Balance" transaction dated today, categorized to Ready to Assign. The user then enters today's balance.
+  - Ready to Assign starts at $0. The old plan is archived unchanged.
+  - The carried-over targets reproduce YNAB's numbers in the new plan: Underfunded $1,305.01, Cost to Be Me $1,390.01, next month $1,455.00.
 
 **Corrected and confirmed by the YNAB trial (§12.2):**
 - **Spent Last Month / Average Spent:** use −activity **with its sign**; a category with net inflow counts negative. They skip credit card payment categories. November: **$1,410.00**.
@@ -194,6 +195,7 @@ Every operation is pure. It returns assignment deltas and their total (the amoun
   - It includes a scheduled bill with no target (Utilities $15) and covers overspending first.
   - A credit card payment category adds its uncovered card debt minus this month's credit overspending. Amex owes $50 with $40 set aside: **$0** in October (Dining out's $10 is already counted as overspending), **$10** in November.
   - Totals: **$285.01** (Oct) and **$1,395.00** (Nov), both exact.
+  - **The preview is the full need**, even when Ready to Assign can't cover it: the fresh plan showed $1,305.01 with $0 to assign. Committing goes through `limitToReadyToAssign`, which stops when the money runs out, in priority order (YNAB's Underfunded guide).
 - **Reset Available / Reset Assigned** act only on selected categories; with nothing selected YNAB shows $0.00. That's a UI scope rule.
 
 **Verification:** YNAB trial for Auto-Assign and Cost to Be Me. Move money, cover overspending, Plan Reset and Fresh Start: documented, plus end-to-end tests.
@@ -551,7 +553,7 @@ Each item needs real YNAB behavior to confirm. The optional YNAB free-trial scen
 |---|---|---|
 | Q1 | Ready to Assign breakdown fields (D11) | ✅ **Verified.** YNAB lists the non-zero lines (inflows this month, assigned this month, total); the engine provides every line |
 | Q2 | Age of Money algorithm (D7) | ✅ **Verified on the trial:** empty before 10 transactions (a split counts once); with 10 outflows YNAB shows **4 days**, as predicted (first in, first out). In this data a simple mean and an amount-weighted mean both give 4, so which one YNAB uses is not yet distinguished |
-| Q3 | Fresh Start starting balances (D12) | ⏳ Pending: Part 8 of the trial (do last) |
+| Q3 | Fresh Start starting balances (D12) | ✅ **Verified:** unlinked accounts restart at $0 (a $0 "Starting Balance" dated today); targets and scheduled transactions carry over |
 | Q4 | Target formulas | ✅ **Verified** on 19 cards across 8 behaviors, plus the weekly creation-date rule: Groceries at $350 shows "Assign $50.00 more", as predicted (the "spending counts" alternative would have shown it met) |
 | Q5 | Average Assigned/Spent window | ✅ **Verified:** months the plan has |
 | Q6 | Underfunded with scheduled transactions | ✅ **Verified:** funded to the bill's total, current month only |
