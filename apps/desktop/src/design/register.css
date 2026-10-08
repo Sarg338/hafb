@@ -68,6 +68,28 @@
   background: var(--c-surface-alt);
 }
 
+.rg-title h1 {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.rg-star {
+  width: 26px;
+  height: 26px;
+  color: var(--c-text-subtle);
+}
+
+.rg-star.on {
+  color: var(--c-flag-yellow);
+}
+
+.rg-headactions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .rg-reconcile {
   display: grid;
   justify-items: end;

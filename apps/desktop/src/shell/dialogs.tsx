@@ -1,4 +1,4 @@
-// Dialogs the shell opens from its menus: new plan, backups, add account (Phase 4), import report.
+// Dialogs the shell opens from its menus: new plan, backups, import report.
 import { useEffect, useState } from 'react';
 import type { ImportReport } from '@hafb/store';
 import { Button } from '../ui/Button.tsx';
@@ -144,22 +144,6 @@ export function BackupsDialog({
         </table>
       )}
     </Dialog>
-  );
-}
-
-export function AddAccountDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
-  return (
-    <Dialog
-      open={open}
-      onClose={onClose}
-      title="Add an account"
-      description="Adding accounts arrives in Phase 4, together with the register. Until then, accounts come from a YNAB import."
-      footer={
-        <Button variant="primary" onClick={onClose}>
-          Got it
-        </Button>
-      }
-    />
   );
 }
 

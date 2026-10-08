@@ -518,3 +518,114 @@ void describe('moving money', () => {
     await page.locator('section', { hasText: 'Assigned in Future Months' }).getByText(/November is .* short/).waitFor();
   });
 });
+
+// ---- S4.4 exit: every account type creates correctly; totals tie to the engine ---------------------
+void describe('accounts', () => {
+  let box: Sandbox;
+  let app: App;
+  before(async () => {
+    box = makeSandbox();
+    app = await launch(box, ['--open', box.planPath]);
+    await app.page.getByRole('treegrid', { name: 'Categories' }).waitFor();
+  });
+  after(async () => {
+    await app.close();
+    box.cleanup();
+  });
+
+  const TYPES: { label: string; section: string; debt: boolean; onBudget: boolean }[] = [
+    { label: 'Checking', section: 'cash', debt: false, onBudget: true },
+    { label: 'Savings', section: 'cash', debt: false, onBudget: true },
+    { label: 'Cash', section: 'cash', debt: false, onBudget: true },
+    { label: 'Credit Card', section: 'credit', debt: true, onBudget: true },
+    { label: 'Line of Credit', section: 'credit', debt: true, onBudget: true },
+    { label: 'Mortgage', section: 'loans', debt: true, onBudget: false },
+    { label: 'Auto Loan', section: 'loans', debt: true, onBudget: false },
+    { label: 'Student Loan', section: 'loans', debt: true, onBudget: false },
+    { label: 'Personal Loan', section: 'loans', debt: true, onBudget: false },
+    { label: 'Medical Debt', section: 'loans', debt: true, onBudget: false },
+    { label: 'Other Debt', section: 'loans', debt: true, onBudget: false },
+    { label: 'Asset (e.g. Investment)', section: 'tracking', debt: false, onBudget: false },
+    { label: 'Liability', section: 'tracking', debt: true, onBudget: false },
+  ];
+  /** The money in a sidebar row or heading ("Test 1 Checking $100.00" → 10000), not digits in names. */
+  const cents = (s: string): number => {
+    const m = /(-?)\$([\d,]+)\.(\d\d)/.exec(s);
+    return m ? (m[1] === '-' ? -1 : 1) * (Number((m[2] ?? '0').replace(/,/g, '')) * 100 + Number(m[3])) : 0;
+  };
+
+  void test('one of each type: balances, section totals and Ready to Assign tie out', { timeout: 300_000 }, async () => {
+    const { page } = app;
+    const sidebar = page.getByRole('navigation', { name: 'Plan navigation' });
+    const sectionTotal = async (id: string): Promise<number> => {
+      const head = sidebar.getByRole('button', { name: new RegExp(id, 'i') }).first();
+      return (await head.count()) === 0 ? 0 : cents(await head.innerText());
+    };
+    const totalsBefore = new Map<string, number>();
+    for (const s of ['cash', 'credit', 'loans', 'tracking']) totalsBefore.set(s, await sectionTotal(s));
+    const rtaBefore = cents(await rta(page));
+    let rtaChange = 0;
+    for (const [i, t] of TYPES.entries()) {
+      const name = `Test ${String(i + 1)} ${t.label.split(' ')[0] ?? ''}`;
+      await sidebar.getByRole('button', { name: 'Add Account' }).click();
+      const dlg = page.getByRole('dialog', { name: 'Add an account' });
+      await dlg.getByRole('textbox', { name: 'Give it a nickname' }).fill(name);
+      await dlg.getByRole('button', { name: /What type of account/ }).click();
+      await page.getByRole('option', { name: t.label, exact: true }).click();
+      const amount = dlg.getByRole('textbox', { name: t.debt ? 'How much do you owe on it today?' : 'What is your current account balance?' });
+      await amount.click();
+      await page.waitForTimeout(100);
+      await page.keyboard.press('Control+a');
+      await page.keyboard.type('100');
+      await page.keyboard.press('Tab');
+      await dlg.getByRole('button', { name: 'Add Account' }).click();
+      await page.getByRole('heading', { name, level: 1 }).waitFor();
+      const link = sidebar.locator(`[data-section=${t.section}]`, { hasText: name });
+      assert.equal(cents(await link.innerText()), t.debt ? -10000 : 10000, `${name} balance`);
+      if (t.onBudget) rtaChange += t.debt ? -10000 : 10000;
+    }
+    for (const s of ['cash', 'credit', 'loans', 'tracking']) {
+      const added = TYPES.filter((t) => t.section === s).reduce((sum, t) => sum + (t.debt ? -10000 : 10000), 0);
+      assert.equal(await sectionTotal(s), (totalsBefore.get(s) ?? 0) + added, `${s} total`);
+    }
+    await sidebar.getByRole('link', { name: 'Plan', exact: true }).click();
+    await page.locator('[data-part=rta-amount]').waitFor();
+    await page.waitForTimeout(400);
+    assert.equal(cents(await rta(page)) - rtaBefore, rtaChange, 'starting balances of on-budget accounts are inflows to Ready to Assign');
+  });
+
+  void test('edit balance adds an adjustment; close with a balance zeroes it; reopen; star', async () => {
+    const { page } = app;
+    const sidebar = page.getByRole('navigation', { name: 'Plan navigation' });
+    const link = (name: string) => sidebar.locator('[data-section=cash]', { hasText: name });
+    await link('Test 1 Checking').click({ button: 'right' });
+    await page.getByRole('menuitem', { name: 'Edit account…' }).click();
+    const ed = page.getByRole('dialog', { name: 'Edit Account' });
+    const bal = ed.getByRole('textbox', { name: 'Working balance' });
+    await bal.click();
+    await page.waitForTimeout(100);
+    await page.keyboard.press('Control+a');
+    await page.keyboard.type('150');
+    await page.keyboard.press('Tab');
+    await ed.getByRole('button', { name: 'Save' }).click();
+    await page.waitForTimeout(400);
+    assert.equal(cents(await link('Test 1 Checking').innerText()), 15000);
+    await link('Test 1 Checking').click();
+    await page.getByRole('heading', { name: 'Test 1 Checking', level: 1 }).waitFor();
+    await page.getByText('Manual Balance Adjustment').first().waitFor();
+    // Star from the register header.
+    await page.getByRole('button', { name: 'Star Test 1 Checking' }).click();
+    await sidebar.locator('[data-section=starred]', { hasText: 'Test 1 Checking' }).waitFor();
+    // Close with a balance: confirm, zeroed, listed under Closed; then reopen.
+    await link('Test 1 Checking').click({ button: 'right' });
+    await page.getByRole('menuitem', { name: 'Close account…' }).click();
+    await page.getByRole('dialog', { name: /Close Test 1 Checking/ }).getByRole('button', { name: 'Zero it and close' }).click();
+    await sidebar.getByRole('button', { name: /closed/i }).click();
+    const closed = sidebar.locator('[data-section=closed]', { hasText: 'Test 1 Checking' });
+    await closed.waitFor();
+    assert.equal(cents(await closed.innerText()), 0);
+    await closed.click({ button: 'right' });
+    await page.getByRole('menuitem', { name: 'Reopen account' }).click();
+    await link('Test 1 Checking').waitFor();
+  });
+});

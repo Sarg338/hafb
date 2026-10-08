@@ -273,7 +273,23 @@ export function RegisterScreen({ plan, today, accountId, actions }: { plan: Plan
       <section className="hd-work rg-work" aria-label={account ? `${account.name} register` : 'All accounts register'}>
         <header className="rg-head">
           <div className="rg-title">
-            <h1>{account ? account.name : 'All Accounts'}</h1>
+            <h1>
+              {account ? account.name : 'All Accounts'}
+              {account && actions.accountAction && (
+                <button
+                  type="button"
+                  className={`hd-iconbtn rg-star${account.starred === true ? ' on' : ''}`}
+                  aria-pressed={account.starred === true}
+                  aria-label={account.starred === true ? `Unstar ${account.name}` : `Star ${account.name}`}
+                  title={account.starred === true ? 'Starred: shown at the top of the sidebar' : 'Star to show at the top of the sidebar'}
+                  onClick={() => {
+                    actions.accountAction?.(account.id, account.starred === true ? 'unstar' : 'star');
+                  }}
+                >
+                  <Icon name="star" />
+                </button>
+              )}
+            </h1>
             <p className="muted">
               {account ? `${TYPE_LABEL[account.type] ?? account.type} · ${account.onBudget ? 'On budget' : 'Tracking'}${account.note ? ` · ${account.note}` : ''}` : 'Every cash, credit and tracking account'}
             </p>
@@ -305,9 +321,18 @@ export function RegisterScreen({ plan, today, accountId, actions }: { plan: Plan
           </div>
           {account && (
             <div className="rg-reconcile">
-              <button type="button" className="hd-secondary">
-                <Icon name="lock" /> Reconcile
-              </button>
+              <div className="rg-headactions">
+                {actions.accountAction && (
+                  <button type="button" className="hd-iconbtn" aria-label={`Edit ${account.name}`} title="Edit account" onClick={() => {
+                    actions.accountAction?.(account.id, 'edit');
+                  }}>
+                    <Icon name="edit" />
+                  </button>
+                )}
+                <button type="button" className="hd-secondary">
+                  <Icon name="lock" /> Reconcile
+                </button>
+              </div>
               <small className="muted">{daysSince === null ? 'Never reconciled' : `Reconciled ${String(daysSince)} days ago`}</small>
             </div>
           )}

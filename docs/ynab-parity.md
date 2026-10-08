@@ -87,15 +87,15 @@ A row is `done` only after Sarg validates it on hardware. Rows whose engine half
 
 | ID | Feature | Engine | UI | Status |
 |---|---|---|---|---|
-| AC-01 | Cash accounts: checking, savings, cash | S1.2 | S4.4 | in-progress |
-| AC-02 | Credit accounts: credit card, line of credit | S1.3 | S4.4 | in-progress |
+| AC-01 | Cash accounts: checking, savings, cash | S1.2 | S4.4 | done |
+| AC-02 | Credit accounts: credit card, line of credit | S1.3 | S4.4 | done |
 | AC-03 | Loan accounts: mortgage, auto, student, personal, medical, other debt | S1.7 | S4.4 / S6.4 | in-progress |
-| AC-04 | Tracking accounts: asset, liability | S1.2 | S4.4 | in-progress |
-| AC-05 | Add account flow with starting balance (incl. negative for credit) | S1.2 | S4.4 | in-progress |
-| AC-06 | Edit, close, reopen; closed group | — | S4.4 | todo |
-| AC-07 | Sidebar groups with totals; Starred accounts section | — | S3.3 / S4.4 | todo |
-| AC-08 | Reorder accounts; account notes | — | S4.4 | todo |
-| AC-09 | Register header: cleared + uncleared = working balance | S1.6 | S4.4 | in-progress |
+| AC-04 | Tracking accounts: asset, liability | S1.2 | S4.4 | done |
+| AC-05 | Add account flow with starting balance (incl. negative for credit) | S1.2 | S4.4 | done |
+| AC-06 | Edit (nickname, notes, working balance → Manual Balance Adjustment, loan details), close (a balance is zeroed with an adjustment after a warning), reopen; closed group | — | S4.4 | done |
+| AC-07 | Sidebar groups with totals; Starred accounts section | — | S3.3 / S4.4 | done |
+| AC-08 | Reorder accounts; account notes | — | S4.4 | done |
+| AC-09 | Register header: cleared + uncleared = working balance | S1.6 | S4.4 | done |
 | AC-10 | Cash-type transactions auto-marked cleared | S1.6 | S4.5 | in-progress |
 | AC-11 | Linked accounts, optional, via SimpleFIN Bridge instead of YNAB's providers (ADR 0006) | — | S6.7 | todo |
 

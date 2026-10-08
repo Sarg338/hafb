@@ -262,3 +262,19 @@
 .addaccount:hover {
   background: var(--c-sidebar-hover);
 }
+
+.accounts {
+  position: relative;
+}
+
+/* Where a dragged account will land (S4.4). */
+.dropLine {
+  position: absolute;
+  right: 10px;
+  left: 10px;
+  z-index: 2;
+  height: var(--s-focus-width);
+  margin-top: -1px;
+  background: var(--c-focus);
+  pointer-events: none;
+}

@@ -194,6 +194,23 @@ The 2026-10-08 research (YNAB What's New and help center) found that CLAUDE.md w
     - Future assignments never take this month below zero. The engine changed, with tests (budget-math §2, examples 2.5–2.6).
     - Overspending only on credit is yellow with a card icon; cash overspending stays red.
   - Exit check: smoke tests in the release app cover overspending fixed with the keyboard only, move money with the breakdown total, and Fix This plus the future-month shortfall.
+- **S4.4 done (2026-10-08).** Checked against YNAB's own dialogs in the trial plan.
+  - Add Account:
+    - Fields: nickname, type and balance. Types are grouped Cash / Credit / Mortgages and Loans / Tracking.
+    - Loans also take an interest rate and the monthly payment the lender requires.
+    - Debt is entered as the amount owed and stored negative. This is HAFB's own choice: YNAB's form doesn't say which sign to use.
+  - Edit Account:
+    - Nickname, notes and loan details.
+    - Working balance: a change adds a **Manual Balance Adjustment** (verified: cleared, dated today, Inflow: Ready to Assign).
+    - Close Account: a balance is zeroed with an adjustment after a warning (YNAB's documented behavior). Reopen is available too.
+  - Store:
+    - New `adjustBalance` command.
+    - `closeAccount` takes `zeroOut`.
+  - Sidebar:
+    - Account menu (right-click or Shift+F10): edit, star/unstar, move up/down, close/reopen.
+    - Drag to reorder within a section.
+    - Star and edit buttons in the register header.
+  - Exit check: a smoke test in the release app creates one account of every type and checks balances, section totals and Ready to Assign. Edit, close-with-balance, reopen and star are covered too.
 
 ## Phase 5: Planning power → **M2**
 

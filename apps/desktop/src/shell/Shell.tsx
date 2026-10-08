@@ -4,12 +4,31 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import { isTauri } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import type { Month } from '@hafb/shared';
-import { canRedo, canUndo, redoLabel, undoLabel } from '@hafb/store';
+import { minor } from '@hafb/shared';
+import {
+  adjustBalance,
+  applyChanges,
+  canRedo,
+  canUndo,
+  closeAccount,
+  createAccount,
+  editAccount,
+  mergeChangeSets,
+  planBudget,
+  redoLabel,
+  reopenAccount,
+  reorderAccounts,
+  undoLabel,
+} from '@hafb/store';
 import type { Actions, Screen } from '../design/DesignApp.tsx';
 import { ReflectScreen } from '../design/ReflectScreen.tsx';
 import { RegisterScreen } from '../design/RegisterScreen.tsx';
 import '../design/design.css';
+import { AddAccountDialog, EditAccountDialog, type AccountEdits } from '../screens/accounts/AccountDialogs.tsx';
+import { stepAccount } from '../screens/accounts/accountsModel.ts';
+import { moneyFormat } from '../screens/plan/planModel.ts';
 import { shownMonth } from '../screens/plan/planMonths.ts';
+import { moneyText } from '../screens/shared/money.ts';
 import { PlanScreen } from '../screens/plan/PlanScreen.tsx';
 import { cx } from '../ui/cx.ts';
 import { ErrorBoundary } from '../ui/ErrorBoundary.tsx';
@@ -19,13 +38,14 @@ import { SkipLink } from '../ui/SkipLink.tsx';
 import type { MenuItem } from '../ui/Menu.tsx';
 import { Splitter } from '../ui/Splitter.tsx';
 import { useToast } from '../ui/Toast.tsx';
-import { AddAccountDialog, BackupsDialog, ImportReportDialog, NewPlanDialog } from './dialogs.tsx';
+import { useConfirm } from '../ui/Dialog.tsx';
+import { BackupsDialog, ImportReportDialog, NewPlanDialog } from './dialogs.tsx';
 import { appIpc, type TitlebarMode } from './ipc.ts';
 import { INSPECTOR_DEFAULT, INSPECTOR_MAX, INSPECTOR_MIN, prefs, usePrefs, type ThemePref } from './prefs.ts';
 import { navigate, useRoute, type Route } from './router.ts';
 import { session, todayLocal, type OpenPlan } from './session.ts';
 import styles from './Shell.module.css';
-import { Sidebar } from './Sidebar.tsx';
+import { Sidebar, type AccountAction } from './Sidebar.tsx';
 import { useAppliedTheme } from './theme.ts';
 import { Welcome } from './Welcome.tsx';
 
@@ -85,6 +105,8 @@ function PlanFrame({ open, system }: { open: OpenPlan; /** A Windows-colour (con
   const p = usePrefs();
   const today = todayLocal();
   const [dialog, setDialog] = useState<null | 'new' | 'backups' | 'addAccount'>(null);
+  const [editingAccount, setEditingAccount] = useState<string | null>(null);
+  const confirm = useConfirm();
   const [showReport, setShowReport] = useState(open.importReport !== undefined);
   const [titlebarMode, setTitlebarMode] = useState<TitlebarMode>('custom');
   const content = useRef<HTMLDivElement>(null);
@@ -127,6 +149,61 @@ function PlanFrame({ open, system }: { open: OpenPlan; /** A Windows-colour (con
   const routeKey = route.kind === 'accounts' ? `accounts:${route.accountId ?? 'all'}` : route.kind;
   useRouteFocus(routeKey, content);
 
+  // ---- accounts (S4.4) ----------------------------------------------------------------------------
+  const fmt = moneyFormat(open.plan);
+  const money = moneyText(fmt, p.hideAmounts);
+  const workingBalance = (id: string) => planBudget(open.plan, { today }).accountBalances[id]?.working ?? minor(0);
+  const accountName = (id: string): string => open.plan.accounts.find((a) => a.id === id)?.name ?? 'account';
+  const closeWithCare = async (id: string): Promise<void> => {
+    const balance = workingBalance(id);
+    const name = accountName(id);
+    if (balance !== 0) {
+      const ok = await confirm({
+        title: `Close ${name}?`,
+        body: `Its balance of ${money(balance)} will be set to ${money(minor(0))} with an adjustment transaction. To move the money somewhere instead, cancel and record a transfer first.`,
+        confirmLabel: 'Zero it and close',
+        danger: true,
+      });
+      if (!ok) return;
+    }
+    session.run((pl, ctx) => closeAccount(pl, ctx, { accountId: id, zeroOut: balance !== 0 }), { announce: `Closed “${name}”. It's under Closed in the sidebar.` });
+  };
+  const onAccountAction = (id: string, action: AccountAction): void => {
+    switch (action) {
+      case 'edit':
+        setEditingAccount(id);
+        break;
+      case 'star':
+      case 'unstar':
+        session.run((pl, ctx) => editAccount(pl, ctx, { accountId: id, starred: action === 'star' }));
+        break;
+      case 'up':
+      case 'down': {
+        const ids = stepAccount(open.plan, id, action === 'up' ? -1 : 1);
+        if (ids) session.run((pl, ctx) => reorderAccounts(pl, ctx, { accountIds: ids }));
+        break;
+      }
+      case 'close':
+        void closeWithCare(id);
+        break;
+      case 'reopen':
+        session.run((pl, ctx) => reopenAccount(pl, ctx, { accountId: id }), { announce: `Reopened “${accountName(id)}”.` });
+        break;
+    }
+  };
+  const saveAccount = (id: string, edits: AccountEdits): void => {
+    session.run((pl, ctx) => {
+      const e = editAccount(pl, ctx, { accountId: id, name: edits.name, note: edits.note.trim() === '' ? null : edits.note, ...(edits.loan === undefined ? {} : { loan: edits.loan }) });
+      const next = applyChanges(pl, e.changes).plan;
+      const b = adjustBalance(next, ctx, { accountId: id, workingBalance: edits.workingBalance });
+      return { label: `Edit account: ${accountName(id)}`, changes: mergeChangeSets(e.changes, b.changes) };
+    });
+  };
+  const accountActionRef = useRef(onAccountAction);
+  useEffect(() => {
+    accountActionRef.current = onAccountAction;
+  });
+
   const actions: Actions = useMemo(
     () => ({
       run: (build, options) => {
@@ -145,6 +222,9 @@ function PlanFrame({ open, system }: { open: OpenPlan; /** A Windows-colour (con
       },
       notify: (text: string) => {
         session.notify(text);
+      },
+      accountAction: (id: string, action: AccountAction) => {
+        accountActionRef.current(id, action);
       },
     }),
     [],
@@ -210,6 +290,10 @@ function PlanFrame({ open, system }: { open: OpenPlan; /** A Windows-colour (con
         onAddAccount={() => {
           setDialog('addAccount');
         }}
+        onAccountAction={onAccountAction}
+        onReorder={(ids) => {
+          session.run((pl, ctx) => reorderAccounts(pl, ctx, { accountIds: ids }), { announce: 'Moved the account.' });
+        }}
       />
       <SkipLink targetId="main" />
       <div
@@ -267,12 +351,49 @@ function PlanFrame({ open, system }: { open: OpenPlan; /** A Windows-colour (con
         load={loadBackups}
         onRestore={(b) => void session.restore(b)}
       />
-      <AddAccountDialog
-        open={dialog === 'addAccount'}
-        onClose={() => {
-          setDialog(null);
-        }}
-      />
+      {dialog === 'addAccount' && (
+        <AddAccountDialog
+          format={fmt}
+          onClose={() => {
+            setDialog(null);
+          }}
+          onCreate={(args) => {
+            const made: { id: string | null } = { id: null };
+            session.run((pl, ctx) => {
+              const cmd = createAccount(pl, ctx, args);
+              made.id = cmd.accountId;
+              return cmd;
+            });
+            if (made.id !== null) navigate({ kind: 'accounts', accountId: made.id });
+          }}
+        />
+      )}
+      {editingAccount !== null &&
+        (() => {
+          const account = open.plan.accounts.find((a) => a.id === editingAccount && a.deletedAt === undefined);
+          if (!account) return null;
+          const close = (): void => {
+            setEditingAccount(null);
+          };
+          return (
+            <EditAccountDialog
+              account={account}
+              workingBalance={workingBalance(account.id)}
+              format={fmt}
+              money={money}
+              onClose={close}
+              onSave={(edits) => {
+                saveAccount(account.id, edits);
+              }}
+              onCloseAccount={(zeroOut) => {
+                session.run((pl, ctx) => closeAccount(pl, ctx, { accountId: account.id, zeroOut }), { announce: `Closed “${account.name}”. It's under Closed in the sidebar.` });
+              }}
+              onReopen={() => {
+                session.run((pl, ctx) => reopenAccount(pl, ctx, { accountId: account.id }), { announce: `Reopened “${account.name}”.` });
+              }}
+            />
+          );
+        })()}
       {showReport && (
         <ImportReportDialog
           report={open.importReport}

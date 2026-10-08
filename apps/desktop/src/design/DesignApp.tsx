@@ -24,6 +24,8 @@ export interface Actions {
   redo: () => void;
   navigate: (screen: Screen) => void;
   notify: (text: string) => void;
+  /** Account menu actions (S4.4): the shell opens Edit Account, stars, closes and reopens. */
+  accountAction?: (accountId: Id, action: 'edit' | 'star' | 'unstar' | 'up' | 'down' | 'close' | 'reopen') => void;
 }
 
 const newId = uuidv7Generator(

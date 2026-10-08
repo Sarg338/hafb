@@ -3,11 +3,13 @@ import { minor, type ISODate, type Minor } from '@hafb/shared';
 import { planBudget, type AccountRecord, type PlanData } from '@hafb/store';
 import { cx } from '../ui/cx.ts';
 import { Icon, type IconName } from '../ui/Icon.tsx';
-import { MenuButton, type MenuItem } from '../ui/Menu.tsx';
+import { ContextMenu, MenuButton, type MenuItem } from '../ui/Menu.tsx';
 import { useTooltip } from '../ui/Tooltip.tsx';
 import { moneyFormat } from '../screens/plan/planModel.ts';
 import { prefs, usePrefs } from './prefs.ts';
 import { moneyText } from '../screens/shared/money.ts';
+import { stepAccount } from '../screens/accounts/accountsModel.ts';
+import { useAccountDrag } from './useAccountDrag.ts';
 import { formatRoute, type Route } from './router.ts';
 import styles from './Sidebar.module.css';
 
@@ -39,7 +41,15 @@ export interface SidebarProps {
   viewMenu: readonly MenuItem[];
   onViewMenu: (id: string) => void;
   onAddAccount: () => void;
+  /** Row menu actions on an account (edit, star, move, close, reopen). */
+  onAccountAction: (accountId: string, action: AccountAction) => void;
+  /** A dragged account's new full order. */
+  onReorder: (accountIds: string[]) => void;
 }
+
+export type AccountAction = 'edit' | 'star' | 'unstar' | 'up' | 'down' | 'close' | 'reopen';
+const ACCOUNT_ACTIONS: readonly string[] = ['edit', 'star', 'unstar', 'up', 'down', 'close', 'reopen'];
+const isAccountAction = (x: string): x is AccountAction => ACCOUNT_ACTIONS.includes(x);
 
 /** A nav link: full label when expanded; icon with a tooltip in the rail. */
 function NavLink({ to, icon, label, current, rail }: { to: Route; icon: IconName; label: string; current: boolean; rail: boolean }) {
@@ -61,7 +71,7 @@ function NavLink({ to, icon, label, current, rail }: { to: Route; icon: IconName
   );
 }
 
-export function Sidebar({ plan, subtitle, today, route, planMenu, onPlanMenu, viewMenu, onViewMenu, onAddAccount }: SidebarProps) {
+export function Sidebar({ plan, subtitle, today, route, planMenu, onPlanMenu, viewMenu, onViewMenu, onAddAccount, onAccountAction, onReorder }: SidebarProps) {
   const p = usePrefs();
   const rail = p.sidebarCollapsed;
   const fmt = moneyFormat(plan);
@@ -79,6 +89,16 @@ export function Sidebar({ plan, subtitle, today, route, planMenu, onPlanMenu, vi
   const sections = SECTIONS.map((s) => ({ ...s, accounts: membersOf(s) })).filter((s) => s.accounts.length > 0);
   const isCollapsed = (s: Section): boolean => (s.collapsedByDefault === true ? !p.expandedSections.includes(s.id) : p.collapsedSections.includes(s.id));
   const currentAccount = route.kind === 'accounts' ? route.accountId : undefined;
+  const { containerRef: dragContainer, onPointerDown: onDragStart, justDragged, line: dropLine } = useAccountDrag(plan, onReorder);
+  const menuFor = (a: AccountRecord): MenuItem[] => [
+    { id: 'edit', label: 'Edit account…', icon: 'edit' },
+    a.starred === true ? { id: 'unstar', label: 'Unstar', icon: 'star' } : { id: 'star', label: 'Star', icon: 'star' },
+    { id: 'sep1', label: '', separator: true },
+    { id: 'up', label: 'Move up', icon: 'chevronUp', disabled: stepAccount(plan, a.id, -1) === null },
+    { id: 'down', label: 'Move down', icon: 'chevronDown', disabled: stepAccount(plan, a.id, 1) === null },
+    { id: 'sep2', label: '', separator: true },
+    a.closed === true ? { id: 'reopen', label: 'Reopen account', icon: 'history' } : { id: 'close', label: 'Close account…', icon: 'lock', danger: true },
+  ];
 
   return (
     <nav className={cx(styles.sidebar, rail && styles.rail)} aria-label="Plan navigation">
@@ -112,7 +132,8 @@ export function Sidebar({ plan, subtitle, today, route, planMenu, onPlanMenu, vi
         <NavLink to={{ kind: 'accounts', accountId: null }} icon="accounts" label="All Accounts" current={route.kind === 'accounts' && route.accountId === null} rail={rail} />
       </div>
 
-      <div className={styles.accounts} aria-label="Accounts">
+      <div className={styles.accounts} aria-label="Accounts" ref={dragContainer}>
+        {dropLine !== null && <div className={styles.dropLine} style={{ top: dropLine }} aria-hidden="true" />}
         {!rail && sections.length === 0 && <p className={styles.empty}>No accounts yet. Add one to start tracking where your money lives.</p>}
         {!rail &&
           sections.map((s) => {
@@ -136,15 +157,31 @@ export function Sidebar({ plan, subtitle, today, route, planMenu, onPlanMenu, vi
                 </button>
                 {!collapsed &&
                   s.accounts.map((a) => (
-                    <a
+                    <ContextMenu
                       key={`${s.id}-${a.id}`}
-                      href={formatRoute({ kind: 'accounts', accountId: a.id })}
-                      className={styles.account}
-                      aria-current={currentAccount === a.id ? 'page' : undefined}
+                      items={menuFor(a)}
+                      label={a.name}
+                      onSelect={(action) => {
+                        if (isAccountAction(action)) onAccountAction(a.id, action);
+                      }}
                     >
-                      <span className={styles.accountName}>{a.name}</span>
-                      <span className={cx(styles.num, overdrawn(a) && styles.neg)}>{money(balance(a))}</span>
-                    </a>
+                      <a
+                        href={formatRoute({ kind: 'accounts', accountId: a.id })}
+                        className={styles.account}
+                        aria-current={currentAccount === a.id ? 'page' : undefined}
+                        data-account-id={a.id}
+                        data-section={s.id}
+                        draggable={false}
+                        onPointerDown={onDragStart}
+                        onClick={(e) => {
+                          if (justDragged.current) e.preventDefault();
+                        }}
+                      >
+                        {a.starred === true && s.id !== 'starred' && <span className="visually-hidden">Starred. </span>}
+                        <span className={styles.accountName}>{a.name}</span>
+                        <span className={cx(styles.num, overdrawn(a) && styles.neg)}>{money(balance(a))}</span>
+                      </a>
+                    </ContextMenu>
                   ))}
               </div>
             );
