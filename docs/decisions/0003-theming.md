@@ -31,3 +31,38 @@
 - The S3.2 component library inherits the token contract, so no component chooses colours.
 - A future "theme editor" is mostly UI: the data model, application and validation already exist.
 - An ESLint or Stylelint rule forbidding raw colours outside `theme/` should land with S3.2 (tracked there). Until then, code review and the impeccable design hook catch them.
+
+## Amendment (2026-10-08): whole-UI themes, not just colours
+
+Sarg asked whether a theme can change the whole UI: the Till Roll receipt look (monospace money, dashed and double rules, torn paper edges, dotted leaders), not just its colours. Yes. To keep that easy, the theme contract grows from colours to a **skin**.
+
+**A theme may change:**
+1. **Colour:** the tokens above.
+2. **Typography:**
+   - Font family per role: UI text, display, money figures, labels.
+   - Weights, letter case and tracking for headings and column headers.
+   - Numeral style.
+3. **Shape:**
+   - Radii and border widths and styles.
+   - Rule styles: group dividers solid or dashed, totals single or double.
+   - Pill style: rounded pill, box, or plain text with an outline.
+   - Progress-bar style: segment gap, height, caps.
+4. **Density:** row heights (within limits, see below) and the spacing scale.
+5. **Ornament:** an optional scoped stylesheet (`[data-theme='till-roll'] …`) for effects tokens can't express: a torn-edge mask on the plan sheet, dotted leaders in the inspector, paper texture.
+   - Ornament may only style what's already there.
+   - It never adds or removes content, changes reading order, or hides data.
+
+**Fixed for every theme:**
+- The layout and information architecture (YNAB's structure: sidebar, plan grid columns, inspector, register).
+- Behaviour, keyboard model and accessibility semantics.
+
+Themes are skins, not layouts.
+
+**How this is kept true:**
+- S3.2 builds every component against shape, type and density tokens as well as colour. No component hard-codes a radius, font or rule style.
+- The theme test extends to the new token groups:
+  - Text at least 12 px.
+  - Rows at least 28 px.
+  - Focus outline at least 2 px.
+  - Contrast as before.
+- **S3.2 exit check:** a rough **Till Roll proof theme** built *only* from tokens plus an ornament sheet, with no component edits. If the proof needs a component change, the contract is wrong and gets fixed before more screens are built on it.
