@@ -1,0 +1,154 @@
+/* Grouped searchable combobox. The input matches the register's inline-edit input (S3.1);
+   the list is the raised popover surface. Tokens only (ADR 0004). */
+
+.field {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.input {
+  width: 100%;
+  height: var(--d-control-small);
+  padding: 0 26px 0 6px;
+  border: var(--s-border-width) solid var(--c-input-border);
+  border-radius: var(--s-radius);
+  background: var(--c-input);
+  color: var(--c-text);
+  font-family: var(--t-font-ui);
+  font-size: var(--t-size-body);
+  text-overflow: ellipsis;
+}
+
+.medium .input {
+  height: var(--d-control);
+  padding-left: 10px;
+}
+
+.input:focus {
+  border-color: var(--c-focus);
+  outline: var(--s-border-width) solid var(--c-focus);
+  outline-offset: 0;
+}
+
+.input::placeholder {
+  color: var(--c-text-subtle);
+}
+
+.input:disabled {
+  border-style: var(--s-muted-border-style);
+  color: var(--c-text-subtle);
+}
+
+.toggle {
+  position: absolute;
+  top: 50%;
+  right: 3px;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--s-radius-small);
+  background: transparent;
+  color: var(--c-text-muted);
+  transform: translateY(-50%);
+}
+
+.toggle:hover {
+  background: var(--c-hover);
+  color: var(--c-text);
+}
+
+/* The popover itself supplies the raised surface; this is the scroll area inside it. */
+.list {
+  max-height: calc(var(--d-row-register) * 11);
+  overflow-y: auto;
+  padding: 4px 0;
+  overscroll-behavior: contain;
+}
+
+.groupLabel {
+  display: flex;
+  align-items: flex-end;
+  height: var(--d-row-register);
+  padding: 0 12px 4px;
+  color: var(--c-text-muted);
+  font-family: var(--t-font-label);
+  font-size: var(--t-size-micro);
+  font-weight: var(--t-label-weight);
+  letter-spacing: var(--t-label-tracking);
+  text-transform: var(--t-label-transform);
+  user-select: none;
+}
+
+.option {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: var(--d-row-register);
+  padding: 0 12px;
+  cursor: default;
+  user-select: none;
+}
+
+.optionLabel {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.meta {
+  flex: none;
+  font-family: var(--t-font-money);
+  font-size: var(--t-size-small);
+  font-variant-numeric: tabular-nums;
+}
+
+.option[data-active='true'] {
+  background: var(--c-hover);
+}
+
+/* The plan grid's selection indicator: a short rounded pill. */
+.option[data-active='true']::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 3px;
+  width: 3px;
+  height: 16px;
+  border-radius: var(--s-radius-tiny);
+  background: var(--c-selected-border);
+  transform: translateY(-50%);
+}
+
+.option[aria-selected='true'] .optionLabel {
+  font-weight: var(--t-weight-semibold);
+}
+
+.option[aria-disabled='true'] {
+  color: var(--c-text-subtle);
+}
+
+.create {
+  border-top: var(--s-border-width) solid var(--c-border);
+  color: var(--c-link);
+  font-weight: var(--t-weight-medium);
+}
+
+.mark {
+  border-radius: var(--s-radius-tiny);
+  background: var(--c-accent-soft);
+  color: inherit;
+  font-weight: var(--t-weight-semibold);
+}
+
+.empty {
+  padding: 8px 12px;
+  color: var(--c-text-muted);
+}

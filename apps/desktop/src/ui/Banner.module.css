@@ -1,0 +1,78 @@
+/* Ready to Assign banner (approved .hd-rta) and the in-page notice banner (approved .rg-banner). */
+
+.rta {
+  display: inline-flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 8px 8px 18px;
+  border-radius: var(--s-radius-large);
+  background: var(--c-rta-positive-bg);
+  color: var(--c-rta-positive-fg);
+  transition: background-color var(--m-move) var(--m-ease), color var(--m-move) var(--m-ease);
+}
+
+.rta[data-state='zero'] {
+  background: var(--c-rta-zero-bg);
+  color: var(--c-rta-zero-fg);
+}
+
+.rta[data-state='negative'] {
+  background: var(--c-rta-negative-bg);
+  color: var(--c-rta-negative-fg);
+}
+
+.amount {
+  font-family: var(--t-font-display);
+  font-size: var(--t-size-display);
+  font-weight: var(--t-weight-strong);
+  line-height: 1.1;
+  letter-spacing: var(--t-display-tracking);
+  font-variant-numeric: tabular-nums;
+}
+
+.caption {
+  font-size: var(--t-size-caption);
+  font-weight: var(--t-weight-semibold);
+}
+
+.notice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px 8px 14px;
+  border: var(--s-border-width) solid var(--c-selected-border);
+  border-radius: var(--s-radius-large);
+  background: var(--c-accent-soft);
+  color: var(--c-text);
+}
+
+.notice[data-tone='warning'] {
+  border-color: var(--c-bar-underfunded);
+  background: var(--c-underfunded-bg);
+  color: var(--c-underfunded-fg);
+}
+
+.notice[data-tone='error'] {
+  border-color: var(--c-bar-overspent);
+  background: var(--c-overspent-bg);
+  color: var(--c-overspent-fg);
+}
+
+.noticeIcon {
+  color: var(--c-accent);
+}
+
+.notice[data-tone='warning'] .noticeIcon,
+.notice[data-tone='error'] .noticeIcon {
+  color: currentColor;
+}
+
+.noticeText {
+  flex: 1;
+  min-width: 0;
+}
+
+.noticeActions {
+  display: flex;
+  gap: 8px;
+}

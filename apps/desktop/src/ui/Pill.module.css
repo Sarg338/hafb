@@ -1,0 +1,76 @@
+/* Available pill: the approved S3.1 .hd-pill (DESIGN.md). The pill style is a theme variant
+   (data-pill on the root, ADR 0003): built-in themes use "filled". */
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  min-width: 84px;
+  height: 22px;
+  padding: 0 9px;
+  border: var(--s-border-width) solid transparent;
+  border-radius: var(--s-radius-pill);
+  font-family: var(--t-font-money);
+  font-size: var(--t-size-body);
+  font-weight: var(--t-weight-semibold);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  transition: background-color var(--m-move) var(--m-ease), color var(--m-move) var(--m-ease);
+}
+
+.pill[data-state='funded'] {
+  background: var(--c-funded-bg);
+  color: var(--c-funded-fg);
+}
+
+.pill[data-state='underfunded'] {
+  background: var(--c-underfunded-bg);
+  color: var(--c-underfunded-fg);
+}
+
+.pill[data-state='overspent'] {
+  background: var(--c-overspent-bg);
+  color: var(--c-overspent-fg);
+}
+
+.pill[data-state='zero'],
+.pill[data-state='snoozed'] {
+  background: var(--c-zero-bg);
+  color: var(--c-zero-fg);
+  font-weight: var(--t-weight-medium);
+}
+
+.stateIcon {
+  display: none;
+}
+
+/* Differentiate without colour: shape and icon carry the state too. */
+:where([data-nocolor='true']) .stateIcon {
+  display: inline-flex;
+}
+
+:where([data-nocolor='true']) .pill[data-state='underfunded'] {
+  border: 1.5px dashed currentColor; /* scan-ok: without-colour state shape, not a theme choice */
+}
+
+:where([data-nocolor='true']) .pill[data-state='overspent'] {
+  border: 2px solid currentColor;
+}
+
+:where([data-theme-system='true']) .pill {
+  border-color: currentColor;
+}
+
+/* Theme variants (plumbing for future skins; not used by the built-in themes). */
+:where([data-pill='outlined']) .pill {
+  border-color: currentColor;
+  background: transparent;
+}
+
+:where([data-pill='text']) .pill {
+  min-width: 0;
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+}

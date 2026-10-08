@@ -1,0 +1,144 @@
+/* Shared field anatomy (label, box, help, error) for TextInput, TextArea, MoneyInput, DateInput.
+   The box reproduces the approved register input (.rg-input): input border, focus border plus a
+   1px focus outline, muted border style when disabled. */
+
+.field {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.label {
+  color: var(--c-text-muted);
+  font-size: var(--t-size-caption);
+  font-weight: var(--t-weight-semibold);
+}
+
+.hiddenLabel {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.box {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  height: var(--d-control);
+  padding: 0 8px;
+  border: var(--s-border-width) solid var(--c-input-border);
+  border-radius: var(--s-radius);
+  background: var(--c-input);
+  color: var(--c-text);
+}
+
+.compact {
+  height: var(--d-control-small);
+  padding: 0 6px;
+}
+
+.box:focus-within {
+  border-color: var(--c-focus);
+  outline: var(--s-border-width) solid var(--c-focus);
+  outline-offset: 0;
+}
+
+.box.invalid {
+  border-color: var(--c-bad-text);
+  /* A heavier edge, so the state shows without colour (high contrast). */
+  box-shadow: inset 0 0 0 var(--s-border-width) var(--c-bad-text);
+}
+
+.box.invalid:focus-within {
+  outline-color: var(--c-bad-text);
+}
+
+.box.disabled {
+  border-style: var(--s-muted-border-style);
+  color: var(--c-text-subtle);
+}
+
+.affix {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  color: var(--c-text-muted);
+}
+
+.input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-family: var(--t-font-ui);
+  font-size: var(--t-size-body);
+  font-variant-numeric: tabular-nums;
+}
+
+.input:focus-visible {
+  /* The box draws the focus ring. */
+  outline: none;
+}
+
+.input::placeholder {
+  color: var(--c-text-subtle);
+  opacity: 1;
+}
+
+.input:disabled {
+  cursor: default;
+}
+
+.help {
+  color: var(--c-text-muted);
+  font-size: var(--t-size-caption);
+}
+
+.error {
+  color: var(--c-bad-text);
+  font-size: var(--t-size-caption);
+  font-weight: var(--t-weight-medium);
+}
+
+/* TextArea: the approved .hd-textarea. */
+.textarea {
+  width: 100%;
+  min-height: 64px;
+  padding: 8px;
+  border: var(--s-border-width) solid var(--c-input-border);
+  border-radius: var(--s-radius);
+  background: var(--c-input);
+  color: var(--c-text);
+  font-family: var(--t-font-ui);
+  font-size: var(--t-size-body);
+  line-height: var(--t-line-height);
+  resize: vertical;
+}
+
+.textarea::placeholder {
+  color: var(--c-text-subtle);
+  opacity: 1;
+}
+
+.textarea:focus-visible {
+  border-color: var(--c-focus);
+  outline: var(--s-border-width) solid var(--c-focus);
+  outline-offset: 0;
+}
+
+.textarea[aria-invalid='true'] {
+  border-color: var(--c-bad-text);
+}
+
+.textarea:disabled {
+  border-style: var(--s-muted-border-style);
+  color: var(--c-text-subtle);
+}

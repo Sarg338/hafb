@@ -1,0 +1,112 @@
+/* Segmented target progress bar: the approved S3.1 .hd-bar (DESIGN.md). Dark = held, light = spent. */
+
+.bar {
+  position: relative;
+  display: flex;
+  gap: var(--s-bar-gap);
+  height: var(--s-bar-height);
+}
+
+.seg {
+  position: relative;
+  flex: 1;
+  overflow: hidden;
+  border-radius: var(--s-bar-radius);
+  background: var(--c-bar-track);
+}
+
+.fill,
+.spent {
+  position: absolute;
+  inset: 0;
+  transform-origin: left center;
+  transition: transform var(--m-move) var(--m-ease), background-color var(--m-move) var(--m-ease);
+}
+
+.bar[data-state='funded'] .fill {
+  background: var(--c-bar-funded);
+}
+
+.bar[data-state='funded'] .spent {
+  background: var(--c-bar-funded-spent);
+}
+
+.bar[data-state='underfunded'] .fill {
+  background: var(--c-bar-underfunded);
+}
+
+.bar[data-state='underfunded'] .spent {
+  background: var(--c-bar-underfunded-spent);
+}
+
+.bar[data-state='overspent'] .fill,
+.bar[data-state='overspent'] .spent {
+  background: var(--c-bar-overspent);
+}
+
+.bar[data-state='snoozed'] .fill,
+.bar[data-state='snoozed'] .spent {
+  background: var(--c-bar-snoozed);
+}
+
+:where([data-nocolor='true']) .bar[data-state='underfunded'] .fill {
+  background: repeating-linear-gradient(135deg, var(--c-bar-underfunded) 0 3px, transparent 3px 5px);
+}
+
+:where([data-nocolor='true']) .bar[data-state='overspent'] .fill {
+  background: repeating-linear-gradient(90deg, var(--c-bar-overspent) 0 4px, transparent 4px 6px);
+}
+
+:where([data-theme-system='true']) .seg {
+  outline: var(--s-border-width) solid var(--c-border);
+}
+
+/* Progress ring (target detail): track + arc, percentage in the middle. */
+.ring {
+  position: relative;
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+}
+
+.ring svg {
+  position: absolute;
+  inset: 0;
+  transform: rotate(-90deg);
+}
+
+.ringTrack {
+  fill: none;
+  stroke: var(--c-bar-track);
+}
+
+.ringArc {
+  fill: none;
+  stroke-linecap: round;
+  transition: stroke-dashoffset var(--m-move) var(--m-ease), stroke var(--m-move) var(--m-ease);
+}
+
+.ring[data-state='funded'] .ringArc {
+  stroke: var(--c-bar-funded);
+}
+
+.ring[data-state='underfunded'] .ringArc {
+  stroke: var(--c-bar-underfunded);
+}
+
+.ring[data-state='overspent'] .ringArc {
+  stroke: var(--c-bar-overspent);
+}
+
+.ring[data-state='snoozed'] .ringArc,
+.ring[data-state='zero'] .ringArc {
+  stroke: var(--c-bar-snoozed);
+}
+
+.ringLabel {
+  position: relative;
+  font-family: var(--t-font-money);
+  font-size: var(--t-size-caption);
+  font-weight: var(--t-weight-semibold);
+  font-variant-numeric: tabular-nums;
+}

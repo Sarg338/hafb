@@ -28,7 +28,7 @@ This file is the durable source of truth for the project. Read it fully before d
 
 **Default stack:**
 - **Shell:** Tauri 2 (Rust core, WebView2 renderer — WebView2 ships with Windows 11 and is an evergreen runtime on Windows 10). Small binary, real native window, no bundled Chromium.
-- **UI:** React 19 + TypeScript (strict). State via Zustand. Styling with CSS modules or vanilla-extract — no Tailwind in this project (density matters; utility classes fight tabular UI).
+- **UI:** React 19 + TypeScript (strict). State via Zustand. Styling: **CSS Modules over theme custom properties** (decided S3.2, ADR 0004). Every colour, font, size, radius, rule style and duration comes from a theme token, enforced by `src/theme/sourceScan.test.ts`. No Tailwind (density matters; utility classes fight tabular UI). Components live in `apps/desktop/src/ui/`, with a dev gallery at `#/gallery`.
 - **Grid:** TanStack Table for the register and budget sheet. Virtualized. Must handle 50k+ transactions without jank.
 - **Storage:** SQLite via `tauri-plugin-sql` (sqlx under the hood) **or** `rusqlite` behind Tauri commands. Spike decides. WAL mode. Migrations via numbered SQL files, applied on open, never edited after shipping.
 - **Budget engine:** Pure TypeScript package (`packages/engine`), zero dependencies on Tauri/DOM. It takes a snapshot of data in, returns computed budget state out. This is what gets tested exhaustively, and it is what makes a future Android/web port possible.

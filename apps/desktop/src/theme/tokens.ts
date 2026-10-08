@@ -33,6 +33,10 @@ export const COLOR_TOKENS = [
   'accentHover',
   'accentSoft',
   'focus',
+  // Disabled primary controls (inactive UI is exempt from contrast minimums, WCAG 1.4.3)
+  'disabledBg',
+  'disabledFg',
+  'disabledBorder',
   // Money state: Available pills (fg on bg must pass 4.5:1)
   'fundedBg',
   'fundedFg',

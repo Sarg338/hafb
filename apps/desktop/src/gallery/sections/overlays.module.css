@@ -1,0 +1,43 @@
+/* Static specimens for the overlay sections: drawn in the page so captures need no clicks. */
+
+.surface {
+  display: inline-block;
+  min-width: 220px;
+  padding: 4px 0;
+  border: var(--s-border-width) solid var(--c-border-strong);
+  border-radius: var(--s-radius-large);
+  background: var(--c-raised);
+  box-shadow: 0 8px 24px var(--c-shadow);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  width: 520px;
+  height: var(--d-row-register);
+  padding: 0 12px;
+  border: var(--s-border-width) solid var(--c-border);
+  border-radius: var(--s-radius);
+  background: var(--c-surface);
+  color: var(--c-text);
+}
+
+.row:focus-visible {
+  outline: var(--s-focus-width) solid var(--c-focus);
+}
+
+.money {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+
+.note {
+  color: var(--c-text-muted);
+  font-size: var(--t-size-caption);
+}
+
+.tall {
+  min-height: 90px;
+  align-items: flex-end;
+}

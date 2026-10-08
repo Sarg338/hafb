@@ -1,0 +1,76 @@
+/* Modal dialog: scrim plus a raised panel in the approved card language (radius large, hairline,
+   soft shadow). Tokens only (ADR 0004). */
+
+.scrim {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: var(--c-scrim);
+  animation: fade-in var(--m-move) var(--m-ease);
+}
+
+.panel {
+  display: grid;
+  gap: 12px;
+  width: min(480px, 100%);
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+  padding: 20px 24px 18px;
+  border: var(--s-border-width) solid var(--c-border-strong);
+  border-radius: var(--s-radius-large);
+  background: var(--c-raised);
+  color: var(--c-text);
+  box-shadow: 0 16px 48px var(--c-shadow);
+  animation: rise-in var(--m-move) var(--m-ease);
+}
+
+.wide {
+  width: min(640px, 100%);
+}
+
+.head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.title {
+  flex: 1;
+  margin: 0;
+  font-family: var(--t-font-ui);
+  font-size: var(--t-size-subtitle);
+  font-weight: var(--t-weight-semibold);
+  line-height: 1.3;
+}
+
+.description {
+  margin: 0;
+  color: var(--c-text-muted);
+}
+
+.body {
+  min-width: 0;
+}
+
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}

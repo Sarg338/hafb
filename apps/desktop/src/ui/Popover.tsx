@@ -14,10 +14,10 @@ export interface PopoverProps {
   /** Match the anchor's width (comboboxes). */
   matchWidth?: boolean;
   role?: 'dialog' | 'menu' | 'listbox' | 'tooltip' | 'presentation';
-  label?: string;
-  id?: string;
-  className?: string;
-  style?: CSSProperties;
+  label?: string | undefined;
+  id?: string | undefined;
+  className?: string | undefined;
+  style?: CSSProperties | undefined;
   /** Close when a pointer goes down outside the popover and its anchor. Default true. */
   dismissOnOutside?: boolean;
   /** Close on Escape. Default true. */
@@ -65,10 +65,15 @@ export function Popover({
 
   useLayoutEffect(() => {
     if (!open) return;
+    let retry = 0;
     const update = (): void => {
       const el = ref.current;
       const a = anchorRect(anchor);
-      if (!el || !a) return;
+      if (!el || !a) {
+        // Not attached yet (mounted open, or React's dev double-run of effects): try next frame.
+        retry = requestAnimationFrame(update);
+        return;
+      }
       const width = matchWidth ? Math.max(a.width, 160) : undefined;
       const size = { width: width ?? el.offsetWidth, height: el.offsetHeight };
       const p = computePosition(a, size, { width: window.innerWidth, height: window.innerHeight }, placement, gap);
@@ -78,6 +83,7 @@ export function Popover({
     window.addEventListener('resize', update);
     window.addEventListener('scroll', update, true);
     return () => {
+      cancelAnimationFrame(retry);
       window.removeEventListener('resize', update);
       window.removeEventListener('scroll', update, true);
       // Re-measure from scratch next time it opens.

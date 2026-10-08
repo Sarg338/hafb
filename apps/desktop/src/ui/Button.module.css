@@ -36,8 +36,9 @@
 }
 
 .primary:disabled {
-  background: var(--c-border-strong);
-  color: var(--c-text-muted);
+  border-color: var(--c-disabled-border);
+  background: var(--c-disabled-bg);
+  color: var(--c-disabled-fg);
 }
 
 /* Secondary: outlined (Cancel, Edit Target). */

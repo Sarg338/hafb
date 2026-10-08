@@ -1,0 +1,105 @@
+/* Money entry. `cell` is the approved plan-grid Assigned cell (.hd-assign): reads as text, becomes
+   an input on row hover and focus. `field` uses the shared bordered box (Field.module.css). */
+
+.wrap {
+  position: relative;
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.input {
+  width: 100%;
+  min-width: 0;
+  font-family: var(--t-font-money);
+  font-size: var(--t-size-body);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.cell {
+  height: var(--d-control-small);
+  padding: 0 6px;
+  border: var(--s-border-width) solid transparent;
+  border-radius: var(--s-radius);
+  background: transparent;
+  color: inherit;
+}
+
+.cell:hover:not(:disabled),
+.cell.hot {
+  border-color: var(--c-input-border);
+  background: var(--c-input);
+}
+
+.cell:focus {
+  border-color: var(--c-focus);
+  background: var(--c-input);
+  outline: var(--s-border-width) solid var(--c-focus);
+  outline-offset: 0;
+}
+
+.cell.invalid,
+.cell.invalid:focus {
+  border-color: var(--c-bad-text);
+  outline-color: var(--c-bad-text);
+  background: var(--c-input);
+  box-shadow: inset 0 0 0 var(--s-border-width) var(--c-bad-text);
+}
+
+.cell:disabled {
+  color: var(--c-text-subtle);
+  cursor: default;
+}
+
+.fieldInput {
+  flex: 1;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+}
+
+.fieldInput:focus-visible {
+  outline: none;
+}
+
+/* The calculator preview: what a sum will commit as. */
+.preview {
+  position: absolute;
+  top: calc(100% + 2px);
+  right: 0;
+  z-index: 2;
+  padding: 2px 6px;
+  border: var(--s-border-width) solid var(--c-border);
+  border-radius: var(--s-radius);
+  background: var(--c-raised);
+  box-shadow: 0 4px 12px var(--c-shadow);
+  color: var(--c-text-muted);
+  font-size: var(--t-size-caption);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.error {
+  color: var(--c-bad-text);
+  font-size: var(--t-size-caption);
+  font-weight: var(--t-weight-medium);
+}
+
+.cellError {
+  position: absolute;
+  top: calc(100% + 2px);
+  right: 0;
+  z-index: 2;
+  width: max-content;
+  max-width: 220px;
+  padding: 2px 6px;
+  border: var(--s-border-width) solid var(--c-bad-text);
+  border-radius: var(--s-radius);
+  background: var(--c-raised);
+  box-shadow: 0 4px 12px var(--c-shadow);
+  white-space: normal;
+}

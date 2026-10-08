@@ -168,7 +168,7 @@ function markup(name: IconName, size: 16 | 20): string {
 }
 
 /** A Fluent icon. Decorative: give the control around it an accessible name. */
-export function Icon({ name, size = 16, className, style }: { name: IconName; size?: 16 | 20; className?: string; style?: CSSProperties }) {
+export function Icon({ name, size = 16, className, style }: { name: IconName; size?: 16 | 20; className?: string | undefined; style?: CSSProperties }) {
   return (
     <span
       className={className === undefined ? 'icon' : `icon ${className}`}

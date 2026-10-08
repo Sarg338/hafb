@@ -1,0 +1,87 @@
+/* Menus: the raised surface of the approved look, 32 px rows. Tokens only (ADR 0004). */
+
+.popover:is(div) {
+  min-width: 200px;
+  padding: 4px 0;
+}
+
+.menu {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  outline: none;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: var(--d-control);
+  padding: 0 12px 0 10px;
+  color: var(--c-text);
+  font-size: var(--t-size-body);
+  white-space: nowrap;
+  cursor: default;
+  user-select: none;
+  outline: none;
+}
+
+.item:hover {
+  background: var(--c-hover);
+}
+
+.item:focus,
+.item[data-active='true'] {
+  background: var(--c-accent-soft);
+}
+
+.item:focus-visible {
+  outline: var(--s-focus-width) solid var(--c-focus);
+  outline-offset: calc(0px - var(--s-focus-width));
+  border-radius: 0;
+}
+
+.item[aria-disabled='true'] {
+  color: var(--c-text-subtle);
+}
+
+.item[aria-disabled='true']:hover {
+  background: transparent;
+}
+
+.danger {
+  color: var(--c-bad-text);
+}
+
+/* Fixed slot so labels line up whether or not an item has an icon or check. */
+.lead {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  color: var(--c-text-muted);
+}
+
+.danger .lead {
+  color: inherit;
+}
+
+.label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.shortcut {
+  margin-left: 24px;
+  color: var(--c-text-muted);
+  font-size: var(--t-size-caption);
+}
+
+.separator {
+  height: var(--s-border-width);
+  margin: 4px 0;
+  background: var(--c-border);
+}

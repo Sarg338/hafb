@@ -1,0 +1,78 @@
+/* The approved S3.1 toast (.hd-toast): inverted, bottom-centre, one at a time. Tokens only. */
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 18px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  max-width: min(640px, calc(100vw - 32px));
+  padding: 10px 10px 10px 16px;
+  border-radius: var(--s-radius-large);
+  background: var(--c-text);
+  color: var(--c-surface);
+  box-shadow: 0 8px 24px var(--c-shadow);
+  font-size: var(--t-size-body);
+  transform: translateX(-50%);
+  animation: toast-in var(--m-move) var(--m-ease);
+}
+
+.text {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.action {
+  height: var(--d-chip);
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--s-radius);
+  background: transparent;
+  color: inherit;
+  font-weight: var(--t-weight-semibold);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.action:hover {
+  text-decoration-thickness: 2px;
+}
+
+.dismiss {
+  display: inline-grid;
+  place-items: center;
+  width: var(--d-chip);
+  height: var(--d-chip);
+  padding: 0;
+  border: 0;
+  border-radius: var(--s-radius);
+  background: transparent;
+  color: inherit;
+  opacity: 0.8;
+}
+
+.dismiss:hover {
+  opacity: 1;
+}
+
+.toast :focus-visible {
+  outline-color: var(--c-surface);
+}
+
+/* For the gallery: the same toast drawn in the page flow, not fixed. */
+.inline {
+  position: static;
+  display: inline-flex;
+  transform: none;
+  animation: none;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 8px);
+  }
+}

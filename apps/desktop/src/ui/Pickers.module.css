@@ -1,0 +1,12 @@
+/* Available amount beside each category in the picker: plain text, coloured only when it needs attention. */
+.amount {
+  color: var(--c-text);
+}
+
+.zero {
+  color: var(--c-text-muted);
+}
+
+.negative {
+  color: var(--c-bad-text);
+}

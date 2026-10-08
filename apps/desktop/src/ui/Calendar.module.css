@@ -1,0 +1,73 @@
+.calendar {
+  padding: 10px 10px 8px;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.title {
+  font-size: var(--t-size-heading);
+  font-weight: var(--t-weight-semibold);
+}
+
+.grid {
+  border-collapse: collapse;
+}
+
+.grid th {
+  width: var(--d-control-compact);
+  height: 24px;
+  color: var(--c-text-muted);
+  font-size: var(--t-size-micro);
+  font-weight: var(--t-weight-semibold);
+  text-align: center;
+}
+
+.grid td {
+  padding: 1px;
+}
+
+.day {
+  display: grid;
+  place-items: center;
+  width: var(--d-control-compact);
+  height: var(--d-control-compact);
+  border: var(--s-border-width) solid transparent;
+  border-radius: var(--s-radius);
+  color: var(--c-text);
+  font-size: var(--t-size-body);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  user-select: none;
+}
+
+.day:hover {
+  background: var(--c-hover);
+}
+
+.outside {
+  color: var(--c-text-subtle);
+}
+
+.today {
+  border-color: var(--c-accent);
+  font-weight: var(--t-weight-semibold);
+}
+
+.selected,
+.selected:hover {
+  background: var(--c-accent);
+  color: var(--c-text-on-accent);
+  font-weight: var(--t-weight-semibold);
+}
+
+.foot {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 6px;
+}

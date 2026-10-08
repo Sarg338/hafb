@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { addMonths, formatMoney, parseDecimal, ZERO, type Minor, type MoneyFormat } from '@hafb/shared';
 import { planBudget, setAssigned, type AccountRecord, type PlanData } from '@hafb/store';
+import { darkTheme, lightTheme } from '../theme/themes.ts';
+import { applyTheme } from '../theme/tokens.ts';
+import { ConfirmProvider, useConfirm } from '../ui/Dialog.tsx';
+import '../ui/base.css';
 import type { BackupInfo } from './ipc.ts';
 import { session, todayLocal, type OpenPlan } from './session.ts';
 
@@ -24,6 +28,19 @@ function backupTime(stamp: string): string {
 }
 
 export function PlanView({ open }: { open: OpenPlan }) {
+  // The in-app dialog draws with theme tokens; this Phase 2 screen otherwise uses app.css only.
+  useEffect(() => {
+    applyTheme(window.matchMedia('(prefers-color-scheme: dark)').matches ? darkTheme : lightTheme);
+  }, []);
+  return (
+    <ConfirmProvider>
+      <PlanViewInner open={open} />
+    </ConfirmProvider>
+  );
+}
+
+function PlanViewInner({ open }: { open: OpenPlan }) {
+  const confirm = useConfirm();
   const { plan, info, history, month, timings } = open;
   const fmt = moneyFormat(plan);
   const money = (m: Minor): string => formatMoney(m, fmt);
@@ -121,10 +138,15 @@ export function PlanView({ open }: { open: OpenPlan }) {
                     <button
                       type="button"
                       onClick={() => {
-                        if (window.confirm(`Replace the plan with the backup from ${backupTime(b.stamp)}? The current plan is backed up first.`)) {
+                        void confirm({
+                          title: 'Restore this backup?',
+                          body: `This replaces the plan with the backup from ${backupTime(b.stamp)}. The current plan is backed up first, so you can go back.`,
+                          confirmLabel: 'Restore',
+                        }).then((ok) => {
+                          if (!ok) return;
                           setBackups(null);
                           void session.restore(b);
-                        }
+                        });
                       }}
                     >
                       Restore
