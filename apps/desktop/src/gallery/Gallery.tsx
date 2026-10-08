@@ -65,7 +65,10 @@ export function Gallery() {
         {SECTIONS.map((s) => (
           <a key={s.id} href={`#/gallery?section=${s.id}`} onClick={(e) => {
             e.preventDefault();
-            document.getElementById(`section-${s.id}`)?.scrollIntoView({ block: 'start' });
+            // Scroll only the content pane: scrollIntoView would also scroll the window.
+            const target = document.getElementById(`section-${s.id}`);
+            const pane = target?.parentElement;
+            if (target && pane) pane.scrollTo({ top: target.offsetTop - pane.offsetTop });
           }}>
             {s.title}
           </a>

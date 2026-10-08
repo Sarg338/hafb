@@ -11,8 +11,12 @@
   animation: pop-in var(--m-fast) var(--m-ease);
 }
 
+/* Invisible while it measures, but still focusable: visibility:hidden would make focus() fail,
+   so a menu opened by mouse could not move focus to its first item. */
 .measuring {
-  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+  animation: none;
 }
 
 @keyframes pop-in {

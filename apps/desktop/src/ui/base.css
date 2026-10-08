@@ -65,6 +65,9 @@
 /* Screen-reader-only text. */
 .visually-hidden {
   position: absolute;
+  /* Pinned so it never stretches a scroll container or the window (its static position can be far down). */
+  top: 0;
+  left: 0;
   width: 1px;
   height: 1px;
   overflow: hidden;

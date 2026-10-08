@@ -559,6 +559,18 @@ Borders are 1px hairlines; 1.5–2px appears only as a state signal (no-colour p
 
 ## Components
 
+The production component library lives in `apps/desktop/src/ui/` (S3.2, ADR 0004), with a dev gallery at `#/gallery` that shows every component in every state and theme.
+- **Library:**
+  - Buttons and icon buttons (with tooltips and shortcut chips).
+  - Text, text area, money (math with exact results) and date (keys plus a calendar) inputs.
+  - Checkbox, toggle, segmented control, chips.
+  - Grouped searchable combobox with payee and category pickers.
+  - Menus and context menus, dialog with `useConfirm`, tooltips, toasts with Undo.
+  - Available pill, segmented progress bar, progress ring, Ready to Assign banner, notices.
+- **Values:** they come only from theme tokens: colour `--c-*`, type `--t-*`, shape `--s-*`, density `--d-*`, motion `--m-*`. `src/theme/sourceScan.test.ts` enforces this.
+- **Approved look:** the defaults reproduce the S3.1 look below exactly.
+- **Disabled primary buttons:** use the `disabled-bg`, `disabled-fg` and `disabled-border` tokens. Light and dark keep the approved values; high contrast gets GrayText on Canvas with a border.
+
 ### Buttons
 Quiet and Fluent: all buttons are flat, and only the primary button is filled.
 - **Primary** (`button-primary`): an `accent` fill with `text-on-accent` text, weight 600, 32px tall, 4px radius, optionally with a trailing chevron (Assign ▾).
@@ -728,8 +740,9 @@ An inverted capsule, bottom-centre, 18px up.
 
 ## Open items
 - **App mark.** The "HAFB" lettering in a 32px accent square is a placeholder. No logo exists yet (PRODUCT.md), and it is not a brand rule.
-- **Production components.** S3.2 brings the combobox (payee and category pickers), date picker, money-math input, menus, popovers and dialogs. They must inherit these tokens, the Float shadow and the focus ring. S3.2 also replaces the mockup inline styles (the 20px month-note button, the 22px collapse icon buttons) with proper size variants.
-- **Raw-colour lint.** An ESLint or Stylelint rule forbidding raw colours outside `theme/` is planned for S3.2 (ADR 0003). Until it lands, review catches them.
+- **Production components.** These are built (S3.2) in `src/ui/`. The `#/design` mockups still use their own S3.1 CSS, now on the same tokens; Phase 4 rebuilds those screens from the library.
+- **Raw-value scan.** In place since S3.2 (`sourceScan.test.ts`). It forbids raw colours, font families, radii and rule styles everywhere in `src/ui` and `src/design`, plus literal sizes and durations in `src/ui`.
+- **Date keys.** The keys are Quicken-style: + and − for a day; T, M, H, Y and R for today and month/year start and end; PageUp and PageDown for a month. Weeks start on Sunday. YNAB's exact key set is still to be verified.
 - **Title bar.** The 32px custom title bar still comes from the Phase 0 shell (`app.css`, with a fallback to legacy variables). The production shell lands in S3.3.
 - **Mockup-only controls.** Display options, the theme segmented control and the "Sample data" labels are review scaffolding for the `#/design` mockups, not shipped settings UI. The real settings arrive in Phase 7.
 - **Accent hue.** It may be revisited after Sarg reviews the mockups. Changing it means editing the token values only.

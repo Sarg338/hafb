@@ -111,7 +111,14 @@ The 2026-10-08 research (YNAB What's New and help center) found that CLAUDE.md w
 
 **Goal:** a cohesive, Windows-native design language and the reusable pieces every screen is built from, *before* building screens.
 
-**Status (2026-10-08):** S3.1 **approved by Sarg** (all Phase 3 design changes approved). Next is S3.2: whole-UI theme tokens made technically possible, with no look change and no new themes (ADR 0003 amendment).
+**Status (2026-10-08):** S3.1 **approved by Sarg** (all Phase 3 design changes approved). S3.2 is built: the component library is in `src/ui`, the gallery at `#/gallery`, and styling uses CSS Modules (ADR 0004). Whole-UI theming is in place as plumbing only: a test fixture and a source scan prove it, and the S3.1 mockups are still pixel-identical.
+- **Checked in the batched capture:** every gallery section in light, dark and high contrast, and at 150% and 200% scale.
+- **Checked in the real app** by driving the release build: money math, date keys, the category picker, menus and context menu by keyboard, and the dialog's focus return.
+- **Bugs fixed from those checks:**
+  - Popover focus while measuring.
+  - Document overflow from screen-reader-only text.
+  - The high-contrast disabled button.
+  - Shortcut chips for the "+" key.
 - **Direction:** Sarg chose the familiar, YNAB-like look. The quality bar is YNAB web, Monarch and Copilot Money.
 - **Design spec:** `DESIGN.md`, with the full token list in `.impeccable/design.json`.
 - **Theming:** themes are data (ADR 0003).

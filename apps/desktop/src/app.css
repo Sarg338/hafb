@@ -37,6 +37,8 @@ html,
 body {
   margin: 0;
   height: 100%;
+  /* The window never scrolls; panes inside it do. */
+  overflow: hidden;
   background: var(--bg);
   color: var(--text);
 }
