@@ -2,7 +2,7 @@
 
 A free, local-only, native Windows envelope-budgeting app. It aims for feature parity with YNAB without accounts, servers or subscriptions. Your budget is one SQLite file that you own. MIT licensed.
 
-**Status: Phase 0 done (stack validated); Phase 1 (budget engine) next.** There are no budget features yet. See [CLAUDE.md](CLAUDE.md) for the spec and [docs/decisions/0001-stack.md](docs/decisions/0001-stack.md) for the stack decision.
+**Status: Phase 1 (budget engine) complete; Phase 2 (persistence) next.** The engine is tested but there is no budget UI yet. See `docs/budget-math.md` for every rule with worked examples. See [CLAUDE.md](CLAUDE.md) for the spec and [docs/decisions/0001-stack.md](docs/decisions/0001-stack.md) for the stack decision.
 
 ## Requirements
 

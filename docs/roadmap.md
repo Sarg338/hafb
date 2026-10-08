@@ -60,6 +60,13 @@ The 2026-10-08 research (YNAB What's New and help center) found that CLAUDE.md w
 
 ## Phase 1: Budget engine (pure TypeScript, tests first)
 
+> **Status: complete 2026-10-08, awaiting Sarg's sign-off.** Tests were run on Sarg's machine.
+> - **Tests:** 221 tests (186 engine), and a 400-plan property test of the reconciliation identity.
+> - **Golden test:** 98.4% of YNAB's own values match to the cent, including every regular category. The 95 payment-category values that differ are documented in budget-math §12.
+> - **Performance:** recompute median 14.8 ms against the 50 ms budget.
+> - **Unverified rules:** Ready to Assign breakdown fields, Age of Money, target formulas beyond YNAB's examples, loan accrual and reports. They're listed in `docs/budget-math.md` §13 with the sprint each blocks, and the optional YNAB-trial scenario is the way to verify them.
+> - **Not in this phase:** S1.0's "get the YNAB export" was replaced by the public local sample, because Sarg has no YNAB account.
+
 **Goal:** all of CLAUDE.md §5 (as amended by D1–D13), with no UI. Every rule gets worked examples in `docs/budget-math.md` and a test, and there's a golden test against a real YNAB export.
 
 | Sprint | Scope | Done when |
