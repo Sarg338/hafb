@@ -36,7 +36,8 @@ export interface CreateAccountArgs {
 
 /**
  * Add an account: its transfer payee, a payment category for credit accounts (§5.3), and a
- * "Starting Balance" transaction (on-budget → Ready to Assign, §5.2), even when it is $0 (§5.14).
+ * "Starting Balance" transaction, even when it is $0 (§5.14): Ready to Assign for cash accounts
+ * and a card's credit; none for a card's debt (it shows as underfunded) and off-budget accounts.
  */
 export function createAccount(plan: PlanData, ctx: CommandContext, args: CreateAccountArgs): Command & { accountId: Id } {
   const d = new Draft(plan);
@@ -74,7 +75,8 @@ export function createAccount(plan: PlanData, ctx: CommandContext, args: CreateA
     date: args.date ?? ctx.today,
     amount: minor(args.startingBalance),
     payeeId: payee.id,
-    categoryId: onBudget ? READY_TO_ASSIGN : null,
+    // A card's debt is "Category not needed": it stays off Ready to Assign (YNAB trial, 2026-10-08).
+    categoryId: onBudget && !(isCreditAccountType(args.type) && args.startingBalance < 0) ? READY_TO_ASSIGN : null,
     cleared: 'cleared',
     isStartingBalance: true,
     createdAt: ctx.now,

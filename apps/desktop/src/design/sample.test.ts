@@ -16,7 +16,7 @@ describe('sample household', () => {
   };
 
   it('has money to assign', () => {
-    expect(model.ms.readyToAssign).toBe(23801);
+    expect(model.ms.readyToAssign).toBe(87801);
   });
 
   it('covers every Available state', () => {

@@ -158,7 +158,7 @@ RTA(m) = RTA(m-1)
 ```
 - RTA can go negative; UI shows it red with "You assigned more than you have."
 - **5.2.1 Future months:** money assigned in a future month reduces RTA *in that future month and all months after it*, and YNAB also shows it as "Assigned in Future" in the current month's RTA breakdown, reducing the headline RTA number, **but never below zero**: the future part is capped at what the month has left, and the shortfall shows in the future month itself (verified in the YNAB trial, 2026-10-08; budget-math §2 examples 2.5–2.6). The breakdown popover lists only non-zero lines: *Inflow: Ready to Assign transactions in [Month]*, *Assigned in [Month]*, *Assigned in Future*, then the total (D11 verified). The Inspector's *Available in [Month]* = left over + assigned + activity.
-- **Starting balances** of on-budget accounts are inflows to RTA (or outflows for a negative starting balance on a CC) dated to the account's start date.
+- **Starting balances** of cash accounts (and a card's credit in your favour) are inflows to RTA, dated to the account's start date. A card's starting **debt** is *Category not needed*: it doesn't touch RTA or any category, and the payment category shows it as underfunded (verified in the YNAB trial, 2026-10-08; budget-math §3.12). *Corrected 2026-10-08:* this previously said a negative card starting balance was an outflow from RTA.
 
 ### 5.3 Credit cards
 - Creating a credit card account creates a hidden-from-user-deletion category *"<Card Name>"* in the *Credit Card Payments* group, linked via `credit_card_account_id`.

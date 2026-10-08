@@ -582,7 +582,8 @@ void describe('accounts', () => {
       await page.getByRole('heading', { name, level: 1 }).waitFor();
       const link = sidebar.locator(`[data-section=${t.section}]`, { hasText: name });
       assert.equal(cents(await link.innerText()), t.debt ? -10000 : 10000, `${name} balance`);
-      if (t.onBudget) rtaChange += t.debt ? -10000 : 10000;
+      // Cash starting balances are inflows; a card's starting debt stays off Ready to Assign (YNAB).
+      if (t.onBudget && !t.debt) rtaChange += 10000;
     }
     for (const s of ['cash', 'credit', 'loans', 'tracking']) {
       const added = TYPES.filter((t) => t.section === s).reduce((sum, t) => sum + (t.debt ? -10000 : 10000), 0);

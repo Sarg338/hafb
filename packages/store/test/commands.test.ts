@@ -33,6 +33,7 @@ import {
   setCategoryNote,
   setCleared,
   setFlag,
+  setFlagName,
   setMonthNote,
   setTarget,
   snoozeTarget,
@@ -92,14 +93,15 @@ describe('commands', () => {
       expect(starts.map((t) => [t.amount, t.categoryId, t.cleared])).toEqual([
         [usd(1000), READY_TO_ASSIGN, 'cleared'],
         [usd(500), READY_TO_ASSIGN, 'cleared'],
-        [usd(-200), READY_TO_ASSIGN, 'cleared'],
+        [usd(-200), null, 'cleared'],
         [usd(-100000), null, 'cleared'],
       ]);
       const payment = p.categories.find((c) => c.creditCardAccountId === visa);
       expect(payment?.name).toBe('Visa');
       expect(p.categoryGroups.find((g) => g.id === payment?.groupId)?.systemKind).toBe('creditCardPayments');
-      // §5.2: on-budget starting balances are Ready to Assign (the card's debt is negative).
-      expect(rta(p)).toBe(usd(1300));
+      // §5.2: cash starting balances are Ready to Assign; a card's starting debt is not ("Category
+      // not needed"; the payment category shows it as underfunded; YNAB trial 2026-10-08).
+      expect(rta(p)).toBe(usd(1500));
       expect(p.accounts.find((a) => a.id === house)).toMatchObject({ onBudget: false, loan: { interestRateBps: 600 } });
     });
 
@@ -153,10 +155,10 @@ describe('commands', () => {
   describe('assigning', () => {
     it('setAssigned changes Ready to Assign and logs money moves', () => {
       b.run(setAssigned(b.plan, ctx, { month: OCT, categoryId: groceries, amount: usd(300) }));
-      expect(rta(b.plan)).toBe(usd(1000));
+      expect(rta(b.plan)).toBe(usd(1200));
       expect(available(b.plan, groceries)).toBe(usd(300));
       b.run(setAssigned(b.plan, ctx, { month: OCT, categoryId: groceries, amount: usd(100) }));
-      expect(rta(b.plan)).toBe(usd(1200));
+      expect(rta(b.plan)).toBe(usd(1400));
       expect(b.plan.moneyMoves.map((m) => [m.fromCategoryId, m.toCategoryId, m.amount, m.kind])).toEqual([
         [null, groceries, usd(300), 'assign'],
         [groceries, null, usd(200), 'assign'],
@@ -171,7 +173,7 @@ describe('commands', () => {
       b.run(moveMoney(b.plan, ctx, { month: OCT, from: groceries, to: rent, amount: usd(120) }));
       expect(available(b.plan, groceries)).toBe(usd(180));
       expect(available(b.plan, rent)).toBe(usd(120));
-      expect(rta(b.plan)).toBe(usd(1000));
+      expect(rta(b.plan)).toBe(usd(1200));
       expect(b.plan.moneyMoves.at(-1)).toMatchObject({ fromCategoryId: groceries, toCategoryId: rent, amount: usd(120), kind: 'move' });
     });
 
@@ -201,7 +203,7 @@ describe('commands', () => {
       const change = autoAssign('resetAssigned', { state, month: OCT, categoryIds: [groceries, rent] });
       const cmd = b.run(applyPlanChange(b.plan, ctx, { change, kind: 'autoAssign', label: 'Reset Assigned Amounts' }));
       expect(cmd.changes.remove?.assignments).toHaveLength(2);
-      expect(rta(b.plan)).toBe(usd(1300));
+      expect(rta(b.plan)).toBe(usd(1500));
       expect(b.plan.moneyMoves.filter((m) => m.kind === 'autoAssign')).toHaveLength(2);
       const groupIds = new Set(b.plan.moneyMoves.filter((m) => m.kind === 'autoAssign').map((m) => m.groupId));
       expect(groupIds.size).toBe(1);
@@ -235,7 +237,7 @@ describe('commands', () => {
       expect(t.categoryId).toBeNull();
       expect(b.plan.payees.find((p) => p.id === t.payeeId)?.name).toBe('Transfer : Savings');
       expect(b.plan.payees.find((p) => p.id === leg.payeeId)?.name).toBe('Transfer : Checking');
-      expect(rta(b.plan)).toBe(usd(1300));
+      expect(rta(b.plan)).toBe(usd(1500));
       expect(() => addTransaction(b.plan, ctx, { accountId: checking, date: TODAY, amount: usd(-1), transferAccountId: savings, categoryId: groceries })).toThrow(/no category/);
     });
 
@@ -350,6 +352,15 @@ describe('commands', () => {
       expect(tx(b.plan, transactionId)).toMatchObject({ cleared: 'cleared', flag: 'purple' });
       b.run(setFlag(b.plan, ctx, { transactionIds: [transactionId], flag: null }));
       expect(tx(b.plan, transactionId).flag).toBeUndefined();
+    });
+
+    it('flag names: set, rename, clear (YNAB lets you name the six flags)', () => {
+      b.run(setFlagName(b.plan, ctx, { color: 'red', name: 'Reimbursable' }));
+      expect(b.plan.flagNames).toEqual([{ color: 'red', name: 'Reimbursable' }]);
+      b.run(setFlagName(b.plan, ctx, { color: 'red', name: '  Work  ' }));
+      expect(b.plan.flagNames).toEqual([{ color: 'red', name: 'Work' }]);
+      b.run(setFlagName(b.plan, ctx, { color: 'red', name: '' }));
+      expect(b.plan.flagNames).toEqual([]);
     });
 
     it('tracking accounts take no category', () => {

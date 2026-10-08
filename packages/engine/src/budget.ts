@@ -269,6 +269,11 @@ export function computeBudget(snapshot: BudgetSnapshot, options: ComputeOptions)
       byCard.set(account.id, (byCard.get(account.id) ?? 0) + tx.amount);
     }
 
+    // A card's starting debt is carried as debt only: no category, not Ready to Assign. The payment
+    // category shows it as underfunded (YNAB trial, 2026-10-08; budget-math §3.12). Whatever the
+    // export says its category is, it stays off the plan. A credit in your favour is cash-like.
+    if (account.onBudget && isCreditAccountType(account.type) && tx.isStartingBalance === true && tx.amount < 0) continue;
+
     for (const line of transactionLines(tx)) {
       lineSeq += 1;
       const counterpart = line.transferAccountId === undefined ? undefined : accounts.get(line.transferAccountId);

@@ -52,7 +52,7 @@ describe('categoryPickerData', () => {
     const dining = data.groups.flatMap((g) => g.options).find((o) => o.label === 'Dining Out');
     if (!dining) throw new Error('fixture');
     expect(data.available.get(dining.id)).toBe(-8621);
-    expect(data.available.get(READY_TO_ASSIGN)).toBe(23801);
+    expect(data.available.get(READY_TO_ASSIGN)).toBe(87801);
   });
 
   it('adds a Split option when asked', () => {

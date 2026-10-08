@@ -95,6 +95,18 @@ Payment category: `activity = Σ funded spending − payments`, where a payment 
 | 3.9 | Line of credit | Behaves like a card |
 | 3.10 | $25 inflow on Visa categorized to Ready to Assign | Ready to Assign +$25; payment category unchanged |
 
+
+### 3.12 A card's starting debt (verified in the YNAB trial, 2026-10-08)
+
+- **Observed:** adding a credit card that owes $100 (YNAB reads the entered 100 as owed and shows −$100.00):
+  - Ready to Assign stayed at **$3,070.00**.
+  - The Starting Balance showed **Category not needed**.
+  - The new payment category showed $0.00 with the yellow underfunded alert.
+  - Auto-Assign → Underfunded grew by exactly **$100**.
+- **Rule:** a card's negative starting balance stays off the plan. It doesn't touch Ready to Assign or any category; it only sets the card's balance, which the payment category then shows as underfunded. YNAB's export may still label it *Inflow: Ready to Assign* (it does for $0), so the engine ignores the category on a negative card starting balance.
+- **Positive balance:** a card that starts with a credit in your favour is cash-like (YNAB: "the positive balance is treated like cash and added to Ready to Assign"), so its starting balance is an inflow.
+- **Tests:** `budget.test.ts` 3.12 and 3.13. *Correction:* earlier rules (and CLAUDE.md §5.2) said a negative card starting balance was an outflow from Ready to Assign.
+
 ## 4. Transfers (CLAUDE.md §5.9)
 
 | Ex. | Transfer | Effect |

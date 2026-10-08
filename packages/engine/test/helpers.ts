@@ -50,7 +50,7 @@ export class PlanBuilder {
     accountId: Id,
     amount: number,
     categoryId: CategoryRef,
-    extra: { transferAccountId?: Id; cleared?: ClearedState; subtransactions?: Subtransaction[]; deleted?: boolean } = {},
+    extra: { transferAccountId?: Id; cleared?: ClearedState; subtransactions?: Subtransaction[]; deleted?: boolean; isStartingBalance?: boolean } = {},
   ): this {
     this.transactions.push({
       id: this.nextId('t'),
@@ -62,6 +62,7 @@ export class PlanBuilder {
       ...(extra.transferAccountId === undefined ? {} : { transferAccountId: extra.transferAccountId }),
       ...(extra.subtransactions === undefined ? {} : { subtransactions: extra.subtransactions }),
       ...(extra.deleted === undefined ? {} : { deleted: extra.deleted }),
+      ...(extra.isStartingBalance === true ? { isStartingBalance: true } : {}),
     });
     return this;
   }

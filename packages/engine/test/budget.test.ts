@@ -3,6 +3,7 @@
 import { asISODate, type Month } from '@hafb/shared';
 import { describe, expect, it } from 'vitest';
 import {
+  autoAssign,
   computeBudget,
   InvariantViolation,
   monthState,
@@ -181,6 +182,34 @@ describe('§2 Ready to Assign', () => {
 });
 
 describe('§3 credit cards', () => {
+  it("3.12: a card's starting debt stays off Ready to Assign and out of every category (YNAB trial, 2026-10-08)", () => {
+    // YNAB: adding a card that owes $100 left Ready to Assign at $3,070.00, showed "Category not
+    // needed" on the Starting Balance, and the payment category's underfunded alert grew by $100.
+    for (const category of [READY_TO_ASSIGN, null] as const) {
+      const s = plan()
+        .account('checking')
+        .card('visa')
+        .category('a')
+        .income('2026-10-01', 100_000)
+        .txn('2026-10-08', 'visa', -10_000, category, { isStartingBalance: true })
+        .build();
+      const state = computeBudget(s, { today: TODAY });
+      const ms = monthState(state, '2026-10');
+      expect(ms.readyToAssign).toBe(100_000);
+      expect(ms.categories['pay:visa']).toMatchObject({ available: 0, activity: 0 });
+      expect(ms.categories['pay:visa']?.creditCard?.balance).toBe(-10_000);
+      expect(Object.keys(ms.categories)).not.toContain(UNCATEGORIZED);
+      expect(state.accountBalances.visa?.working).toBe(-10_000);
+      const change = autoAssign('underfunded', { state, month: '2026-10', categoryIds: Object.keys(ms.categories), targets: [], evaluated: {}, paymentCategoryIds: new Set(['pay:visa']) });
+      expect(change.deltas).toEqual([{ month: '2026-10', categoryId: 'pay:visa', delta: 10_000 }]);
+    }
+  });
+
+  it('3.13: a card that starts with a credit in your favour is cash-like: its starting balance is an inflow', () => {
+    const s = plan().account('checking').card('visa').income('2026-10-01', 100_000).txn('2026-10-08', 'visa', 2_500, READY_TO_ASSIGN, { isStartingBalance: true }).build();
+    expect(monthState(computeBudget(s, { today: TODAY }), '2026-10').readyToAssign).toBe(102_500);
+  });
+
   const base = () =>
     plan()
       .account('checking')
