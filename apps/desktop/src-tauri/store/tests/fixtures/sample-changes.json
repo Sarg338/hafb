@@ -1,0 +1,694 @@
+{
+ "upserts": [
+  {
+   "table": "plan",
+   "rows": [
+    {
+     "id": 1,
+     "name": "Sample Plan",
+     "currency_code": "USD",
+     "currency_decimals": 2,
+     "currency_symbol": "$",
+     "symbol_placement": "before",
+     "number_format": "123,456.78",
+     "date_format": "MM/DD/YYYY",
+     "first_month": "2026-09",
+     "expected_income": 500000,
+     "archived_at": null,
+     "created_at": "2026-10-08T12:00:00.000Z"
+    }
+   ]
+  },
+  {
+   "table": "accounts",
+   "rows": [
+    {
+     "id": "a-chk",
+     "name": "Checking",
+     "type": "checking",
+     "on_budget": 1,
+     "closed": 0,
+     "starred": 1,
+     "note": "main",
+     "sort_order": 0,
+     "last_reconciled_at": null,
+     "interest_rate_bps": null,
+     "minimum_payment": null,
+     "escrow": null,
+     "fees": null,
+     "original_principal": null,
+     "paired_category_id": null,
+     "created_at": "2026-10-08T12:00:00.000Z",
+     "deleted_at": null
+    },
+    {
+     "id": "a-cc",
+     "name": "Visa",
+     "type": "creditCard",
+     "on_budget": 1,
+     "closed": 0,
+     "starred": 0,
+     "note": null,
+     "sort_order": 1,
+     "last_reconciled_at": "2026-10-08T12:00:00.000Z",
+     "interest_rate_bps": null,
+     "minimum_payment": null,
+     "escrow": null,
+     "fees": null,
+     "original_principal": null,
+     "paired_category_id": null,
+     "created_at": "2026-10-08T12:00:00.000Z",
+     "deleted_at": null
+    },
+    {
+     "id": "a-home",
+     "name": "House",
+     "type": "mortgage",
+     "on_budget": 0,
+     "closed": 0,
+     "starred": 0,
+     "note": null,
+     "sort_order": 2,
+     "last_reconciled_at": null,
+     "interest_rate_bps": 600,
+     "minimum_payment": 119910,
+     "escrow": 30000,
+     "fees": null,
+     "original_principal": 20000000,
+     "paired_category_id": "c-rent",
+     "created_at": "2026-10-08T12:00:00.000Z",
+     "deleted_at": null
+    },
+    {
+     "id": "a-old",
+     "name": "Old",
+     "type": "savings",
+     "on_budget": 1,
+     "closed": 1,
+     "starred": 0,
+     "note": null,
+     "sort_order": 3,
+     "last_reconciled_at": null,
+     "interest_rate_bps": null,
+     "minimum_payment": null,
+     "escrow": null,
+     "fees": null,
+     "original_principal": null,
+     "paired_category_id": null,
+     "created_at": "2026-10-08T12:00:00.000Z",
+     "deleted_at": "2026-10-08T12:00:00.000Z"
+    }
+   ]
+  },
+  {
+   "table": "category_groups",
+   "rows": [
+    {
+     "id": "g-cc",
+     "name": "Credit Card Payments",
+     "hidden": 0,
+     "sort_order": 0,
+     "system_kind": "creditCardPayments",
+     "deleted_at": null
+    },
+    {
+     "id": "g-bills",
+     "name": "Bills",
+     "hidden": 0,
+     "sort_order": 1,
+     "system_kind": null,
+     "deleted_at": null
+    },
+    {
+     "id": "g-hidden",
+     "name": "Hidden Categories",
+     "hidden": 1,
+     "sort_order": 2,
+     "system_kind": "hidden",
+     "deleted_at": null
+    },
+    {
+     "id": "g-gone",
+     "name": "Gone",
+     "hidden": 0,
+     "sort_order": 3,
+     "system_kind": null,
+     "deleted_at": "2026-10-08T12:00:00.000Z"
+    }
+   ]
+  },
+  {
+   "table": "categories",
+   "rows": [
+    {
+     "id": "c-visa",
+     "group_id": "g-cc",
+     "name": "Visa",
+     "hidden": 0,
+     "note": null,
+     "sort_order": 0,
+     "credit_card_account_id": "a-cc",
+     "deleted_at": null
+    },
+    {
+     "id": "c-rent",
+     "group_id": "g-bills",
+     "name": "Rent",
+     "hidden": 0,
+     "note": "due 1st",
+     "sort_order": 0,
+     "credit_card_account_id": null,
+     "deleted_at": null
+    },
+    {
+     "id": "c-food",
+     "group_id": "g-bills",
+     "name": "Groceries",
+     "hidden": 0,
+     "note": null,
+     "sort_order": 1,
+     "credit_card_account_id": null,
+     "deleted_at": null
+    },
+    {
+     "id": "c-wk",
+     "group_id": "g-bills",
+     "name": "Gas",
+     "hidden": 0,
+     "note": null,
+     "sort_order": 2,
+     "credit_card_account_id": null,
+     "deleted_at": null
+    },
+    {
+     "id": "c-yr",
+     "group_id": "g-bills",
+     "name": "Insurance",
+     "hidden": 0,
+     "note": null,
+     "sort_order": 3,
+     "credit_card_account_id": null,
+     "deleted_at": null
+    },
+    {
+     "id": "c-old",
+     "group_id": "g-hidden",
+     "name": "Old stuff",
+     "hidden": 1,
+     "note": null,
+     "sort_order": 0,
+     "credit_card_account_id": null,
+     "deleted_at": "2026-10-08T12:00:00.000Z"
+    }
+   ]
+  },
+  {
+   "table": "targets",
+   "rows": [
+    {
+     "category_id": "c-rent",
+     "amount": 150000,
+     "cadence": "monthly",
+     "weekday": null,
+     "month_day": 1,
+     "due_date": null,
+     "repeat_every_months": null,
+     "behavior": "refill",
+     "start_month": "2026-09",
+     "created_on": null,
+     "snoozed_months": "[]",
+     "updated_at": null
+    },
+    {
+     "category_id": "c-food",
+     "amount": 60000,
+     "cadence": "monthly",
+     "weekday": null,
+     "month_day": 0,
+     "due_date": null,
+     "repeat_every_months": null,
+     "behavior": "setAside",
+     "start_month": "2026-09",
+     "created_on": null,
+     "snoozed_months": "[\"2026-10\"]",
+     "updated_at": "2026-10-08T12:00:00.000Z"
+    },
+    {
+     "category_id": "c-wk",
+     "amount": 5000,
+     "cadence": "weekly",
+     "weekday": 6,
+     "month_day": null,
+     "due_date": null,
+     "repeat_every_months": null,
+     "behavior": "refill",
+     "start_month": "2026-10",
+     "created_on": "2026-10-08",
+     "snoozed_months": "[]",
+     "updated_at": null
+    },
+    {
+     "category_id": "c-yr",
+     "amount": 120000,
+     "cadence": "yearly",
+     "weekday": null,
+     "month_day": null,
+     "due_date": "2027-03-15",
+     "repeat_every_months": null,
+     "behavior": "setAside",
+     "start_month": "2026-09",
+     "created_on": null,
+     "snoozed_months": "[]",
+     "updated_at": null
+    },
+    {
+     "category_id": "c-old",
+     "amount": 100000,
+     "cadence": "custom",
+     "weekday": null,
+     "month_day": null,
+     "due_date": "2027-06-01",
+     "repeat_every_months": 3,
+     "behavior": "setAside",
+     "start_month": "2026-09",
+     "created_on": null,
+     "snoozed_months": "[]",
+     "updated_at": null
+    }
+   ]
+  },
+  {
+   "table": "payees",
+   "rows": [
+    {
+     "id": "p-store",
+     "name": "Grocery Store",
+     "transfer_account_id": null,
+     "default_category_id": "c-food",
+     "default_category_fixed": 1,
+     "auto_categorize": 1,
+     "note": "weekly",
+     "deleted_at": null
+    },
+    {
+     "id": "p-boss",
+     "name": "Employer",
+     "transfer_account_id": null,
+     "default_category_id": "ready-to-assign",
+     "default_category_fixed": 0,
+     "auto_categorize": 0,
+     "note": null,
+     "deleted_at": null
+    },
+    {
+     "id": "p-t-chk",
+     "name": "Transfer : Checking",
+     "transfer_account_id": "a-chk",
+     "default_category_id": null,
+     "default_category_fixed": 0,
+     "auto_categorize": 1,
+     "note": null,
+     "deleted_at": null
+    },
+    {
+     "id": "p-t-cc",
+     "name": "Transfer : Visa",
+     "transfer_account_id": "a-cc",
+     "default_category_id": null,
+     "default_category_fixed": 0,
+     "auto_categorize": 1,
+     "note": null,
+     "deleted_at": null
+    },
+    {
+     "id": "p-gone",
+     "name": "Gone",
+     "transfer_account_id": null,
+     "default_category_id": null,
+     "default_category_fixed": 0,
+     "auto_categorize": 1,
+     "note": null,
+     "deleted_at": "2026-10-08T12:00:00.000Z"
+    }
+   ]
+  },
+  {
+   "table": "payee_rename_rules",
+   "rows": [
+    {
+     "id": "r1",
+     "match": "startsWith",
+     "pattern": "GROC",
+     "target_payee_id": "p-store",
+     "sort_order": 0
+    }
+   ]
+  },
+  {
+   "table": "scheduled_transactions",
+   "rows": [
+    {
+     "id": "s-rent",
+     "account_id": "a-chk",
+     "next_date": "2026-11-01",
+     "frequency": "monthly",
+     "anchor_day": 1,
+     "amount": -150000,
+     "payee_id": "p-store",
+     "category_id": "c-rent",
+     "transfer_account_id": null,
+     "memo": "rent",
+     "flag": "blue",
+     "deleted_at": null
+    },
+    {
+     "id": "s-split",
+     "account_id": "a-cc",
+     "next_date": "2026-10-20",
+     "frequency": "everyOtherWeek",
+     "anchor_day": null,
+     "amount": -3000,
+     "payee_id": null,
+     "category_id": null,
+     "transfer_account_id": null,
+     "memo": null,
+     "flag": null,
+     "deleted_at": null
+    }
+   ]
+  },
+  {
+   "table": "scheduled_subtransactions",
+   "rows": [
+    {
+     "id": "ss1",
+     "scheduled_transaction_id": "s-split",
+     "sort_order": 0,
+     "amount": -1000,
+     "payee_id": "p-store",
+     "category_id": "c-food",
+     "transfer_account_id": null,
+     "memo": "a"
+    },
+    {
+     "id": "ss2",
+     "scheduled_transaction_id": "s-split",
+     "sort_order": 1,
+     "amount": -2000,
+     "payee_id": null,
+     "category_id": "c-wk",
+     "transfer_account_id": null,
+     "memo": null
+    }
+   ]
+  },
+  {
+   "table": "transactions",
+   "rows": [
+    {
+     "id": "t-sb",
+     "account_id": "a-chk",
+     "date": "2026-09-01",
+     "amount": 250000,
+     "payee_id": null,
+     "category_id": "ready-to-assign",
+     "memo": null,
+     "cleared": "reconciled",
+     "approved": 1,
+     "flag": null,
+     "transfer_account_id": null,
+     "transfer_transaction_id": null,
+     "scheduled_transaction_id": null,
+     "is_starting_balance": 1,
+     "import_id": null,
+     "imported_payee": null,
+     "imported_memo": null,
+     "created_at": "2026-10-08T12:00:00.000Z",
+     "deleted_at": null
+    },
+    {
+     "id": "t-pay",
+     "account_id": "a-chk",
+     "date": "2026-10-01",
+     "amount": 400000,
+     "payee_id": "p-boss",
+     "category_id": "ready-to-assign",
+     "memo": null,
+     "cleared": "cleared",
+     "approved": 1,
+     "flag": "green",
+     "transfer_account_id": null,
+     "transfer_transaction_id": null,
+     "scheduled_transaction_id": null,
+     "is_starting_balance": 0,
+     "import_id": null,
+     "imported_payee": null,
+     "imported_memo": null,
+     "created_at": "2026-10-08T12:00:00.000Z",
+     "deleted_at": null
+    },
+    {
+     "id": "t-split",
+     "account_id": "a-cc",
+     "date": "2026-10-02",
+     "amount": -7500,
+     "payee_id": "p-store",
+     "category_id": null,
+     "memo": "split",
+     "cleared": "uncleared",
+     "approved": 0,
+     "flag": null,
+     "transfer_account_id": null,
+     "transfer_transaction_id": null,
+     "scheduled_transaction_id": null,
+     "is_starting_balance": 0,
+     "import_id": "FITID123",
+     "imported_payee": "GROC STORE #12",
+     "imported_memo": "POS",
+     "created_at": "2026-10-08T12:00:00.000Z",
+     "deleted_at": null
+    },
+    {
+     "id": "t-x1",
+     "account_id": "a-chk",
+     "date": "2026-10-05",
+     "amount": -10000,
+     "payee_id": "p-t-cc",
+     "category_id": null,
+     "memo": null,
+     "cleared": "cleared",
+     "approved": 1,
+     "flag": null,
+     "transfer_account_id": "a-cc",
+     "transfer_transaction_id": "t-x2",
+     "scheduled_transaction_id": null,
+     "is_starting_balance": 0,
+     "import_id": null,
+     "imported_payee": null,
+     "imported_memo": null,
+     "created_at": "2026-10-08T12:00:00.000Z",
+     "deleted_at": null
+    },
+    {
+     "id": "t-x2",
+     "account_id": "a-cc",
+     "date": "2026-10-05",
+     "amount": 10000,
+     "payee_id": "p-t-chk",
+     "category_id": null,
+     "memo": null,
+     "cleared": "cleared",
+     "approved": 1,
+     "flag": null,
+     "transfer_account_id": "a-chk",
+     "transfer_transaction_id": "t-x1",
+     "scheduled_transaction_id": null,
+     "is_starting_balance": 0,
+     "import_id": null,
+     "imported_payee": null,
+     "imported_memo": null,
+     "created_at": "2026-10-08T12:00:00.000Z",
+     "deleted_at": null
+    },
+    {
+     "id": "t-sched",
+     "account_id": "a-chk",
+     "date": "2026-10-01",
+     "amount": -150000,
+     "payee_id": "p-store",
+     "category_id": "c-rent",
+     "memo": null,
+     "cleared": "cleared",
+     "approved": 1,
+     "flag": null,
+     "transfer_account_id": null,
+     "transfer_transaction_id": null,
+     "scheduled_transaction_id": "s-rent",
+     "is_starting_balance": 0,
+     "import_id": null,
+     "imported_payee": null,
+     "imported_memo": null,
+     "created_at": "2026-10-08T12:00:00.000Z",
+     "deleted_at": null
+    },
+    {
+     "id": "t-del",
+     "account_id": "a-chk",
+     "date": "2026-10-06",
+     "amount": -1,
+     "payee_id": null,
+     "category_id": null,
+     "memo": null,
+     "cleared": "uncleared",
+     "approved": 1,
+     "flag": null,
+     "transfer_account_id": null,
+     "transfer_transaction_id": null,
+     "scheduled_transaction_id": null,
+     "is_starting_balance": 0,
+     "import_id": null,
+     "imported_payee": null,
+     "imported_memo": null,
+     "created_at": "2026-10-08T12:00:00.000Z",
+     "deleted_at": "2026-10-08T12:00:00.000Z"
+    }
+   ]
+  },
+  {
+   "table": "subtransactions",
+   "rows": [
+    {
+     "id": "st1",
+     "transaction_id": "t-split",
+     "sort_order": 0,
+     "amount": -5000,
+     "payee_id": null,
+     "category_id": "c-food",
+     "transfer_account_id": null,
+     "transfer_transaction_id": null,
+     "memo": "food"
+    },
+    {
+     "id": "st2",
+     "transaction_id": "t-split",
+     "sort_order": 1,
+     "amount": -2500,
+     "payee_id": "p-boss",
+     "category_id": "c-wk",
+     "transfer_account_id": null,
+     "transfer_transaction_id": null,
+     "memo": null
+    }
+   ]
+  },
+  {
+   "table": "month_categories",
+   "rows": [
+    {
+     "month": "2026-09",
+     "category_id": "c-rent",
+     "assigned": 150000
+    },
+    {
+     "month": "2026-10",
+     "category_id": "c-food",
+     "assigned": -2500
+    }
+   ]
+  },
+  {
+   "table": "month_notes",
+   "rows": [
+    {
+     "month": "2026-10",
+     "note": "October plan"
+    }
+   ]
+  },
+  {
+   "table": "money_moves",
+   "rows": [
+    {
+     "id": "m1",
+     "created_at": "2026-10-08T12:00:00.000Z",
+     "month": "2026-10",
+     "from_category_id": null,
+     "to_category_id": "c-rent",
+     "amount": 150000,
+     "kind": "assign",
+     "group_id": "g1"
+    },
+    {
+     "id": "m2",
+     "created_at": "2026-10-08T12:00:00.000Z",
+     "month": "2026-10",
+     "from_category_id": "c-food",
+     "to_category_id": null,
+     "amount": 2500,
+     "kind": "move",
+     "group_id": "g2"
+    }
+   ]
+  },
+  {
+   "table": "focused_views",
+   "rows": [
+    {
+     "id": "v1",
+     "name": "Underfunded",
+     "sort_order": 0,
+     "builtin": "underfunded",
+     "category_ids": "[]"
+    },
+    {
+     "id": "v2",
+     "name": "Bills",
+     "sort_order": 1,
+     "builtin": null,
+     "category_ids": "[\"c-rent\",\"c-food\"]"
+    }
+   ]
+  },
+  {
+   "table": "flag_names",
+   "rows": [
+    {
+     "color": "green",
+     "name": "Income"
+    }
+   ]
+  },
+  {
+   "table": "reconciliations",
+   "rows": [
+    {
+     "id": "rc1",
+     "account_id": "a-chk",
+     "date": "2026-10-07",
+     "statement_balance": 240000,
+     "adjustment_transaction_id": "t-sb",
+     "created_at": "2026-10-08T12:00:00.000Z"
+    }
+   ]
+  },
+  {
+   "table": "rejected_imports",
+   "rows": [
+    {
+     "account_id": "a-cc",
+     "import_id": "FITID999"
+    }
+   ]
+  },
+  {
+   "table": "import_profiles",
+   "rows": [
+    {
+     "account_id": "a-cc",
+     "profile": "{\"delimiter\":\",\",\"columns\":[\"date\",\"payee\",\"amount\"],\"swap\":false,\"skip\":1}"
+    }
+   ]
+  }
+ ],
+ "deletes": []
+}

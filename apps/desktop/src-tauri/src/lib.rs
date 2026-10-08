@@ -1,3 +1,4 @@
+mod commands;
 mod spike;
 
 use tauri::Manager;
@@ -22,7 +23,22 @@ pub fn run() {
         )
         .manage(spike::launch::LaunchTiming::new(main_started_ms))
         .manage(spike::sqlite::SpikeDb::default())
+        .manage(commands::PlanState::default())
         .invoke_handler(tauri::generate_handler![
+            commands::plan_create,
+            commands::plan_open,
+            commands::plan_current,
+            commands::plan_close,
+            commands::plan_load,
+            commands::plan_apply,
+            commands::plan_save_copy,
+            commands::plan_backups,
+            commands::plan_restore,
+            commands::recent_plans,
+            commands::recent_remove,
+            commands::pick_plan_path,
+            commands::pick_import_zip,
+            commands::read_import_file,
             spike::launch::spike_mark_first_paint,
             spike::sqlite::spike_sqlite_open,
             spike::sqlite::spike_sqlite_write,

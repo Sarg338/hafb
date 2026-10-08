@@ -11,13 +11,16 @@
     "test": "pnpm -r test",
     "test:engine": "pnpm --filter @hafb/engine test",
     "lint": "pnpm run lint:tsc && pnpm run lint:eslint && pnpm run lint:clippy",
-    "lint:tsc": "pnpm -r typecheck",
+    "lint:tsc": "pnpm -r typecheck && tsc -p scripts/tsconfig.json",
     "lint:eslint": "eslint . --max-warnings 0",
-    "lint:clippy": "cargo clippy --manifest-path apps/desktop/src-tauri/Cargo.toml --all-targets -- -D warnings",
-    "build": "pnpm --filter @hafb/desktop tauri build && node scripts/build-report.mjs"
+    "lint:clippy": "cargo clippy --manifest-path apps/desktop/src-tauri/Cargo.toml --workspace --all-targets -- -D warnings",
+    "test:rust": "cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml --workspace",
+    "build": "pnpm --filter @hafb/desktop tauri build && node scripts/build-report.mjs",
+    "import:ynab": "node --experimental-strip-types --no-warnings scripts/import-ynab.ts"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
+    "@types/node": "22.20.4",
     "eslint": "10.12.0",
     "eslint-plugin-react-hooks": "7.1.1",
     "typescript": "6.0.3",

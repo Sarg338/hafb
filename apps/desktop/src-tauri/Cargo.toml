@@ -6,6 +6,11 @@ license = "MIT"
 edition = "2024"
 rust-version = "1.85"
 publish = false
+# The app binary is the default; the hafb-store CLI lives in the `store` crate so it is never bundled.
+default-run = "hafb"
+
+[workspace]
+members = ["store"]
 
 [lib]
 name = "hafb_lib"
@@ -22,6 +27,12 @@ serde = { version = "1.0.229", features = ["derive"] }
 rusqlite = { version = "0.40.2", features = ["bundled"] }
 # Custom title bar that keeps Windows 11 Snap Layouts. Source audited 2026-10-08 (see ADR 0001); pinned exactly.
 tauri-plugin-frame = "=1.1.8"
+# Plan files (ADR 0002): migrations, generic load/apply, backups. Our own crate; no Tauri inside.
+hafb-store = { path = "store" }
+# Native open/save dialogs (Windows IFileDialog over COM). Audited 2026-10-08 at 0.17.2: on Windows it
+# depends only on log, raw-window-handle 0.6 and windows-sys 0.61 (both already in the tree); no
+# network, process or file APIs. Default features (xdg-portal, wayland) are Linux-only and disabled.
+rfd = { version = "=0.17.2", default-features = false }
 
 [target.'cfg(windows)'.dependencies]
 # Already in the tree via tauri-plugin-frame; used directly only for process start time (launch spike).
