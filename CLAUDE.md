@@ -157,7 +157,7 @@ RTA(m) = RTA(m-1)
        + (assigned in future months is NOT subtracted here — see 5.2.1)
 ```
 - RTA can go negative; UI shows it red with "You assigned more than you have."
-- **5.2.1 Future months:** money assigned in a future month reduces RTA *in that future month and all months after it*, and YNAB also shows it as "Assigned in Future" in the current month's RTA breakdown, reducing the headline RTA number. The breakdown popover was historically *Left over from last month / Assigned this month / Inflow this month / Assigned in future*. **Verify the current fields in YNAB before S4.3** (roadmap D11). The Inspector's *Available in [Month]* = left over + assigned + activity.
+- **5.2.1 Future months:** money assigned in a future month reduces RTA *in that future month and all months after it*, and YNAB also shows it as "Assigned in Future" in the current month's RTA breakdown, reducing the headline RTA number, **but never below zero**: the future part is capped at what the month has left, and the shortfall shows in the future month itself (verified in the YNAB trial, 2026-10-08; budget-math §2 examples 2.5–2.6). The breakdown popover lists only non-zero lines: *Inflow: Ready to Assign transactions in [Month]*, *Assigned in [Month]*, *Assigned in Future*, then the total (D11 verified). The Inspector's *Available in [Month]* = left over + assigned + activity.
 - **Starting balances** of on-budget accounts are inflows to RTA (or outflows for a negative starting balance on a CC) dated to the account's start date.
 
 ### 5.3 Credit cards
@@ -392,7 +392,7 @@ Mark phase status here when it changes:
 - Phase 1: done, signed off by Sarg 2026-10-08. Verified against two real YNAB sources (budget-math §12): the public export (98.4% exact, every regular category exact) and Sarg's YNAB trial plan (every value YNAB showed matches after 9 rule corrections; mortgage interest within $0.50). Age of Money and the weekly-target rule were confirmed by follow-up checks. Fresh Start was confirmed too. Remaining open items are in budget-math §13: mortgage interest cents, the public sample's converted card, Credit Card Interest (rolling out) and recurrence edge cases.
 - Phase 2: done, signed off by Sarg 2026-10-08 (ADR 0002). Tests: 537 TS + 25 Rust. Validated by driving the release build on Sarg's PC: import, edit, undo/redo, reopen, second-window lock, backup restore, save a copy, new plan; the empty `-wal` left after quitting was found and fixed. Carried into Phase 3: replace the browser `confirm()` box with an in-app dialog.
 - Phase 3: done, signed off by Sarg 2026-10-08. S3.1 design direction (approved look; DESIGN.md; themes as data, ADR 0003). S3.2 component library in `src/ui` with gallery `#/gallery` (ADR 0004). S3.3 app shell in `src/shell` (spike and Phase 2 screens retired). S3.4 `DataGrid` (50k-row benchmark: 0 missed frames in WebView2; cells exposed to Narrator via UIA). S3.5 shortcut registry, `?` overlay, error surfacing, `pnpm smoke` (9 tests, ADR 0005). Launch to first paint 812 ms.
-- Phase 4: in progress. S4.1 Plan screen and S4.2 Plan editing done 2026-10-08 (ADR 0007: production screens in `src/screens` from the component library; the S3.1 mockups stay as the look reference).
+- Phase 4: in progress. S4.1 Plan screen, S4.2 Plan editing and S4.3 Moving money done 2026-10-08 (ADR 0007: production screens in `src/screens` from the component library; the S3.1 mockups stay as the look reference).
 - Phase 5: todo
 - Phase 6: todo
 - Phase 7: todo

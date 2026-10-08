@@ -70,12 +70,13 @@ export interface ReadyToAssignBreakdown {
   cashOverspendingLastMonth: Minor;
   inflows: Minor;
   assignedThisMonth: Minor;
+  /** Money assigned in later months, set aside from this month: at most what this month has left. */
   assignedInFuture: Minor;
 }
 
 export interface MonthState {
   month: Month;
-  /** leftOver − cashOverspendingLastMonth + inflows − assignedThisMonth − assignedInFuture. */
+  /** leftOver − cashOverspendingLastMonth + inflows − assignedThisMonth − assignedInFuture (the future part never takes it below zero). */
   readyToAssign: Minor;
   breakdown: ReadyToAssignBreakdown;
   categories: Record<Id, CategoryMonth>;
@@ -452,7 +453,9 @@ export function computeBudget(snapshot: BudgetSnapshot, options: ComputeOptions)
     const assignedThisMonth = assignedTotalByMonth.get(month) ?? 0;
     cumulativeAssigned += assignedThisMonth;
     const rtaCore = rtaCorePrev + bucket.inflows - assignedThisMonth - cashOverspendingPrev;
-    const assignedInFuture = totalAssigned - cumulativeAssigned;
+    // Money assigned in later months is set aside from this month's Ready to Assign, but only down to
+    // zero: YNAB shows the shortfall in the future month itself (verified in the YNAB trial, budget-math §2).
+    const assignedInFuture = Math.min(totalAssigned - cumulativeAssigned, Math.max(0, rtaCore));
 
     let totalActivity = 0;
     let totalAvailable = 0;

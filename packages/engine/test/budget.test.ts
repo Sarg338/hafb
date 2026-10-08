@@ -129,6 +129,38 @@ describe('§2 Ready to Assign', () => {
     expect(monthState(extended, '2026-12').readyToAssign).toBe(45_000);
   });
 
+  it('example 2.5: assigning ahead never takes this month below zero (YNAB trial, 2026-10-08)', () => {
+    // October: $5,500 in, $2,430 assigned (core $3,070). November: $3,500 assigned.
+    const s = plan()
+      .account('checking')
+      .category('a')
+      .category('b')
+      .income('2026-10-01', 550_000)
+      .assign('2026-10', 'a', 243_000)
+      .assign('2026-11', 'b', 350_000)
+      .build();
+    const state = computeBudget(s, { today: TODAY, throughMonth: '2026-11' });
+    // YNAB: "$0.00 All Money Assigned", breakdown "Assigned in Future −$3,070.00".
+    expect(monthState(state, '2026-10')).toMatchObject({ readyToAssign: 0, breakdown: { assignedInFuture: 307_000 } });
+    // The shortfall shows in the month that caused it: November −$430.
+    expect(monthState(state, '2026-11').readyToAssign).toBe(-43_000);
+  });
+
+  it('example 2.6: when this month is already over-assigned, future assignments add nothing to it', () => {
+    // YNAB trial: October core −$930 with $3,500 assigned in November shows −$930 and no future line.
+    const s = plan()
+      .account('checking')
+      .category('a')
+      .category('b')
+      .income('2026-10-01', 550_000)
+      .assign('2026-10', 'a', 643_000)
+      .assign('2026-11', 'b', 350_000)
+      .build();
+    const state = computeBudget(s, { today: TODAY, throughMonth: '2026-11' });
+    expect(monthState(state, '2026-10')).toMatchObject({ readyToAssign: -93_000, breakdown: { assignedInFuture: 0 } });
+    expect(monthState(state, '2026-11').readyToAssign).toBe(-443_000);
+  });
+
   it('example 2.3: Ready to Assign can go negative', () => {
     const s = plan().account('checking').category('a').income('2026-01-01', 10_000).assign('2026-01', 'a', 15_000).build();
     expect(monthState(run(s), '2026-01').readyToAssign).toBe(-5_000);

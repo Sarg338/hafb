@@ -40,13 +40,16 @@ carried(m)   = max(available(m−1), 0)          ← negative balances never car
 
 ```
 RTAcore(m)        = RTAcore(m−1) + inflows(m) − assigned(m) − cashOverspending(m−1)
-assignedInFuture  = Σ assigned(k) for every k > m
+assignedInFuture  = min( Σ assigned(k) for every k > m , max(0, RTAcore(m)) )
 ReadyToAssign(m)  = RTAcore(m) − assignedInFuture(m)
 ```
 
+- **Future assignments never take a month below zero** (verified in the YNAB trial, 2026-10-08). With $3,070 left in October and $3,500 assigned in November, October shows **$0.00 All Money Assigned**, with "Assigned in Future −$3,070.00" (capped, not −$3,500). November shows −$430.00. When October is itself over-assigned (core −$930), it shows −$930.00 and no future line. YNAB marks the inspector's *Assigned in Future Months* with a warning triangle while a future month is negative.
+- Not yet distinguished: whether a future month's own inflows offset its assignments when seen from an earlier month. Future-dated inflows don't exist in YNAB (they're scheduled), so this only matters when looking back at past months.
+
 - `inflows(m)` are transactions categorized **Inflow: Ready to Assign** in on-budget accounts. This includes starting balances, and inflows on credit cards (§3.10).
 - The breakdown shown to the user is *left over from last month* (RTAcore(m−1)), *cash overspending last month*, *inflows*, *assigned this month* and *assigned in future*.
-- **D11:** whether YNAB's current popover shows exactly these fields is unverified (§13).
+- **D11 (verified):** the "Ready to Assign Breakdown" popover lists only the non-zero lines, grouped as a + block (*Inflow: Ready to Assign transactions in October*) and a − block (*Assigned in October*, *Assigned in Future*), then *Total Ready to Assign* with a line of encouragement ("Give these dollars a job…", "Nice work! Every dollar has a job.", or "You have assigned more than you have.").
 
 **Verification:** documented, plus the identity in §5. The export doesn't contain Ready to Assign.
 
@@ -56,6 +59,8 @@ ReadyToAssign(m)  = RTAcore(m) − assignedInFuture(m)
 | 2.2 | Jan: $1,000 in, assign $300 in Jan and $250 in April | Jan–Mar show $450 (assigned in future $250); April shows $450 with $250 assigned this month |
 | 2.3 | $100 in, assign $150 | −$50: negative Ready to Assign is allowed |
 | 2.4 | Starting balances $1,200 checking + $300 savings; a $400,000 house (asset, off-budget) | $1,500. Off-budget accounts never count |
+| 2.5 | October core $3,070; $3,500 assigned in November | October **$0.00** (assigned in future $3,070, capped); November −$430 |
+| 2.6 | October core −$930; $3,500 assigned in November | October −$930 (assigned in future $0); November −$4,430 |
 
 ## 3. Credit cards (CLAUDE.md §5.3)
 
