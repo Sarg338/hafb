@@ -58,7 +58,7 @@ export default defineConfig(
   },
 
   {
-    files: ['packages/engine/src/**/*.ts', 'packages/shared/src/**/*.ts'],
+    files: ['packages/engine/src/**/*.ts', 'packages/shared/src/**/*.ts', 'packages/store/src/**/*.ts'],
     rules: pureRules,
   },
 

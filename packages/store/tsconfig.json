@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // Pure like the engine (no DOM, no I/O in src/). Node types are for tests reading fixtures and
+    // for the web-standard DecompressionStream the zip reader uses (present in Node 22 and WebView2).
+    "lib": ["ES2023"],
+    "types": ["node"]
+  },
+  "include": ["src", "test"]
+}
