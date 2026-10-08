@@ -4,6 +4,7 @@ import { spikeIpc } from './spike/ipc.ts';
 import { markFirstPaintOnce } from './spike/launchTiming.ts';
 import { SpikePage } from './spike/SpikePage.tsx';
 import { DesignApp } from './design/DesignApp.tsx';
+import { Gallery } from './gallery/Gallery.tsx';
 import { PlanHome } from './plan/PlanHome.tsx';
 import { PlanView } from './plan/PlanView.tsx';
 import { ToastHost } from './plan/ToastHost.tsx';
@@ -34,6 +35,10 @@ export function App() {
       );
     }
   }, []);
+
+  if (hash.startsWith('#/gallery')) {
+    return <Gallery />;
+  }
 
   if (hash.startsWith('#/design')) {
     return <DesignApp />;

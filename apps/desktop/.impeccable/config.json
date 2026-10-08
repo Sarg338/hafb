@@ -1,0 +1,14 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "design-system-font",
+        "value": "\\s*(?!var\\(|inherit)/",
+        "createdAt": "2026-10-08T18:58:26.952Z",
+        "reason": "Claude: a regex pattern in src/theme/sourceScan.test.ts that detects literal font families, not a font in use"
+      }
+    ]
+  }
+}

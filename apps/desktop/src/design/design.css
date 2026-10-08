@@ -1,17 +1,18 @@
 /* S3.1 mockups. Every colour is a theme token (src/theme/tokens.ts); sizes are the density spec. */
 
+/* Local names for the theme tokens (src/theme/tokens.ts, ADR 0004). Values live in the theme. */
 .hd {
-  --font-ui: 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif;
-  --font-display: 'Segoe UI Variable Display', 'Segoe UI', system-ui, sans-serif;
-  --row-plan: 34px;
-  --row-register: 30px;
-  --radius: 4px;
-  --radius-lg: 8px;
-  --sidebar-w: 252px;
-  --inspector-w: 328px;
-  --ease: cubic-bezier(0.16, 1, 0.3, 1);
-  --t-fast: 120ms;
-  --t-move: 180ms;
+  --font-ui: var(--t-font-ui);
+  --font-display: var(--t-font-display);
+  --row-plan: var(--d-row-plan);
+  --row-register: var(--d-row-register);
+  --radius: var(--s-radius);
+  --radius-lg: var(--s-radius-large);
+  --sidebar-w: var(--d-sidebar-width);
+  --inspector-w: var(--d-inspector-width);
+  --ease: var(--m-ease);
+  --t-fast: var(--m-fast);
+  --t-move: var(--m-move);
 
   position: relative;
   display: grid;
@@ -61,7 +62,7 @@
   background: var(--c-border-strong);
   border: 3px solid transparent;
   background-clip: padding-box;
-  border-radius: 6px;
+  border-radius: var(--s-radius-medium);
 }
 
 .hd ::-webkit-scrollbar-thumb:hover {
@@ -127,7 +128,7 @@
   place-items: center;
   width: 32px;
   height: 32px;
-  border-radius: 8px;
+  border-radius: var(--s-radius-large);
   background: var(--c-accent);
   color: var(--c-text-on-accent);
   font: 700 10px/1 var(--font-display);
@@ -417,7 +418,7 @@
   height: 28px;
   padding: 0 12px;
   border: 1px solid var(--c-border-strong);
-  border-radius: 999px;
+  border-radius: var(--s-radius-pill);
   background: var(--c-surface);
   font-size: 12.5px;
 }
@@ -583,7 +584,7 @@
   left: 3px;
   width: 3px;
   height: 16px;
-  border-radius: 2px;
+  border-radius: var(--s-radius-tiny);
   background: var(--c-selected-border);
   transform: translateY(-50%);
 }
@@ -596,7 +597,7 @@
   height: 16px;
   margin: 0;
   border: 1px solid var(--c-input-border);
-  border-radius: 3px;
+  border-radius: var(--s-radius-small);
   background: var(--c-input);
   vertical-align: middle;
 }
@@ -668,7 +669,7 @@
   position: relative;
   flex: 1;
   overflow: hidden;
-  border-radius: 3px;
+  border-radius: var(--s-radius-small);
   background: var(--c-bar-track);
 }
 
@@ -742,7 +743,7 @@
   height: 22px;
   padding: 0 9px;
   border: 1px solid transparent;
-  border-radius: 999px;
+  border-radius: var(--s-radius-pill);
   font-weight: 600;
   transition: background-color var(--t-move) var(--ease), color var(--t-move) var(--ease);
 }
@@ -783,7 +784,7 @@
 }
 
 .hd[data-nocolor='true'] .hd-pill[data-state='underfunded'] {
-  border: 1.5px dashed currentColor;
+  border: 1.5px dashed currentColor; /* scan-ok: without-colour state shape, not a theme choice */
 }
 
 .hd[data-nocolor='true'] .hd-pill[data-state='overspent'] {
@@ -928,7 +929,7 @@
   height: 8px;
   margin: 8px 0 4px;
   overflow: hidden;
-  border-radius: 4px;
+  border-radius: var(--s-radius);
   background: var(--c-bar-track);
 }
 
@@ -1027,7 +1028,7 @@
 .hd-seg {
   display: inline-flex;
   padding: 2px;
-  border-radius: 999px;
+  border-radius: var(--s-radius-pill);
   background: var(--c-surface-alt);
 }
 
@@ -1035,7 +1036,7 @@
   height: 26px;
   padding: 0 10px;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--s-radius-pill);
   background: transparent;
 }
 

@@ -51,7 +51,7 @@
   height: 30px;
   padding: 0 12px;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--s-radius-medium);
   background: transparent;
   color: var(--c-text-muted);
   font-weight: 500;
@@ -216,7 +216,7 @@
   display: inline-block;
   width: 12px;
   height: 12px;
-  border-radius: 3px;
+  border-radius: var(--s-radius-small);
 }
 
 .rf-key.rf-assets {
@@ -229,7 +229,7 @@
 
 .rf-key.rf-netkey {
   height: 3px;
-  border-radius: 2px;
+  border-radius: var(--s-radius-tiny);
   background: var(--c-chart-net);
 }
 
@@ -557,7 +557,7 @@
   max-width: 460px;
   margin: 60px auto;
   padding: 32px;
-  border: 1px dashed var(--c-border-strong);
+  border: 1px var(--s-muted-border-style) var(--c-border-strong);
   border-radius: var(--radius-lg);
   text-align: center;
 }
@@ -599,5 +599,5 @@
 .rf-avgkey {
   display: inline-block;
   width: 18px;
-  border-top: 2px dashed var(--c-text);
+  border-top: 2px dashed var(--c-text); /* scan-ok: the average line is dashed by meaning (matches the SVG) */
 }

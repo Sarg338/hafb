@@ -1,0 +1,122 @@
+.gallery {
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  height: 100%;
+}
+
+.header {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  border-bottom: var(--s-border-width) solid var(--c-border);
+  background: var(--c-surface);
+}
+
+.header h1 {
+  margin: 0;
+  font-family: var(--t-font-display);
+  font-size: var(--t-size-title);
+  font-weight: var(--t-weight-semibold);
+  letter-spacing: var(--t-display-tracking);
+}
+
+.muted {
+  color: var(--c-text-muted);
+  font-size: var(--t-size-caption);
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+  font-size: var(--t-size-caption);
+}
+
+.seg {
+  display: inline-flex;
+  padding: 2px;
+  border-radius: var(--s-radius-pill);
+  background: var(--c-surface-alt);
+}
+
+.seg button {
+  height: var(--d-control-small);
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--s-radius-pill);
+  background: transparent;
+}
+
+.seg button[aria-pressed='true'] {
+  background: var(--c-accent);
+  color: var(--c-text-on-accent);
+  font-weight: var(--t-weight-semibold);
+}
+
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.index {
+  display: grid;
+  align-content: start;
+  gap: 2px;
+  padding: 12px 10px;
+  overflow: auto;
+  border-right: var(--s-border-width) solid var(--c-border);
+  background: var(--c-sidebar);
+}
+
+.index a {
+  padding: 6px 10px;
+  border-radius: var(--s-radius);
+  color: var(--c-sidebar-text);
+  text-decoration: none;
+}
+
+.index a:hover {
+  background: var(--c-sidebar-hover);
+}
+
+.main {
+  min-height: 0;
+  overflow: auto;
+  padding: 8px 24px 48px;
+}
+
+.section {
+  padding: 20px 0 24px;
+  border-bottom: var(--s-border-width) solid var(--c-border);
+}
+
+.section h2 {
+  margin: 0 0 14px;
+  font-size: var(--t-size-subtitle);
+  font-weight: var(--t-weight-semibold);
+}
+
+.specimen {
+  display: grid;
+  grid-template-columns: 160px minmax(0, 1fr);
+  align-items: center;
+  gap: 16px;
+  padding: 8px 0;
+}
+
+.label {
+  color: var(--c-text-muted);
+  font-size: var(--t-size-caption);
+}
+
+.items {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}

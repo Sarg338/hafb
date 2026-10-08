@@ -124,7 +124,7 @@
 .rg-search kbd {
   padding: 1px 5px;
   border: 1px solid var(--c-border-strong);
-  border-radius: 3px;
+  border-radius: var(--s-radius-small);
   color: var(--c-text-subtle);
   font: 11px/1.4 var(--font-ui);
 }
@@ -266,7 +266,7 @@
 
 .rg-sub td {
   height: 26px;
-  border-bottom-style: dashed;
+  border-bottom-style: var(--s-sub-rule-style);
   font-size: 12.5px;
 }
 
@@ -370,7 +370,7 @@
 }
 
 .rg-input:disabled {
-  border-style: dashed;
+  border-style: var(--s-muted-border-style);
   color: var(--c-text-subtle);
 }
 

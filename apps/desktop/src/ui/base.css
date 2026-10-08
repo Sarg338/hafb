@@ -1,0 +1,70 @@
+/* Component-library base (ADR 0004). Global on purpose: the root typography, focus and selection
+   every HAFB surface shares. Values come only from theme tokens (src/theme/tokens.ts). */
+
+.hafb-root {
+  background: var(--c-app);
+  color: var(--c-text);
+  font-family: var(--t-font-ui);
+  font-size: var(--t-size-body);
+  font-weight: var(--t-weight-regular);
+  line-height: var(--t-line-height);
+  font-variant-numeric: tabular-nums;
+}
+
+.hafb-root ::selection {
+  background: var(--c-accent-soft);
+  color: var(--c-text);
+}
+
+.hafb-root :focus-visible {
+  outline: var(--s-focus-width) solid var(--c-focus);
+  outline-offset: calc(0px - var(--s-focus-width));
+  border-radius: var(--s-radius);
+}
+
+/* Zero specificity: any component class wins over these defaults. */
+:where(.hafb-root) :where(button) {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.hafb-root ::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+.hafb-root ::-webkit-scrollbar-thumb {
+  background: var(--c-border-strong);
+  border: 3px solid transparent;
+  background-clip: padding-box;
+  border-radius: var(--s-radius-medium);
+}
+
+.hafb-root ::-webkit-scrollbar-thumb:hover {
+  background-color: var(--c-text-subtle);
+}
+
+.hafb-root ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Layer for popovers, menus, dialogs and toasts (see Portal.tsx). */
+#hafb-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  pointer-events: none;
+}
+
+#hafb-layer > * {
+  pointer-events: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hafb-root *,
+  #hafb-layer * {
+    transition: none !important;
+    animation: none !important;
+  }
+}

@@ -1,0 +1,129 @@
+/* Buttons: the approved S3.1 controls (DESIGN.md). Every value is a token. */
+
+.button {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: var(--d-control);
+  padding: 0 12px;
+  border: var(--s-border-width) solid transparent;
+  border-radius: var(--s-radius);
+  background: transparent;
+  font-family: var(--t-font-ui);
+  font-size: var(--t-size-body);
+  font-weight: var(--t-weight-medium);
+  line-height: 1;
+  white-space: nowrap;
+  transition: background-color var(--m-fast) var(--m-ease), color var(--m-fast) var(--m-ease);
+}
+
+.button:disabled {
+  cursor: default;
+}
+
+/* Primary: the one main action on a surface (Assign, Save). */
+.primary {
+  padding: 0 12px 0 14px;
+  background: var(--c-accent);
+  color: var(--c-text-on-accent);
+  font-weight: var(--t-weight-semibold);
+}
+
+.primary:hover:not(:disabled) {
+  background: var(--c-accent-hover);
+}
+
+.primary:disabled {
+  background: var(--c-border-strong);
+  color: var(--c-text-muted);
+}
+
+/* Secondary: outlined (Cancel, Edit Target). */
+.secondary {
+  border-color: var(--c-border-strong);
+  background: var(--c-surface);
+  color: var(--c-text);
+}
+
+.secondary:hover:not(:disabled) {
+  background: var(--c-hover);
+}
+
+.secondary:disabled {
+  color: var(--c-text-subtle);
+}
+
+/* Toolbar: text-like link-coloured actions in toolbars (Category Group, Undo, Recent Moves). */
+.toolbar {
+  height: var(--d-control-compact);
+  padding: 0 8px;
+  color: var(--c-link);
+}
+
+.toolbar:hover:not(:disabled) {
+  background: var(--c-hover);
+}
+
+.toolbar:disabled {
+  color: var(--c-text-subtle);
+  opacity: 0.6;
+}
+
+/* Danger: destructive confirmation (Delete) — same shape as primary, overspent colours. */
+.danger {
+  padding: 0 14px;
+  background: var(--c-overspent-bg);
+  color: var(--c-overspent-fg);
+  font-weight: var(--t-weight-semibold);
+}
+
+.danger:hover:not(:disabled) {
+  border-color: var(--c-overspent-fg);
+}
+
+.small {
+  height: var(--d-chip);
+  padding: 0 10px;
+  font-size: var(--t-size-small);
+}
+
+.full {
+  width: 100%;
+}
+
+/* Icon button: square, muted until hovered. */
+.icon {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: var(--d-control-compact);
+  height: var(--d-control-compact);
+  padding: 0;
+  border: 0;
+  border-radius: var(--s-radius);
+  background: transparent;
+  color: var(--c-text-muted);
+  transition: background-color var(--m-fast) var(--m-ease), color var(--m-fast) var(--m-ease);
+}
+
+.icon:hover:not(:disabled) {
+  background: var(--c-hover);
+  color: var(--c-text);
+}
+
+.icon:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.icon[aria-pressed='true'] {
+  background: var(--c-selected);
+  color: var(--c-selected-text);
+}
+
+.icon.smallIcon {
+  width: 22px;
+  height: 22px;
+}
