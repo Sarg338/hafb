@@ -97,7 +97,7 @@ A row is `done` only after Sarg validates it on hardware. Rows whose engine half
 | AC-08 | Reorder accounts; account notes | — | S4.4 | todo |
 | AC-09 | Register header: cleared + uncleared = working balance | S1.6 | S4.4 | in-progress |
 | AC-10 | Cash-type transactions auto-marked cleared | S1.6 | S4.5 | in-progress |
-| AC-11 | Linked accounts (Direct Import) | — | — | wontfix (server) |
+| AC-11 | Linked accounts, optional, via SimpleFIN Bridge instead of YNAB's providers (ADR 0006) | — | S6.7 | todo |
 
 ## 6. Register ([split](https://support.ynab.com/en_us/split-transactions-a-guide-SJLEKwY0q), [search](https://support.ynab.com/en_us/searching-transactions-a-guide-r1gxyQryj), [shortcuts](https://support.ynab.com/en_us/keyboard-shortcuts-Skw9Xp9A9))
 
@@ -213,7 +213,8 @@ A row is `done` only after Sarg validates it on hardware. Rows whose engine half
 | IE-09 | Export to YNAB-format CSV (round-trip verified) | S1.8 | S6.6 | in-progress |
 | IE-10 | Raw SQLite copy ("save a copy") | — | S2.5 | in-progress |
 | IE-11 | Automatic backups on open (keep N), manual backup, restore | — | S2.5 / S6.6 | in-progress |
-| IE-12 | Direct Import / bank sync / pending transactions | — | — | wontfix (server) |
+| IE-12 | Bank sync, optional, via SimpleFIN Bridge: on open, every ~6 h while open, Sync now; same review pipeline as file import (ADR 0006) | S1.6 | S6.7 | todo |
+| IE-13 | Pending transactions | — | — | wontfix (server) |
 
 ## 14. Plans, settings, lifecycle ([resets & fresh starts](https://support.ynab.com/en_us/plan-resets-and-fresh-starts-HkXYR_c0q), [templates](https://support.ynab.com/en_us/creating-a-plan-template-ByZJZx_R9))
 
@@ -243,4 +244,4 @@ A row is `done` only after Sarg validates it on hardware. Rows whose engine half
 
 ## Out of scope (wontfix, needs YNAB's servers)
 
-Direct Import (Plaid/MX/TrueLayer/Apple Card), pending transactions, institution logos, retailer order history, YNAB Together (members, avatars, who-moved-it), "For You" feed, API/Zapier/widgets/Siri/Watch, mobile apps and mobile-only screens (Home tab, Card Mode, Income vs Spending), referrals and gifts, Mint migration, template sharing by link.
+YNAB's Direct Import providers (Plaid/MX/TrueLayer/Apple Card; HAFB uses SimpleFIN instead, IE-12), pending transactions, institution logos, retailer order history, YNAB Together (members, avatars, who-moved-it), "For You" feed, API/Zapier/widgets/Siri/Watch, mobile apps and mobile-only screens (Home tab, Card Mode, Income vs Spending), referrals and gifts, Mint migration, template sharing by link.

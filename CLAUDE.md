@@ -1,6 +1,6 @@
 # HAFB — Here's A Free Budget
 
-Free, local-only, native Windows envelope-budgeting app. Target: **complete feature parity with YNAB** (the web/desktop product as of 2026), minus anything that requires YNAB's servers (bank sync, shared-budget cloud sync, mobile apps).
+Free, local-only, native Windows envelope-budgeting app. Target: **complete feature parity with YNAB** (the web/desktop product as of 2026), minus anything that requires YNAB's servers (shared-budget cloud sync, mobile apps). YNAB's own bank sync is replaced by an optional SimpleFIN Bridge link (ADR 0006).
 
 This file is the durable source of truth for the project. Read it fully before doing anything. Update it when a decision is made or a phase completes — stale CLAUDE.md is worse than none.
 
@@ -8,7 +8,7 @@ This file is the durable source of truth for the project. Read it fully before d
 
 ## 1. Non-negotiables
 
-- **Local-only.** No network calls, ever. No telemetry, no crash reporting, no update checks, no analytics. The app must work with the network cable unplugged and must never ask for an account. If a library phones home, it is not allowed in.
+- **Local-only.** No network calls, ever, with one opt-in exception: bank sync through SimpleFIN Bridge (ADR 0006). It is off by default, talks only to the SimpleFIN host the user linked, runs only in Rust, and never sees bank credentials. Its access URL lives in Windows Credential Manager, never in the plan file. No telemetry, no crash reporting, no update checks, no analytics. The app must work with the network cable unplugged and must never ask for an account. If a library phones home, it is not allowed in.
 - **Free.** No paywalls, no "pro" tier, no nag screens. MIT license.
 - **The user's data is a single file they own.** One SQLite file per budget, in a user-chosen location, human-inspectable with any SQLite tool. Users can put it in a OneDrive/Syncthing folder if they want "sync" — we do not build sync.
 - **Money is never a float.** All amounts are 64-bit integers in minor units (cents for USD). Currency decimal places come from the budget's currency setting. Division only happens in auto-assign/averaging, and rounding rules must be explicit and tested.
@@ -358,6 +358,7 @@ The full, current list lives in `docs/ynab-parity.md`: one row per feature, with
     - **Bank files:**
       - Formats: CSV (column mapper remembered per account, swap inflow/outflow, semicolons), OFX/QFX (several files at once), QIF.
       - Duplicate handling: FITID plus fuzzy matching, then an approve/reject/match review (§5.12).
+    - **Bank sync (optional):** SimpleFIN Bridge per ADR 0006. The user pays SimpleFIN; the app syncs on open, about every 6 hours while open, and on *Sync now*. Transactions arrive unapproved and go through the same pipeline as file import.
     - **Export:** YNAB-format CSV (round-trips to YNAB) and a raw SQLite copy.
     - **Backups:** automatic on open (keep N), manual backup and restore.
 14. **Settings:** currency, number/date format, first month, theme (light/dark/system/high contrast), font scale, default account, data folder, shortcuts on/off, Hide Amounts.
@@ -366,7 +367,7 @@ The full, current list lives in `docs/ynab-parity.md`: one row per feature, with
     - A custom title bar with Snap Layouts (validated in Phase 0); high-DPI; WCAG 2.2 AA accessibility.
     - Multiple plans with an open/recent list; onboarding and designed empty states.
 16. **Explicitly out of scope (wontfix):**
-    - Bank sync / Direct Import, pending transactions, retailer order-history links.
+    - YNAB's Direct Import providers (Plaid, MX, TrueLayer; HAFB uses SimpleFIN instead), pending transactions, retailer order-history links.
     - Cloud sync; YNAB Together (shared plans, members, avatars).
     - The "For You" feed; the API, widgets and assistants; mobile apps (the engine stays portable for a future one).
 
@@ -382,7 +383,7 @@ The full sprint plan with exit criteria is in `docs/roadmap.md`. Phases were ren
 - **Phase 3, Design system & shell:** design direction, tokens and components, app shell, editable-grid foundation.
 - **Phase 4, Daily driver:** Plan screen, accounts, register, credit cards, undo. Ends with **M1**: two weeks of real use alongside YNAB.
 - **Phase 5, Planning power:** inspector, targets, auto-assign and Focused Views, scheduled, payees, reconciliation, Recent Moves (**M2**).
-- **Phase 6, Reflect & data:** reports, loans, bank-file import, export and backups (**M3**: feature parity).
+- **Phase 6, Reflect & data:** reports, loans, bank-file import, export and backups, optional SimpleFIN bank sync (**M3**: feature parity).
 - **Phase 7, Polish:** settings, multiple plans, templates and Fresh Start, keyboard, accessibility, onboarding, attachments, visual polish.
 - **Phase 8, Release:** performance at scale, reliability, privacy audit, packaging, docs and beta → **v1.0**.
 
@@ -440,7 +441,7 @@ pnpm smoke            # end-to-end smoke tests on the release app (run pnpm buil
 
 ## 10. Things not to do
 
-- Don't add a dependency without stating why in the commit message and confirming it makes no network calls.
+- Don't add a dependency without stating why in the commit message and confirming it makes no network calls. The one exception is the S6.7 HTTP client for SimpleFIN (ADR 0006).
 - Don't store derived budget numbers as truth. Cache if you must, invalidate aggressively.
 - Don't put math in React components.
 - Don't "simplify" a YNAB rule because it's awkward. Parity is the point; if a rule seems wrong, write down the exact YNAB behavior and ask.
