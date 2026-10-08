@@ -21,6 +21,16 @@ pub struct PlanState {
     picked_import: Mutex<Option<PathBuf>>,
 }
 
+impl PlanState {
+    /// Close the open plan, if any. Dropping the connection checkpoints the WAL and removes the
+    /// `-wal` file, so after quitting the plan is exactly one file again.
+    pub fn close(&self) {
+        if let Ok(mut slot) = self.open.lock() {
+            *slot = None;
+        }
+    }
+}
+
 pub struct OpenPlan {
     plan: Plan,
     report: OpenReport,

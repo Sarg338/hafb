@@ -241,7 +241,7 @@ class PlanSession {
       await this.writes;
       const info = await planIpc.restore(backup.path);
       await this.loadOpened(info);
-      this.notify(`Restored the backup from ${backup.stamp}. The plan as it was before is in the backups list.`);
+      this.notify(`Restored the backup from ${backup.fileName}. The plan as it was before is in the backups list.`);
     });
   }
 

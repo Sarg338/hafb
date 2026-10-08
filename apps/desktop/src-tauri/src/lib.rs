@@ -60,6 +60,12 @@ pub fn run() {
             }
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("error while running HAFB");
+        .build(tauri::generate_context!())
+        .expect("error while building HAFB")
+        .run(|app, event| {
+            // Quitting (window X, Alt+F4) closes the plan like the Close button does.
+            if let tauri::RunEvent::Exit = event {
+                app.state::<commands::PlanState>().close();
+            }
+        });
 }

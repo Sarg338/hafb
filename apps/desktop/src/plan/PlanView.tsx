@@ -14,6 +14,15 @@ function moneyFormat(plan: PlanData): MoneyFormat {
 
 const ms = (n: number): string => `${String(Math.round(n))} ms`;
 
+/** Backup stamps are UTC ("20261008-173019-495Z"); show them in local time. */
+function backupTime(stamp: string): string {
+  const m = /^(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})(\d{2})/.exec(stamp);
+  if (!m) return stamp;
+  const [, y, mo, d, h, mi, se] = m.map(Number);
+  if (y === undefined || mo === undefined || d === undefined || h === undefined || mi === undefined || se === undefined) return stamp;
+  return new Date(Date.UTC(y, mo - 1, d, h, mi, se)).toLocaleString();
+}
+
 export function PlanView({ open }: { open: OpenPlan }) {
   const { plan, info, history, month, timings } = open;
   const fmt = moneyFormat(plan);
@@ -105,14 +114,14 @@ export function PlanView({ open }: { open: OpenPlan }) {
             <tbody>
               {backups.map((b) => (
                 <tr key={b.path}>
-                  <td>{b.stamp}</td>
+                  <td>{backupTime(b.stamp)}</td>
                   <td>{b.kind === 'beforeMigration' ? 'before an update' : b.kind === 'restore' ? 'before a restore' : 'on open'}</td>
                   <td className="num">{(b.sizeBytes / 1024).toFixed(0)} KB</td>
                   <td>
                     <button
                       type="button"
                       onClick={() => {
-                        if (window.confirm(`Replace the plan with the backup from ${b.stamp}? The current plan is backed up first.`)) {
+                        if (window.confirm(`Replace the plan with the backup from ${backupTime(b.stamp)}? The current plan is backed up first.`)) {
                           setBackups(null);
                           void session.restore(b);
                         }
