@@ -1,0 +1,88 @@
+import { describe, expect, it } from 'vitest';
+import { createPrefsStore, DEFAULT_PREFS, parsePrefs, PREFS_KEY, type KeyValueStorage } from './prefs.ts';
+
+function memory(initial: Record<string, string> = {}): KeyValueStorage & { data: Record<string, string> } {
+  const data = { ...initial };
+  return {
+    data,
+    getItem: (k) => data[k] ?? null,
+    setItem: (k, v) => {
+      data[k] = v;
+    },
+  };
+}
+
+const throwing: KeyValueStorage = {
+  getItem: () => {
+    throw new Error('blocked');
+  },
+  setItem: () => {
+    throw new Error('blocked');
+  },
+};
+
+describe('parsePrefs', () => {
+  it('defaults for missing or broken data', () => {
+    expect(parsePrefs(null)).toEqual(DEFAULT_PREFS);
+    expect(parsePrefs('not json')).toEqual(DEFAULT_PREFS);
+    expect(parsePrefs('[]')).toEqual(DEFAULT_PREFS);
+  });
+
+  it('keeps valid fields and drops invalid ones', () => {
+    const p = parsePrefs(JSON.stringify({ version: 1, theme: 'dark', sidebarCollapsed: true, inspectorWidth: 'wide', collapsedSections: ['closed', 3] }));
+    expect(p.theme).toBe('dark');
+    expect(p.sidebarCollapsed).toBe(true);
+    expect(p.inspectorWidth).toBe(DEFAULT_PREFS.inspectorWidth);
+    expect(p.collapsedSections).toEqual(['closed']);
+  });
+
+  it('rejects unknown themes and clamps the inspector width', () => {
+    expect(parsePrefs(JSON.stringify({ version: 1, theme: 'neon' })).theme).toBe('system');
+    expect(parsePrefs(JSON.stringify({ version: 1, inspectorWidth: 9000 })).inspectorWidth).toBe(480);
+    expect(parsePrefs(JSON.stringify({ version: 1, inspectorWidth: 10 })).inspectorWidth).toBe(280);
+  });
+
+  it('ignores data from a newer schema version rather than misreading it', () => {
+    expect(parsePrefs(JSON.stringify({ version: 99, theme: 'dark' }))).toEqual(DEFAULT_PREFS);
+  });
+
+  it('keeps last routes per plan path as strings only', () => {
+    const p = parsePrefs(JSON.stringify({ version: 1, lastRoute: { 'C:\\a.hafb': '#/reflect', bad: 4 } }));
+    expect(p.lastRoute).toEqual({ 'C:\\a.hafb': '#/reflect' });
+  });
+});
+
+describe('prefs store', () => {
+  it('saves updates and notifies subscribers', () => {
+    const storage = memory();
+    const store = createPrefsStore(storage);
+    let calls = 0;
+    store.subscribe(() => {
+      calls += 1;
+    });
+    store.update({ theme: 'light' });
+    expect(store.get().theme).toBe('light');
+    expect(calls).toBe(1);
+    expect(JSON.parse(storage.data[PREFS_KEY] ?? '{}')).toMatchObject({ version: 1, theme: 'light' });
+  });
+
+  it('works in memory when storage throws (private mode, blocked site data)', () => {
+    const store = createPrefsStore(throwing);
+    expect(store.get()).toEqual(DEFAULT_PREFS);
+    store.update({ sidebarCollapsed: true });
+    expect(store.get().sidebarCollapsed).toBe(true);
+  });
+
+  it('reads what an earlier session saved', () => {
+    const storage = memory({ [PREFS_KEY]: JSON.stringify({ version: 1, theme: 'high-contrast', noColor: true }) });
+    expect(createPrefsStore(storage).get()).toMatchObject({ theme: 'high-contrast', noColor: true });
+  });
+
+  it('toggles a collapsed section', () => {
+    const store = createPrefsStore(memory());
+    store.toggleSection('closed');
+    expect(store.get().collapsedSections).toEqual(['closed']);
+    store.toggleSection('closed');
+    expect(store.get().collapsedSections).toEqual([]);
+  });
+});

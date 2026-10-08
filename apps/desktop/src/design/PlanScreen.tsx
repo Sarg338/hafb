@@ -76,6 +76,7 @@ export function PlanScreen({
   setMonth,
   initialSelect,
   demoAssign,
+  inspectorEdge,
   actions,
   history,
 }: {
@@ -87,6 +88,8 @@ export function PlanScreen({
   initialSelect?: string | null;
   /** Deep link `Category:dollars`: assign once after opening (before/after review captures). */
   demoAssign?: string | null;
+  /** Rendered on the inspector's left edge (the app shell puts its resize handle here). */
+  inspectorEdge?: ReactNode;
   actions: Actions;
   history: { canUndo: boolean; canRedo: boolean; undoLabel: string | undefined; redoLabel: string | undefined };
 }) {
@@ -324,6 +327,7 @@ export function PlanScreen({
           </table>
         </div>
       </section>
+      {inspectorEdge !== undefined && <div className="hd-inspector-edge">{inspectorEdge}</div>}
       <Inspector model={model} selected={selected} actions={actions} />
     </div>
   );

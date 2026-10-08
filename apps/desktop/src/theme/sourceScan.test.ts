@@ -63,6 +63,11 @@ describe('design values come from theme tokens', () => {
     expect(found).toEqual([]);
   });
 
+  it('app shell CSS (src/shell) is held to the same strict rules as the component library', () => {
+    const found = files(join(SRC, 'shell'), /\.css$/).flatMap((f) => violations(f, STRICT));
+    expect(found).toEqual([]);
+  });
+
   it('S3.1 mockup CSS (src/design) uses tokens for colour, fonts, radii and rules', () => {
     const found = files(join(SRC, 'design'), /\.css$/).flatMap((f) => violations(f, COMMON));
     expect(found).toEqual([]);

@@ -1,4 +1,6 @@
-/* Phase 0: deliberately plain. Real styling (CSS modules, YNAB-density tokens) starts in Phase 3. */
+/* Global page frame: the window, the 32px custom title bar and #root. Components style themselves
+   (CSS Modules over theme tokens, ADR 0004); the legacy variables below are only fallbacks for the
+   instant before a theme is applied. */
 
 :root {
   --bg: #f3f3f3;
@@ -70,8 +72,12 @@ body {
   flex: 1;
   display: flex;
   align-items: center;
+  overflow: hidden;
   padding-left: 12px;
-  font-size: 12px;
+  font-family: var(--t-font-ui, inherit);
+  font-size: var(--t-size-caption, 12px);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Native title bar mode: Windows draws the caption, so hide ours. */
@@ -80,68 +86,10 @@ html.native-titlebar .titlebar {
 }
 
 a {
-  color: var(--accent);
+  color: var(--c-link, var(--accent));
 }
 
-.home {
-  padding: 24px;
-}
-
-.spike {
-  padding: 12px 16px 24px;
-}
-
-.spike nav {
-  display: flex;
-  gap: 4px;
-  margin-bottom: 12px;
-  flex-wrap: wrap;
-}
-
-.spike nav button[aria-pressed='true'] {
-  font-weight: 700;
-  outline: 2px solid var(--accent);
-}
-
-.spike section {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  padding: 12px;
-  margin-bottom: 12px;
-}
-
-.spike h2 {
-  margin: 0 0 8px;
-  font-size: 16px;
-}
-
-.spike .controls {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin: 8px 0;
-}
-
-.spike pre {
-  background: var(--bg);
-  border: 1px solid var(--border);
-  padding: 8px;
-  white-space: pre-wrap;
-  font-family: 'Cascadia Mono', Consolas, monospace;
-  font-size: 12px;
-  margin: 8px 0;
-  user-select: text;
-}
-
-.spike .bad {
-  color: var(--bad);
-}
-
-.spike .good {
-  color: var(--good);
-}
-
-/* Grid spike */
+/* 50k-row grid benchmark (src/gallery/bench/GridBenchmark.tsx). */
 .grid-scroll {
   height: 560px;
   overflow: auto;
@@ -198,157 +146,4 @@ a {
 .grid-cell.money {
   text-align: right;
   font-variant-numeric: tabular-nums;
-}
-
-/* Phase 2 plan screens: functional only; Phase 3 replaces this with the design system. */
-.plan-home,
-.plan-view {
-  padding: 16px 20px 32px;
-}
-
-.plan-home section,
-.panel {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  padding: 12px;
-  margin-bottom: 12px;
-}
-
-.plan-home h2,
-.panel h2 {
-  margin: 0 0 8px;
-  font-size: 15px;
-}
-
-.row {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  flex-wrap: wrap;
-  margin: 6px 0;
-}
-
-.muted {
-  opacity: 0.65;
-}
-
-.small {
-  font-size: 12px;
-}
-
-.bad {
-  color: var(--bad);
-}
-
-.recent {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-.recent li {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  padding: 2px 0;
-}
-
-button.link {
-  background: none;
-  border: none;
-  padding: 0;
-  color: var(--accent);
-  cursor: pointer;
-  text-align: left;
-}
-
-.plan-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.month-bar {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  margin: 8px 0 12px;
-}
-
-.month-bar .rta {
-  margin-left: 12px;
-}
-
-.plan-columns {
-  display: flex;
-  gap: 12px;
-  align-items: flex-start;
-  flex-wrap: wrap;
-}
-
-.plan-columns .grow {
-  flex: 1;
-  min-width: 420px;
-}
-
-.table {
-  border-collapse: collapse;
-  width: 100%;
-  font-size: 13px;
-}
-
-.table td,
-.table th {
-  padding: 0 8px;
-  height: 30px;
-  border-bottom: 1px solid var(--border);
-  text-align: left;
-}
-
-.table .num {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-}
-
-.table .group-row th {
-  background: var(--bg);
-  font-weight: 600;
-}
-
-.money-input {
-  width: 110px;
-  text-align: right;
-  font: inherit;
-  font-variant-numeric: tabular-nums;
-  background: transparent;
-  border: 1px solid transparent;
-  padding: 2px 4px;
-  color: inherit;
-}
-
-.money-input:hover,
-.money-input:focus {
-  border-color: var(--accent);
-  background: var(--surface);
-}
-
-.toast {
-  position: fixed;
-  left: 50%;
-  bottom: 20px;
-  transform: translateX(-50%);
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  max-width: min(640px, 90vw);
-  padding: 8px 12px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  box-shadow: 0 4px 16px rgb(0 0 0 / 0.2);
-}
-
-.toast.error {
-  border-color: var(--bad);
 }

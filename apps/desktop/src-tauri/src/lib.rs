@@ -1,7 +1,11 @@
 mod commands;
-mod spike;
+mod diagnostics;
+mod paths;
+mod startup;
+mod titlebar;
+mod window_state;
 
-use tauri::Manager;
+use tauri::{Manager, WindowEvent};
 use tauri_plugin_frame::WebviewWindowExt;
 
 /// Title bar height and caption-button width in CSS px. Must match `.titlebar` in app.css,
@@ -10,7 +14,9 @@ const TITLEBAR_HEIGHT: u32 = 32;
 const CAPTION_BUTTON_WIDTH: u32 = 46;
 
 pub fn run() {
-    let main_started_ms = spike::launch::ms_since_process_start();
+    let main_started_ms = diagnostics::ms_since_process_start();
+    paths::redirect_webview_profile();
+    let startup_plan = startup::plan_path_from_args(std::env::args_os().skip(1));
 
     tauri::Builder::default()
         .plugin(
@@ -21,9 +27,10 @@ pub fn run() {
                 .button_width(CAPTION_BUTTON_WIDTH)
                 .build(),
         )
-        .manage(spike::launch::LaunchTiming::new(main_started_ms))
-        .manage(spike::sqlite::SpikeDb::default())
+        .manage(diagnostics::LaunchTiming::new(main_started_ms))
         .manage(commands::PlanState::default())
+        .manage(window_state::WindowTracker::default())
+        .manage(startup::StartupPlan(std::sync::Mutex::new(startup_plan)))
         .invoke_handler(tauri::generate_handler![
             commands::plan_create,
             commands::plan_open,
@@ -39,26 +46,36 @@ pub fn run() {
             commands::pick_plan_path,
             commands::pick_import_zip,
             commands::read_import_file,
-            spike::launch::spike_mark_first_paint,
-            spike::sqlite::spike_sqlite_open,
-            spike::sqlite::spike_sqlite_write,
-            spike::sqlite::spike_sqlite_read,
-            spike::titlebar::spike_get_titlebar_mode,
-            spike::titlebar::spike_set_titlebar_mode,
+            diagnostics::launch_timing,
+            startup::startup_plan_path,
+            titlebar::get_titlebar_mode,
+            titlebar::set_titlebar_mode,
         ])
         .setup(|app| {
             let window = app
                 .get_webview_window("main")
                 .ok_or("main window missing from tauri.conf.json")?;
-            match spike::titlebar::read_mode(app.handle()) {
-                spike::titlebar::TitlebarMode::Custom => {
+            match titlebar::read_mode(app.handle()) {
+                titlebar::TitlebarMode::Custom => {
                     window.create_overlay_titlebar_with_height(TITLEBAR_HEIGHT)?;
                 }
-                spike::titlebar::TitlebarMode::Native => {
+                titlebar::TitlebarMode::Native => {
                     window.set_decorations(true)?;
                 }
             }
+            // The window starts hidden (tauri.conf.json) so it never flashes at the default spot.
+            window_state::restore_and_show(&window);
             Ok(())
+        })
+        .on_window_event(|window, event| {
+            let Some(window) = window.app_handle().get_webview_window(window.label()) else {
+                return;
+            };
+            match event {
+                WindowEvent::Moved(_) | WindowEvent::Resized(_) => window_state::track(&window),
+                WindowEvent::CloseRequested { .. } => window_state::save(&window),
+                _ => {}
+            }
         })
         .build(tauri::generate_context!())
         .expect("error while building HAFB")

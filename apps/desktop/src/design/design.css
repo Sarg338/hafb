@@ -266,10 +266,26 @@
 /* ---------------------------------------------------------------- main + plan */
 
 .hd-main {
+  position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr) var(--inspector-w);
   min-height: 0;
   min-width: 0;
+}
+
+/* The app shell embeds these screens next to its own sidebar: one column, no mockup sidebar. */
+.hd.hd-embedded {
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+}
+
+/* Holder for the shell's inspector resize handle, on the inspector's left edge. */
+.hd-inspector-edge {
+  position: absolute;
+  top: 0;
+  right: var(--inspector-w);
+  bottom: 0;
+  width: 0;
 }
 
 .hd-main.full {

@@ -16,7 +16,8 @@
   color: var(--c-text);
 }
 
-.hafb-root :focus-visible {
+/* Zero specificity: a component that draws its own focus ring (fields draw it on their frame) wins. */
+:where(.hafb-root, #hafb-layer) :where(:focus-visible) {
   outline: var(--s-focus-width) solid var(--c-focus);
   outline-offset: calc(0px - var(--s-focus-width));
   border-radius: var(--s-radius);

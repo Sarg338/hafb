@@ -20,6 +20,7 @@
         "minWidth": 480,
         "minHeight": 360,
         "center": true,
+        "visible": false,
         "decorations": false,
         "backgroundColor": "#f3f3f3"
       }

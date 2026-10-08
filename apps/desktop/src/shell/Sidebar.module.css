@@ -1,0 +1,264 @@
+/* App sidebar: the approved S3.1 sidebar (DESIGN.md "Layout", src/design/design.css .hd-sidebar),
+   rebuilt for the shell on tokens only. The collapsed state is a 56px icon rail. */
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  width: var(--d-sidebar-width);
+  min-height: 0;
+  border-right: var(--s-border-width) solid var(--c-border);
+  background: var(--c-sidebar);
+  color: var(--c-sidebar-text);
+  font-size: var(--t-size-body);
+}
+
+.sidebar.rail {
+  width: 56px;
+}
+
+.top {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin: 10px 10px 6px;
+}
+
+.rail .top {
+  flex-direction: column;
+  margin: 10px 8px 6px;
+}
+
+.planmenu {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: var(--s-radius-large);
+  background: transparent;
+  color: inherit;
+  text-align: left;
+}
+
+.rail .planmenu {
+  flex: none;
+  padding: 4px;
+}
+
+.planmenu:hover {
+  background: var(--c-sidebar-hover);
+}
+
+.mark {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--s-radius-large);
+  background: var(--c-accent);
+  color: var(--c-text-on-accent);
+  font-family: var(--t-font-display);
+  /* The approved 10px lettering, derived from the caption size so a theme can scale it. */
+  font-size: calc(var(--t-size-caption) * 0.8334);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: var(--t-display-tracking);
+}
+
+.planText {
+  min-width: 0;
+}
+
+.planText strong {
+  display: block;
+  overflow: hidden;
+  font-size: var(--t-size-heading);
+  font-weight: var(--t-weight-semibold);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.planText small {
+  display: block;
+  overflow: hidden;
+  color: var(--c-sidebar-muted);
+  font-size: var(--t-size-caption);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chevron {
+  margin-left: auto;
+}
+
+.nav {
+  display: grid;
+  gap: 2px;
+  padding: 4px 10px 10px;
+}
+
+.rail .nav {
+  padding: 4px 8px 10px;
+}
+
+.navitem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: var(--d-row-plan);
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--s-radius);
+  background: transparent;
+  color: inherit;
+  font-size: var(--t-size-nav);
+  text-align: left;
+  text-decoration: none;
+}
+
+.rail .navitem {
+  justify-content: center;
+  padding: 0;
+}
+
+.navitem:hover {
+  background: var(--c-sidebar-hover);
+}
+
+.navitem[aria-current='page'] {
+  background: var(--c-sidebar-selected);
+  font-weight: var(--t-weight-semibold);
+}
+
+.accounts {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 2px 10px 10px;
+  border-top: var(--s-border-width) solid var(--c-border);
+}
+
+.rail .accounts {
+  padding: 2px 8px 10px;
+}
+
+.group {
+  margin-top: 8px;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  height: var(--d-row-register);
+  padding: 0 8px 0 4px;
+  border: 0;
+  border-radius: var(--s-radius);
+  background: transparent;
+  color: var(--c-sidebar-muted);
+  font-size: var(--t-size-caption);
+  font-weight: var(--t-weight-semibold);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.head:hover {
+  background: var(--c-sidebar-hover);
+}
+
+.head .num {
+  margin-left: auto;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.account {
+  display: flex;
+  text-decoration: none;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  height: var(--d-row-register);
+  padding: 0 8px 0 24px;
+  border: 0;
+  border-radius: var(--s-radius);
+  background: transparent;
+  color: inherit;
+  text-align: left;
+}
+
+.account:hover {
+  background: var(--c-sidebar-hover);
+}
+
+.account[aria-current='page'] {
+  background: var(--c-sidebar-selected);
+  font-weight: var(--t-weight-semibold);
+}
+
+.accountName {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.neg {
+  color: var(--c-negative);
+}
+
+.empty {
+  margin: 10px 4px;
+  color: var(--c-sidebar-muted);
+  font-size: var(--t-size-caption);
+}
+
+.footer {
+  display: grid;
+  gap: 2px;
+  margin: 0 10px;
+  padding-top: 6px;
+  border-top: var(--s-border-width) solid var(--c-border);
+}
+
+.rail .footer {
+  margin: 0 8px;
+}
+
+.footer .navitem {
+  width: 100%;
+}
+
+.addaccount {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: var(--d-control);
+  margin: 8px 10px 12px;
+  padding: 0 10px;
+  border: var(--s-border-width) solid var(--c-border-strong);
+  border-radius: var(--s-radius);
+  background: transparent;
+  color: inherit;
+}
+
+.rail .addaccount {
+  justify-content: center;
+  margin: 8px 8px 12px;
+  padding: 0;
+}
+
+.addaccount:hover {
+  background: var(--c-sidebar-hover);
+}

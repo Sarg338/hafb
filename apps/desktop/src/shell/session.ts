@@ -27,6 +27,7 @@ import {
   type PlanData,
   type PlanSettings,
 } from '@hafb/store';
+import { isTauri } from '@tauri-apps/api/core';
 import { makeDate, monthOf, uuidv7Generator, type ISODate, type Month } from '@hafb/shared';
 import { errorMessage, planIpc, type BackupInfo, type PlanInfo, type RecentPlan } from './ipc.ts';
 
@@ -42,6 +43,8 @@ export interface Toast {
   id: number;
   text: string;
   tone: 'info' | 'error';
+  /** The follow-up the toast offers: after an undo, Redo; after a redo, Undo. */
+  action?: 'undo' | 'redo';
 }
 
 export interface OpenPlan {
@@ -51,6 +54,8 @@ export interface OpenPlan {
   timings: LoadTimings;
   month: Month;
   importReport?: ImportReport;
+  /** A plan held only in memory (browser preview): edits are never written anywhere. */
+  inMemory?: boolean;
 }
 
 export interface SessionState {
@@ -113,9 +118,9 @@ class PlanSession {
     this.set({ open: { ...this.state.open, ...patch } });
   }
 
-  notify(text: string, tone: Toast['tone'] = 'info'): void {
+  notify(text: string, tone: Toast['tone'] = 'info', action?: Toast['action']): void {
     this.toastId += 1;
-    this.set({ toast: { id: this.toastId, text, tone } });
+    this.set({ toast: { id: this.toastId, text, tone, ...(action ? { action } : {}) } });
   }
 
   dismissToast(id: number): void {
@@ -125,6 +130,10 @@ class PlanSession {
   /** Run a long operation; errors become an error toast instead of disappearing. */
   private async task(label: string, work: () => Promise<void>): Promise<void> {
     if (this.state.busy) return;
+    if (!isTauri()) {
+      this.notify('Plan files open in the HAFB app. This browser preview only shows sample data.');
+      return;
+    }
     this.set({ busy: label });
     try {
       await work();
@@ -138,6 +147,7 @@ class PlanSession {
   // ---- files -------------------------------------------------------------------------------------
 
   async refreshRecent(): Promise<void> {
+    if (!isTauri()) return;
     try {
       this.set({ recent: await planIpc.recent() });
     } catch (e) {
@@ -211,7 +221,29 @@ class PlanSession {
     });
   }
 
+  /**
+   * Open a plan that lives only in memory (the browser preview of the shell, where no plan files
+   * exist). Commands and undo work; nothing is persisted.
+   */
+  openInMemory(plan: PlanData, label: string): void {
+    const today = todayLocal();
+    this.set({
+      open: {
+        info: { path: label, name: plan.settings.name, schemaVersion: 1, migratedFrom: null, backupPath: null, preMigrationBackupPath: null },
+        plan,
+        history: emptyHistory(),
+        month: monthOf(today),
+        timings: { loadMs: 0, decodeMs: 0, computeMs: 0, transactions: plan.transactions.length },
+        inMemory: true,
+      },
+    });
+  }
+
   close(): Promise<void> {
+    if (this.state.open?.inMemory === true) {
+      this.set({ open: null });
+      return Promise.resolve();
+    }
     return this.task('Closing…', async () => {
       await this.writes;
       await planIpc.close();
@@ -274,20 +306,21 @@ class PlanSession {
     const open = this.state.open;
     if (!open || !canUndo(open.history)) return;
     const label = undoLabel(open.history) ?? '';
-    this.commit(historyUndo(open.history, open.plan), `Undid: ${label}`);
+    this.commit(historyUndo(open.history, open.plan), `Undid: ${label}`, 'redo');
   }
 
   redo(): void {
     const open = this.state.open;
     if (!open || !canRedo(open.history)) return;
     const label = redoLabel(open.history) ?? '';
-    this.commit(historyRedo(open.history, open.plan), `Redid: ${label}`);
+    this.commit(historyRedo(open.history, open.plan), `Redid: ${label}`, 'undo');
   }
 
-  private commit(step: HistoryStep | null, message?: string): void {
+  private commit(step: HistoryStep | null, message?: string, action?: Toast['action']): void {
     if (!step) return;
     this.setOpen({ plan: step.plan, history: step.history });
-    if (message !== undefined) this.notify(message);
+    if (message !== undefined) this.notify(message, 'info', action);
+    if (this.state.open?.inMemory === true) return;
     const log = { sessionId: this.sessionId, createdAt: new Date().toISOString(), ...step.log };
     this.writes = this.writes.then(async () => {
       try {

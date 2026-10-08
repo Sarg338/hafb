@@ -40,7 +40,7 @@ function axisLabel(v: number, fmt: MoneyFormat): string {
 
 const pct = (part: number, whole: number): string => (whole > 0 ? `${(Math.round((part / whole) * 1000) / 10).toFixed(1)}%` : '—');
 
-export function ReflectScreen({ plan, today }: { plan: PlanData; today: ISODate }) {
+export function ReflectScreen({ plan, today, sampleLabel = true }: { plan: PlanData; today: ISODate; /** The mockups label their synthetic data. */ sampleLabel?: boolean }) {
   const [tab, setTab] = useState<Tab>(tabFromHash);
   const [range, setRange] = useState<Range>('last3');
   const fmt = moneyFormat(plan);
@@ -94,7 +94,7 @@ export function ReflectScreen({ plan, today }: { plan: PlanData; today: ISODate 
           <button type="button" className="hd-chip">
             <Icon name="accounts" /> All Accounts
           </button>
-          <span className="rf-sample muted">Sample data</span>
+          {sampleLabel && <span className="rf-sample muted">Sample data</span>}
         </div>
 
         <div className="rf-body" id="rf-panel" role="tabpanel" aria-labelledby={`rf-tab-${tab}`}>

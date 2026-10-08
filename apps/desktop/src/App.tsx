@@ -1,62 +1,62 @@
-import { useEffect, useSyncExternalStore } from 'react';
+import { useEffect } from 'react';
 import { isTauri } from '@tauri-apps/api/core';
-import { spikeIpc } from './spike/ipc.ts';
-import { markFirstPaintOnce } from './spike/launchTiming.ts';
-import { SpikePage } from './spike/SpikePage.tsx';
 import { DesignApp } from './design/DesignApp.tsx';
+import { buildSamplePlan } from './design/sample.ts';
 import { Gallery } from './gallery/Gallery.tsx';
-import { PlanHome } from './plan/PlanHome.tsx';
-import { PlanView } from './plan/PlanView.tsx';
-import { ToastHost } from './plan/ToastHost.tsx';
-import { session } from './plan/session.ts';
+import { appIpc, type LaunchTiming } from './shell/ipc.ts';
+import { useRoute } from './shell/router.ts';
+import { session } from './shell/session.ts';
+import { Shell } from './shell/Shell.tsx';
+import { ConfirmProvider } from './ui/Dialog.tsx';
+import { ToastProvider } from './ui/Toast.tsx';
+import './ui/base.css';
 
-function subscribeToHash(onChange: () => void): () => void {
-  window.addEventListener('hashchange', onChange);
-  return () => {
-    window.removeEventListener('hashchange', onChange);
-  };
+declare global {
+  interface Window {
+    /** Launch timings once the first frame is painted (perf checks and the smoke suite read it). */
+    hafbLaunchTiming?: LaunchTiming;
+  }
 }
 
-function readHash(): string {
-  return window.location.hash;
+/** Once per app start: title bar mode, first-paint timing, and the plan to open. */
+function useStartup(): void {
+  useEffect(() => {
+    if (!isTauri()) {
+      // Browser preview (Vite dev server): no plan files exist, so show the sample household.
+      if (!session.getState().open) session.openInMemory(buildSamplePlan().plan, 'Sample data (browser preview)');
+      return;
+    }
+    appIpc.getTitlebarMode().then(
+      (mode) => {
+        document.documentElement.classList.toggle('native-titlebar', mode === 'native');
+      },
+      () => undefined,
+    );
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        appIpc.launchTiming().then(
+          (t) => {
+            window.hafbLaunchTiming = t;
+          },
+          () => undefined,
+        );
+      });
+    });
+    appIpc.startupPlanPath().then(
+      (path) => {
+        if (path !== null) void session.openPath(path);
+      },
+      () => undefined,
+    );
+  }, []);
 }
 
 export function App() {
-  const hash = useSyncExternalStore(subscribeToHash, readHash);
-
-  useEffect(() => {
-    markFirstPaintOnce();
-    if (isTauri()) {
-      spikeIpc.getTitlebarMode().then(
-        (mode) => {
-          document.documentElement.classList.toggle('native-titlebar', mode === 'native');
-        },
-        () => undefined,
-      );
-    }
-  }, []);
-
-  if (hash.startsWith('#/gallery')) {
-    return <Gallery />;
-  }
-
-  if (hash.startsWith('#/design')) {
-    return <DesignApp />;
-  }
-
-  if (hash.startsWith('#/spike')) {
-    return <SpikePage />;
-  }
-
-  return <PlanScreens />;
-}
-
-function PlanScreens() {
-  const state = useSyncExternalStore(session.subscribe, session.getState);
+  const route = useRoute();
+  useStartup();
   return (
-    <>
-      {state.open ? <PlanView open={state.open} /> : <PlanHome />}
-      <ToastHost toast={state.toast} />
-    </>
+    <ToastProvider>
+      <ConfirmProvider>{route.kind === 'dev' ? route.page === 'design' ? <DesignApp /> : <Gallery /> : <Shell />}</ConfirmProvider>
+    </ToastProvider>
   );
 }

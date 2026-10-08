@@ -1,0 +1,32 @@
+/* A 7px hit area straddling the panel edge; the visible line appears on hover, drag and focus. */
+.splitter {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 2;
+  width: 7px;
+  margin-left: -3px;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.splitter::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 3px;
+  width: var(--s-focus-width);
+  background: transparent;
+  transition: background-color var(--m-fast) var(--m-ease);
+}
+
+.splitter:hover::after,
+.splitter:active::after,
+.splitter:focus-visible::after {
+  background: var(--c-focus);
+}
+
+.splitter:focus-visible {
+  outline: none;
+}

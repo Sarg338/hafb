@@ -1,3 +1,6 @@
+//! Launch timing for the 1.5 s launch budget (CLAUDE.md §8): process start → `main` → first
+//! painted frame. The UI marks its first paint once; the numbers stay readable for perf checks.
+
 use serde::Serialize;
 use std::sync::Mutex;
 use tauri::State;
@@ -25,7 +28,7 @@ pub struct LaunchInfo {
 
 /// Called by the UI once, right after its first painted frame. Later calls return the first value.
 #[tauri::command]
-pub async fn spike_mark_first_paint(timing: State<'_, LaunchTiming>) -> Result<LaunchInfo, String> {
+pub async fn launch_timing(timing: State<'_, LaunchTiming>) -> Result<LaunchInfo, String> {
     let mut first_paint = timing.first_paint_ms.lock().map_err(|e| e.to_string())?;
     if first_paint.is_none() {
         *first_paint = ms_since_process_start();
@@ -37,7 +40,7 @@ pub async fn spike_mark_first_paint(timing: State<'_, LaunchTiming>) -> Result<L
 }
 
 /// Milliseconds since the OS created this process (not since `main`), so the number
-/// includes loader and runtime start-up and is comparable with the WinUI spike.
+/// includes loader and runtime start-up.
 #[cfg(windows)]
 pub fn ms_since_process_start() -> Option<f64> {
     use windows_sys::Win32::Foundation::FILETIME;

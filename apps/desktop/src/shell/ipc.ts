@@ -61,3 +61,21 @@ export const planIpc = {
   pickImportZip: () => invoke<string | null>('pick_import_zip'),
   readImportFile: (path: string) => invoke<ArrayBuffer>('read_import_file', { path }),
 };
+
+export type TitlebarMode = 'custom' | 'native';
+
+export interface LaunchTiming {
+  processToMainMs: number | null;
+  processToFirstPaintMs: number | null;
+}
+
+/** App-level commands (src-tauri/src/{startup,titlebar,diagnostics}.rs). */
+export const appIpc = {
+  /** The plan passed as `--open <path>` (or a bare .hafb path) at launch; returned once. */
+  startupPlanPath: () => invoke<string | null>('startup_plan_path'),
+  getTitlebarMode: () => invoke<TitlebarMode>('get_titlebar_mode'),
+  /** Saves the choice and restarts the app. */
+  setTitlebarMode: (mode: TitlebarMode) => invoke<null>('set_titlebar_mode', { mode }),
+  /** Marks first paint (first call wins) and returns the launch timings. */
+  launchTiming: () => invoke<LaunchTiming>('launch_timing'),
+};

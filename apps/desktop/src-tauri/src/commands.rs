@@ -9,7 +9,7 @@ use hafb_store::{OpenOptions, OpenReport, Plan, PlanInfo};
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
-use tauri::{AppHandle, Manager, State, WebviewWindow};
+use tauri::{AppHandle, State, WebviewWindow};
 
 /// Imports larger than this are refused (a YNAB export of a decade of data is a few MB).
 const MAX_IMPORT_BYTES: u64 = 200 * 1024 * 1024;
@@ -46,9 +46,7 @@ fn not_open() -> StoreError {
 }
 
 fn data_dir(app: &AppHandle) -> Result<PathBuf> {
-    app.path()
-        .app_local_data_dir()
-        .map_err(|e| StoreError::new(ErrorKind::Io, format!("No local data folder: {e}")))
+    crate::paths::app_data_dir(app).ok_or_else(|| StoreError::new(ErrorKind::Io, "No local data folder".to_owned()))
 }
 
 fn recent_file(app: &AppHandle) -> Result<PathBuf> {
