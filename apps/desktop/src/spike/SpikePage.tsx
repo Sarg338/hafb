@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { GridSpike } from './GridSpike.tsx';
+import { GridSpike } from '../gallery/bench/GridBenchmark.tsx';
 import { LaunchSpike } from './LaunchSpike.tsx';
 import { SqliteSpike } from './SqliteSpike.tsx';
 import { TitlebarSpike } from './TitlebarSpike.tsx';
