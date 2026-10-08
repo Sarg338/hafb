@@ -196,6 +196,9 @@ importers:
       '@hafb/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      '@hafb/store':
+        specifier: workspace:*
+        version: link:../../packages/store
       '@tanstack/react-table':
         specifier: 9.2.6
         version: 9.2.6(react-dom@19.3.0(react@19.3.0))(react@19.3.0)

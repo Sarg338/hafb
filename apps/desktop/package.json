@@ -13,6 +13,7 @@
   "dependencies": {
     "@hafb/engine": "workspace:*",
     "@hafb/shared": "workspace:*",
+    "@hafb/store": "workspace:*",
     "@tanstack/react-table": "9.2.6",
     "@tanstack/react-virtual": "3.14.13",
     "@tauri-apps/api": "2.12.1",
