@@ -61,16 +61,17 @@ hafb/
       test/
         fixtures/            ← YNAB export CSVs + expected outputs (golden tests)
     shared/                  ← types shared between engine, UI, and Rust bindings
+    store/                   ← pure TS: PlanData records, row codec, commands, undo, YNAB import (ADR 0002)
   apps/
     desktop/                 ← Tauri app
       src/                   ← React UI
-      src-tauri/             ← Rust: window, SQLite commands, file dialogs
+      src-tauri/             ← Rust: window, generic SQLite store + `hafb-store` CLI, file dialogs
         migrations/          ← 0001_init.sql, 0002_... never edited after merge
   scripts/
     import-ynab.ts           ← YNAB export → HAFB SQLite (also exposed in-app)
 ```
 
-Monorepo with pnpm workspaces. `packages/engine` must never import from `apps/`.
+Monorepo with pnpm workspaces. `packages/*` must never import from `apps/`. `packages/store` may import the engine; the engine never imports the store.
 
 ---
 
@@ -90,7 +91,7 @@ Entities (table ≈ TS type ≈ Rust struct; keep them in lockstep via `packages
     - **Closed.**
   - Loan accounts also carry: interest rate (bps), escrow amount, fees, minimum payment, original principal, payment schedule, `paired_category_id` (optional; one loan per category).
   - Transactions in cash-type accounts are created **cleared** by default.
-- **CategoryGroup:** name, hidden, sort order, `is_system`.
+- **CategoryGroup:** name, hidden, sort order, `system_kind` (`inflow` | `creditCardPayments` | `hidden`; NULL for user groups; ADR 0002 §3).
   - The system groups are *Credit Card Payments* and *Hidden Categories*, plus the implicit *Inflow* group that holds *Ready to Assign*.
 - **Category:** group, name, hidden, note, sort order, `credit_card_account_id` (set only for CC payment categories).
 - **Target:** one per category, cadence × behavior (§5.4).
@@ -109,7 +110,7 @@ Entities (table ≈ TS type ≈ Rust struct; keep them in lockstep via `packages
   - Import: import id (FITID or synthetic), matched-import metadata (original bank payee/memo as imported), `isStartingBalance` (YNAB payee "Starting Balance").
   - Soft delete: deleted.
 - **Subtransaction:** parent transaction, category, payee (optional override), memo, amount, transfer leg.
-  - Invariant: the parent amount must equal the sum of its subtransactions. Enforced in the engine and by a DB trigger.
+  - Invariant: the parent amount must equal the sum of its subtransactions, and the parent has no category. Enforced in the engine and by the schema's `split_violations` view, which the store checks before every commit (a trigger can't be deferred; ADR 0002 §3).
 - **ScheduledTransaction:** everything a Transaction has, plus a frequency and `next_date`.
   - Frequencies: `never`, `daily`, `weekly`, `everyOtherWeek`, `twiceAMonth`, `every4Weeks`, `monthly`, `everyOtherMonth`, `every3Months`, `every4Months`, `twiceAYear`, `yearly`, `everyOtherYear`.
   - Scheduled sub-transactions too. A day-of-month past a month's end clamps to the last day.
@@ -407,7 +408,8 @@ pnpm test             # vitest, all packages
 pnpm test:engine      # engine only, fast — run before every commit
 pnpm lint             # eslint + tsc --noEmit + cargo clippy
 pnpm build            # tauri build → apps/desktop/src-tauri/target/release/bundle/
-pnpm import:ynab <zip> <out.hafb>   # not wired yet (Phase 2)
+pnpm import:ynab <zip> <out.hafb>   # YNAB export → plan file (--today, --name, --account-type "Name=type", --force)
+pnpm test:rust        # cargo tests: store crate + app
 ```
 
 - pnpm 12's `minimumReleaseAge` supply-chain gate is on. If an install trips it, pin an older version; don't add exclusions.

@@ -159,3 +159,24 @@ interface RowChanges {
 - Adding a column is a migration, a codec change, and a fixture field. The codec round-trip test fails until all three agree.
 - The Rust store stays about the same size as the schema grows, because it is generic.
 - The positional load format is about half the size of keyed JSON for transactions. If 20k-transaction loads miss the 300 ms budget on Sarg's PC, the next step is a binary format (MessagePack) behind the same `LoadedTables` type.
+
+## 10. Amendments from the build (2026-10-08)
+
+- **Store layout:** the generic store is its own crate, `apps/desktop/src-tauri/store` (`hafb-store`), with no Tauri dependency, plus the `hafb-store` CLI. A binary inside the app crate would be picked up by Tauri's bundler and shipped in the MSI.
+- **File identity:** migration 1 sets `PRAGMA application_id` to "HAFB". Open checks it first and refuses any other SQLite file as `NotAPlan`, leaving it untouched.
+- **Durability:** `synchronous = FULL`. Every commit survives a power loss.
+- **Upserts carry whole rows.** SQLite checks NOT NULL before it reaches ON CONFLICT. Each upsert row includes every key column, and each delete key is exactly the key columns.
+- **Unique columns in one batch:** upserts run before deletes. A change set must not remove one row and add another with the same unique value (`credit_card_account_id`, a payee's `transfer_account_id`, `system_kind`, `builtin`, an import id) in the same batch; no command does.
+- **Collection order:** collections are kept in key order, so undo restores a plan exactly. With UUIDv7 keys that is entry order, which the engine uses to break ties. After a load the app calls `normalizePlan(decodePlan(tables))`.
+- **Ordered ids:** imports and the app use `uuidv7Generator`, which keeps ids made in the same millisecond in creation order.
+- **Negative zero:** `minor(-0)` is 0, so a record never differs from what SQLite reads back.
+- **Backups:**
+  - Stamps are UTC: `open-20261008-123456-789Z.hafb`.
+  - `open-` and `restore-` copies keep the newest 10 each; `before-migration-` copies are never pruned.
+  - `plan_restore` only accepts a file from this plan's backup folder.
+- **Command behaviour choices** (S2.3; revisit against YNAB in Phase 4):
+  - Deleting a category moves every month's assigned money to the replacement, so Ready to Assign doesn't change.
+  - A split-line transfer's other leg changes only through its split.
+  - New transactions are cleared by default only in `cash`-type accounts. Starting balances are always cleared.
+  - Closing an account requires a zero balance.
+- **Scripts** run on Node 22 with `--experimental-strip-types` (no build step). Store sources use only erasable TypeScript syntax: no enums or parameter properties.
