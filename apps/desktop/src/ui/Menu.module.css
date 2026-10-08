@@ -80,6 +80,16 @@
   font-size: var(--t-size-caption);
 }
 
+.detail {
+  margin-left: 24px;
+  font-family: var(--t-font-money);
+  font-variant-numeric: tabular-nums;
+}
+
+.item[aria-disabled='true'] .detail {
+  color: var(--c-text-subtle);
+}
+
 .separator {
   height: var(--s-border-width);
   margin: 4px 0;

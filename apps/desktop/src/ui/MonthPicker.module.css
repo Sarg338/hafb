@@ -1,0 +1,61 @@
+/* The Plan's month picker: the Calendar's look (selected = accent, current = accent ring). */
+
+.picker {
+  padding: 10px 10px 8px;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.title {
+  font-size: var(--t-size-heading);
+  font-weight: var(--t-weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+.grid {
+  display: grid;
+  gap: 2px;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: repeat(3, 64px);
+  gap: 2px;
+}
+
+.month {
+  height: var(--d-control);
+  border: var(--s-border-width) solid transparent;
+  border-radius: var(--s-radius);
+  background: transparent;
+  color: var(--c-text);
+  font-size: var(--t-size-body);
+  cursor: pointer;
+}
+
+.month:hover:not(:disabled) {
+  background: var(--c-hover);
+}
+
+.month:disabled {
+  color: var(--c-text-subtle);
+  cursor: default;
+}
+
+.current {
+  border-color: var(--c-accent);
+  font-weight: var(--t-weight-semibold);
+}
+
+.selected,
+.selected:hover:not(:disabled) {
+  background: var(--c-accent);
+  color: var(--c-text-on-accent);
+  font-weight: var(--t-weight-semibold);
+}

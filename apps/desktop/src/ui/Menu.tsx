@@ -27,6 +27,8 @@ export interface MenuItem {
   icon?: IconName;
   /** Shown right-aligned, e.g. "Ctrl+Z". */
   shortcut?: string;
+  /** A value shown at the end of the row (an amount), read as part of the item's name. */
+  detail?: string;
   disabled?: boolean;
   /** Destructive action (Delete). */
   danger?: boolean;
@@ -112,6 +114,7 @@ export function MenuList({ items, onSelect, onClose, id, label, labelledBy, init
               {checkable ? item.checked === true && <Icon name="checkmark" /> : item.icon && <Icon name={item.icon} />}
             </span>
             <span className={styles.label}>{item.label}</span>
+            {item.detail !== undefined && <span className={styles.detail}>{item.detail}</span>}
             {item.shortcut !== undefined && <span className={styles.shortcut}>{item.shortcut}</span>}
           </li>
         );

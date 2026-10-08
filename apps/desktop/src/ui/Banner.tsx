@@ -10,7 +10,7 @@ export function RtaBanner({ state, amount, action }: { state: RtaState; amount: 
   return (
     <div className={styles.rta} data-state={state} role="status" aria-live="polite">
       <div>
-        <div className={styles.amount}>{amount}</div>
+        <div className={styles.amount} data-part="rta-amount">{amount}</div>
         <div className={styles.caption}>{caption}</div>
       </div>
       {action}

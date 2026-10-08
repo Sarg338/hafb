@@ -59,9 +59,15 @@ export interface DataGridProps<T> {
   /** Leading checkbox column for row selection. */
   selectable?: boolean;
   defaultSelected?: Iterable<string>;
+  /** Controlled selection: when this changes, the grid's selection follows it. */
+  selected?: ReadonlySet<string>;
   onSelectionChange?: (selected: ReadonlySet<string>) => void;
   defaultCollapsed?: Iterable<string>;
+  /** Controlled collapsed groups (collapse all / expand all from outside the grid). */
+  collapsed?: ReadonlySet<string>;
   onCollapsedChange?: (collapsed: ReadonlySet<string>) => void;
+  /** Columns where a single click starts editing (the Plan's Assigned column, as in YNAB). */
+  editOnClick?: readonly string[];
   /** Column width overrides (persist them with onColumnWidthsChange). */
   columnWidths?: ColumnWidths;
   onColumnWidthsChange?: (widths: Record<string, number>) => void;
@@ -208,7 +214,15 @@ export function DataGrid<T>(props: DataGridProps<T>) {
 
   // ---- state -----------------------------------------------------------------------------------
   const [selection, setSelection] = useState<SelectionState>(() => ({ selected: new Set(props.defaultSelected ?? []), anchor: null }));
-  const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(() => new Set(props.defaultCollapsed ?? []));
+  const [ownCollapsed, setCollapsed] = useState<ReadonlySet<string>>(() => new Set(props.defaultCollapsed ?? []));
+  const collapsed = props.collapsed ?? ownCollapsed;
+  // Controlled selection: adopt a new outside value (the anchor resets).
+  const selectedProp = props.selected;
+  const [adopted, setAdopted] = useState(selectedProp);
+  if (selectedProp !== adopted) {
+    setAdopted(selectedProp);
+    if (selectedProp !== undefined && selectedProp !== selection.selected) setSelection({ selected: selectedProp, anchor: null });
+  }
   const [ownWidths, setOwnWidths] = useState<ColumnWidths>({});
   const widths = props.columnWidths ?? ownWidths;
   const [active, setActive] = useState<CellRef | null>(initialActive ?? null);
@@ -367,6 +381,25 @@ export function DataGrid<T>(props: DataGridProps<T>) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusTick]);
 
+  // The active row went away (its group collapsed, a filter hid it, it was deleted): move to its
+  // group row, or the nearest row, and keep keyboard focus in the grid if it was there.
+  useEffect(() => {
+    if (!active || rowById.has(active.rowId)) return;
+    const hadFocus = document.activeElement === document.body || (scrollEl.current?.contains(document.activeElement) ?? false);
+    const source = rows.find((r) => r.id === active.rowId);
+    const group = source?.groupId !== undefined ? rowById.get(source.groupId) : undefined;
+    const fallback = group?.row.id ?? visible[0]?.row.id;
+    if (fallback === undefined) {
+      setActive(null);
+      return;
+    }
+    const column = columnIds.includes(active.columnId) && group === undefined ? active.columnId : (columns[0]?.id ?? active.columnId);
+    setActive({ rowId: fallback, columnId: column });
+    setEditing(null);
+    if (hadFocus) focusActive();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rowById]);
+
   // Programmatic moves (a new row to fill in after "save and add another").
   const requestKey = props.request?.key;
   useEffect(() => {
@@ -460,6 +493,11 @@ export function DataGrid<T>(props: DataGridProps<T>) {
       }
     }
     setActive(cell);
+    if (props.editOnClick?.includes(cell.columnId) === true && !e.shiftKey && !e.ctrlKey && !e.metaKey && isEditable(cell.rowId, cell.columnId)) {
+      e.preventDefault();
+      setEditing({ cell, seed: undefined });
+      return;
+    }
     // Keep focus on the cell element, not on inner controls (checkbox, chevron).
     if (e.shiftKey) e.preventDefault();
     focusActive();
