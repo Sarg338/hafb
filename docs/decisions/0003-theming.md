@@ -61,8 +61,14 @@ Themes are skins, not layouts.
 **How this is kept true:**
 - S3.2 builds every component against shape, type and density tokens as well as colour. No component hard-codes a radius, font or rule style.
 - The theme test extends to the new token groups:
-  - Text at least 12 px.
+  - Text at least 11 px. The approved look uses 11.5 px for status lines and column headers.
   - Rows at least 28 px.
   - Focus outline at least 2 px.
   - Contrast as before.
-- **S3.2 exit check:** a rough **Till Roll proof theme** built *only* from tokens plus an ornament sheet, with no component edits. If the proof needs a component change, the contract is wrong and gets fixed before more screens are built on it.
+- **Scope decided by Sarg (2026-10-08): "do not change the current look or add new ones. Just make it technically feasible in the future."** So:
+  - No new theme ships.
+  - Every token defaults to the approved S3.1 values.
+- **Feasibility proof:**
+  - A test-only fixture theme (never shipped, never selectable) sets every type, shape, density and ornament token to a different value.
+  - Tests check that the components read those tokens.
+  - A source scan rejects hard-coded colours, font families, radii and rule styles in component CSS.
