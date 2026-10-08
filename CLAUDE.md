@@ -32,7 +32,7 @@ This file is the durable source of truth for the project. Read it fully before d
 - **Grid:** TanStack Table for the register and budget sheet. Virtualized. Must handle 50k+ transactions without jank.
 - **Storage:** SQLite via `tauri-plugin-sql` (sqlx under the hood) **or** `rusqlite` behind Tauri commands. Spike decides. WAL mode. Migrations via numbered SQL files, applied on open, never edited after shipping.
 - **Budget engine:** Pure TypeScript package (`packages/engine`), zero dependencies on Tauri/DOM. It takes a snapshot of data in, returns computed budget state out. This is what gets tested exhaustively, and it is what makes a future Android/web port possible.
-- **Tests:** Vitest for engine + UI logic. Playwright (via Tauri's WebDriver support) for a small smoke suite. Rust: `cargo test` for commands.
+- **Tests:** Vitest for engine + UI logic. A Playwright smoke suite drives the real release app over WebView2's DevTools port (`playwright-core`, ADR 0005; `pnpm smoke`). Rust: `cargo test` for commands.
 - **Packaging:** Tauri bundler → `.msi` and portable `.exe`. Code signing is out of scope for now.
 
 **Rejected alternatives (and why):**
@@ -390,7 +390,12 @@ Mark phase status here when it changes:
 - Phase 0: done. Validated on Sarg's machine 2026-10-08 (ADR 0001 §7). The spike screens (`apps/desktop/src/spike/`, `src-tauri/src/spike/`) stay until S3.3 replaces them.
 - Phase 1: done, signed off by Sarg 2026-10-08. Verified against two real YNAB sources (budget-math §12): the public export (98.4% exact, every regular category exact) and Sarg's YNAB trial plan (every value YNAB showed matches after 9 rule corrections; mortgage interest within $0.50). Age of Money and the weekly-target rule were confirmed by follow-up checks. Fresh Start was confirmed too. Remaining open items are in budget-math §13: mortgage interest cents, the public sample's converted card, Credit Card Interest (rolling out) and recurrence edge cases.
 - Phase 2: done, signed off by Sarg 2026-10-08 (ADR 0002). Tests: 537 TS + 25 Rust. Validated by driving the release build on Sarg's PC: import, edit, undo/redo, reopen, second-window lock, backup restore, save a copy, new plan; the empty `-wal` left after quitting was found and fixed. Carried into Phase 3: replace the browser `confirm()` box with an in-app dialog.
-- Phase 3: in progress. S3.1 mockups are built at `#/design`, with the spec in `DESIGN.md` and themes as data (ADR 0003). S3.1 approved by Sarg 2026-10-08. S3.2 (component library, `#/gallery`, ADR 0004) is built and checked on this machine; next is S3.3, the app shell. Themes can be whole-UI skins (colour, type, shape, density, ornament) over a fixed layout (ADR 0003 amendment). Only the plumbing ships: the approved look stays and no new themes are added until Sarg asks.
+- Phase 3: in progress. S3.1 mockups are built at `#/design`, with the spec in `DESIGN.md` and themes as data (ADR 0003). All five sprints are built and validated on Sarg's PC; waiting for Sarg's sign-off.
+  - S3.1 was approved by Sarg on 2026-10-08.
+  - S3.2: components in `src/ui` with the gallery at `#/gallery` (ADR 0004).
+  - S3.3: the app shell in `src/shell`, which replaced the spike and Phase 2 screens.
+  - S3.4: `DataGrid`; its 50k-row benchmark missed 0 frames in WebView2.
+  - S3.5: the shortcut registry with the `?` overlay, error surfacing, and the `pnpm smoke` end-to-end suite (ADR 0005). Themes can be whole-UI skins (colour, type, shape, density, ornament) over a fixed layout (ADR 0003 amendment). Only the plumbing ships: the approved look stays and no new themes are added until Sarg asks.
 - Phase 4: todo
 - Phase 5: todo
 - Phase 6: todo
@@ -410,6 +415,7 @@ pnpm lint             # eslint + tsc --noEmit + cargo clippy
 pnpm build            # tauri build → apps/desktop/src-tauri/target/release/bundle/
 pnpm import:ynab <zip> <out.hafb>   # YNAB export → plan file (--today, --name, --account-type "Name=type", --force)
 pnpm test:rust        # cargo tests: store crate + app
+pnpm smoke            # end-to-end smoke tests on the release app (run pnpm build first; or pnpm smoke:build)
 ```
 
 - pnpm 12's `minimumReleaseAge` supply-chain gate is on. If an install trips it, pin an older version; don't add exclusions.

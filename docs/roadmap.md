@@ -111,7 +111,20 @@ The 2026-10-08 research (YNAB What's New and help center) found that CLAUDE.md w
 
 **Goal:** a cohesive, Windows-native design language and the reusable pieces every screen is built from, *before* building screens.
 
-**Status (2026-10-08):** S3.1 **approved by Sarg** (all Phase 3 design changes approved). S3.2 is built: the component library is in `src/ui`, the gallery at `#/gallery`, and styling uses CSS Modules (ADR 0004). Whole-UI theming is in place as plumbing only: a test fixture and a source scan prove it, and the S3.1 mockups are still pixel-identical.
+**Status (2026-10-08):** every Phase 3 sprint is built and validated on Sarg's PC by driving the release build. Phase 3 is waiting for Sarg's sign-off.
+- **S3.3:**
+  - The app shell replaces the Phase 0 spike and Phase 2 screens: welcome screen, sidebar with plan menu and rail, routing, resizable inspector, prefs, theme switching (Match Windows follows contrast themes too), window title, window state restore, `--open`.
+  - The approved S3.1 screens render the real plan.
+  - Snap Layouts flyout confirmed on the custom title bar.
+- **S3.4:** `DataGrid` (TanStack Table + Virtual).
+  - The 50k-row benchmark in the real WebView2 missed 0 frames, both for steady scrolling (600 frames) and a fling through all rows (301 frames).
+  - Windows UI Automation exposes each cell as a named data item with its row and column, which is what Narrator reads.
+- **S3.5:**
+  - Scoped shortcut registry with the `?` overlay and an on/off switch.
+  - Route focus and skip link; error boundaries and global error toasts.
+  - `pnpm smoke`: 9 end-to-end tests on the release app, all passing. Launch to first paint took 812 ms.
+  - The smoke suite connects Playwright over WebView2's DevTools port instead of tauri-driver (ADR 0005).
+- **Earlier:** S3.1 **approved by Sarg** (all Phase 3 design changes approved). S3.2 is built: the component library is in `src/ui`, the gallery at `#/gallery`, and styling uses CSS Modules (ADR 0004). Whole-UI theming is in place as plumbing only: a test fixture and a source scan prove it, and the S3.1 mockups are still pixel-identical.
 - **Checked in the batched capture:** every gallery section in light, dark and high contrast, and at 150% and 200% scale.
 - **Checked in the real app** by driving the release build: money math, date keys, the category picker, menus and context menu by keyboard, and the dialog's focus return.
 - **Bugs fixed from those checks:**

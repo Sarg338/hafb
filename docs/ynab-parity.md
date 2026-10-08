@@ -224,7 +224,7 @@ A row is `done` only after Sarg validates it on hardware. Rows whose engine half
 | PL-03 | Templates: bundled category sets; pick categories to import; never overwrite | — | S7.2 | todo |
 | PL-04 | Fresh Start (archive + new plan, §5.14; verify starting-balance rule) | S1.5 | S7.2 | in-progress |
 | PL-05 | Settings: currency & decimals, number/date format, first month | S1.1 | S7.1 | in-progress |
-| PL-06 | Settings: theme (light/dark/system/high contrast), font scale | — | S7.1 | todo |
+| PL-06 | Settings: theme (light/dark/system/high contrast), font scale | — | S7.1 | in-progress |
 | PL-07 | Settings: default account, data folder, shortcuts on/off | — | S7.1 | todo |
 | PL-08 | Template sharing by link; YNAB Together; referrals; subscriptions | — | — | wontfix (server) |
 
@@ -234,8 +234,8 @@ A row is `done` only after Sarg validates it on hardware. Rows whose engine half
 |---|---|---|---|---|
 | K-01 | Undo Ctrl+Z; redo Ctrl+Shift+Z (and Ctrl+Y) with descriptive toast | S2.3 | S4.8 | in-progress |
 | K-02 | Every published YNAB shortcut ([list](https://support.ynab.com/en_us/keyboard-shortcuts-Skw9Xp9A9)) | — | S7.3 | todo |
-| K-03 | `?` shortcut overlay; hints in menus and tooltips; disable toggle | — | S3.5 / S7.3 | todo |
-| X-01 | Custom title bar with Snap Layouts; native fallback | — | Phase 0 ✅ / S3.3 | in-progress |
+| K-03 | `?` shortcut overlay; hints in menus and tooltips; disable toggle | — | S3.5 / S7.3 | in-progress |
+| X-01 | Custom title bar with Snap Layouts; native fallback | — | Phase 0 ✅ / S3.3 | done |
 | X-02 | High-DPI 100–200%, multi-monitor | — | S7.7 | todo |
 | X-03 | Screen-reader grid semantics, focus visibility, high contrast, reduced motion (WCAG 2.2 AA) | — | S3.4 / S7.4 | todo |
 | X-04 | Onboarding: resumable setup checklist; designed empty states | — | S7.5 | todo |
