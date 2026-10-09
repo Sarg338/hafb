@@ -23,6 +23,7 @@
 - **Thumbnails are made in the webview:** it decodes the image (`createImageBitmap`), draws it at most 96 px on a side on an `OffscreenCanvas`, and stores a JPEG of roughly 10 KB, so the register never decodes full photos while scrolling.
   - Rust needs no image library, so no new dependency and nothing to audit for network calls.
   - A photo whose thumbnail can't be made shows the image icon instead.
+- **Showing images:** the webview shows photo and thumbnail bytes through `blob:` URLs, so the CSP's `img-src` allows `blob:` (still nothing from the network). The smoke test checks that both images actually decode, not just that the elements exist.
 - **Download Image** reuses the export path (ADR 0008): the bytes are saved through Rust's `save_export`, whose allowed extensions now include the image types.
 
 ## Consequences

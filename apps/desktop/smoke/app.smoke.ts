@@ -1791,6 +1791,8 @@ void describe('settings, templates and Fresh Start (Phase 7)', () => {
       await thumb.click();
       const viewer = page.getByRole('dialog').filter({ has: page.getByRole('button', { name: 'Download Image' }) });
       await viewer.locator('img').waitFor();
+      // Decoded, not just present: a CSP without blob: left both images broken.
+      await page.waitForFunction(() => [...document.querySelectorAll('[role=dialog] img, [role=row] button img')].every((i) => i instanceof HTMLImageElement && i.complete && i.naturalWidth > 0), undefined, { timeout: 5000 });
       await viewer.getByRole('button', { name: 'Download Image' }).click();
       await page.waitForTimeout(500);
       assert.ok(existsSync(join(box.exportDir, 'receipt.png')), 'downloaded');
