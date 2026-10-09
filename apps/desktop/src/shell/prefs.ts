@@ -22,6 +22,8 @@ export interface Prefs {
   showProgressBars: boolean;
   /** Hide Amounts: money is masked everywhere until turned off. */
   hideAmounts: boolean;
+  /** Register View → Show running balance (single-account registers). */
+  showRunningBalance: boolean;
   /** Collapsed category groups per plan file path (absent = only Hidden Categories collapsed). */
   collapsedGroups: Record<string, string[]>;
   /** Last route per plan file path, to reopen where the user left off. */
@@ -44,6 +46,7 @@ export const DEFAULT_PREFS: Prefs = {
   shortcutsOn: true,
   showProgressBars: true,
   hideAmounts: false,
+  showRunningBalance: false,
   collapsedGroups: {},
   lastRoute: {},
 };
@@ -80,6 +83,7 @@ export function parsePrefs(text: string | null): Prefs {
     shortcutsOn: raw.shortcutsOn !== false,
     showProgressBars: raw.showProgressBars !== false,
     hideAmounts: raw.hideAmounts === true,
+    showRunningBalance: raw.showRunningBalance === true,
     collapsedGroups,
     lastRoute,
   };

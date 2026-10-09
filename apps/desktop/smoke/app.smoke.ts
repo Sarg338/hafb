@@ -630,3 +630,139 @@ void describe('accounts', () => {
     await link('Test 1 Checking').waitFor();
   });
 });
+
+// ---- S4.5 exit: a month of transactions entered with the keyboard only ---------------------------
+void describe('register', () => {
+  let box: Sandbox;
+  const running: App[] = [];
+  const open = async (): Promise<App> => {
+    const a = await launch(box, ['--open', box.planPath]);
+    running.push(a);
+    return a;
+  };
+  before(() => {
+    box = makeSandbox();
+  });
+  after(async () => {
+    // A failed assertion must not leave the app holding the plan file open.
+    for (const a of running) await a.close().catch(() => undefined);
+    box.cleanup();
+  });
+  const cents = (s: string): number => {
+    const m = /(-?)\$([\d,]+)\.(\d\d)/.exec(s);
+    return m ? (m[1] === '-' ? -1 : 1) * (Number((m[2] ?? '0').replace(/,/g, '')) * 100 + Number(m[3])) : 0;
+  };
+  /** "12.3" → 1230: what was typed into an amount field. */
+  const typed = (s: string | undefined): number => {
+    const [whole = '0', frac = ''] = (s ?? '0').split('.');
+    return Number(whole) * 100 + Number(frac.padEnd(2, '0'));
+  };
+  // Payee and category are typed, then Enter picks the first match (or creates the payee).
+  const MONTH: { date: string; payee: string; category: string; memo: string; out?: string; in?: string }[] = [
+    { date: '09/01/2026', payee: 'Acme Logistics', category: 'Ready to Assign', memo: 'Paycheck', in: '2640' },
+    { date: '09/03/2026', payee: 'Corner Bakery', category: 'Groceries', memo: 'bread', out: '12.34' },
+    { date: '09/07/2026', payee: 'Metro Water', category: 'Water', memo: '', out: '61.2' },
+    { date: '09/12/2026', payee: 'Cinema 8', category: 'Entertainment', memo: 'matinee', out: '18' },
+    { date: '09/18/2026', payee: 'QuickFuel', category: 'Gas', memo: '', out: '44.07' },
+    { date: '09/22/2026', payee: 'Valley Clinic', category: 'Medical', memo: 'co-pay', out: '25' },
+    { date: '09/28/2026', payee: 'Corner Bakery', category: 'Groceries', memo: 'cake', out: '31.99' },
+  ];
+
+  void test('a month by keyboard, a transfer, clear/flag/delete/undo; balances tie out and survive a relaunch', { timeout: 300_000 }, async () => {
+    const app = await open();
+    const { page } = app;
+    await page.getByRole('treegrid', { name: 'Categories' }).waitFor();
+    const sidebar = page.getByRole('navigation', { name: 'Plan navigation' });
+    const link = (name: string) => sidebar.locator('[data-section=cash]', { hasText: name });
+    await link('Wallet').click();
+    const grid = page.getByRole('treegrid', { name: /Wallet transactions/ });
+    await grid.waitFor();
+    const editor = grid.locator('[data-row-editor]').first();
+    const pick = async (text: string) => {
+      await page.keyboard.type(text);
+      await page.waitForTimeout(150);
+      await page.keyboard.press('Enter');
+    };
+    const newRow = async () => {
+      await page.locator('#main').focus();
+      await page.keyboard.press('Shift+N');
+      await editor.waitFor();
+    };
+    let expected = cents(await link('Wallet').innerText());
+    for (const t of MONTH) {
+      await newRow();
+      await page.keyboard.press('Control+a');
+      await page.keyboard.type(t.date);
+      await page.keyboard.press('Tab');
+      await pick(t.payee);
+      await page.keyboard.press('Tab');
+      await pick(t.category);
+      await page.keyboard.press('Tab');
+      await page.keyboard.type(t.memo);
+      await page.keyboard.press('Tab');
+      if (t.out !== undefined) await page.keyboard.type(t.out);
+      await page.keyboard.press('Tab');
+      if (t.in !== undefined) await page.keyboard.type(t.in);
+      await page.keyboard.press('Enter');
+      await editor.waitFor({ state: 'detached' });
+      expected += typed(t.in) - typed(t.out);
+    }
+    assert.equal(cents(await link('Wallet').innerText()), expected, 'the sidebar balance adds up the month');
+    const bakery = grid.locator('[role=row][data-row-id]', { hasText: 'cake' });
+    assert.match(norm(await bakery.innerText()), /09\/28\/2026.*Corner Bakery.*Groceries.*cake.*\$31\.99/);
+
+    // A transfer to savings: no category needed; both balances move.
+    const savingsBefore = cents(await link('Rainy Day Savings').innerText());
+    await newRow();
+    await page.keyboard.press('Tab');
+    await pick('Rainy');
+    await grid.getByRole('textbox', { name: 'Outflow' }).click();
+    await page.keyboard.type('20');
+    await page.keyboard.press('Enter');
+    await editor.waitFor({ state: 'detached' });
+    expected -= 2000;
+    assert.equal(cents(await link('Rainy Day Savings').innerText()), savingsBefore + 2000);
+    const xfer = grid.locator('[role=row][data-row-id]', { hasText: 'Transfer : Rainy Day Savings' }).first();
+    assert.match(norm(await xfer.innerText()), /Category not needed/);
+
+    // Edit a memo; C toggles cleared (cash rows start cleared); Shift+F 2 flags orange; Delete, then Ctrl+Z restores.
+    await bakery.locator('[data-col=date]').click();
+    await page.keyboard.press('Enter');
+    await grid.getByRole('textbox', { name: 'Memo' }).fill('birthday cake');
+    await page.keyboard.press('Enter');
+    const cake = grid.locator('[role=row][data-row-id]', { hasText: 'birthday cake' });
+    await cake.waitFor();
+    await cake.locator('[data-col=date]').click();
+    await page.keyboard.press('c');
+    await page.keyboard.press('Shift+F');
+    await page.keyboard.press('2');
+    await page.waitForTimeout(200);
+    assert.match((await cake.locator('[data-col=flag] button').getAttribute('aria-label')) ?? '', /Orange/);
+    await page.keyboard.press('Delete');
+    await cake.waitFor({ state: 'detached' });
+    assert.equal(cents(await link('Wallet').innerText()), expected + 3199);
+    await page.keyboard.press('Control+z');
+    await cake.waitFor();
+    assert.equal(cents(await link('Wallet').innerText()), expected);
+
+    // The newest row's running balance is the working balance.
+    await page.getByRole('button', { name: 'View', exact: true }).click();
+    await page.getByRole('menuitemcheckbox', { name: 'Show running balance' }).click();
+    const top = grid.locator('[role=row][data-row-id]').nth(1).locator('[data-col=balance]'); // under the Scheduled header
+    await top.waitFor();
+    assert.equal(cents(await top.innerText()), expected);
+    await page.waitForTimeout(800);
+    await app.close();
+
+    const again = await open();
+    // It reopens where it was left: the Wallet register.
+    await again.page.getByRole('treegrid', { name: /Wallet transactions/ }).waitFor();
+    const wallet = again.page.getByRole('navigation', { name: 'Plan navigation' }).locator('[data-section=cash]', { hasText: 'Wallet' });
+    assert.equal(cents(await wallet.innerText()), expected, 'the month survives a relaunch');
+    await wallet.click();
+    const cake2 = again.page.locator('[role=row][data-row-id]', { hasText: 'birthday cake' });
+    await cake2.waitFor();
+    assert.match((await cake2.locator('[data-col=cleared] button').getAttribute('aria-label')) ?? '', /^Uncleared/);
+    await again.close();
+  });
+});

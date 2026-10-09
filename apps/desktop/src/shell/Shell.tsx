@@ -22,9 +22,9 @@ import {
 } from '@hafb/store';
 import type { Actions, Screen } from '../design/DesignApp.tsx';
 import { ReflectScreen } from '../design/ReflectScreen.tsx';
-import { RegisterScreen } from '../design/RegisterScreen.tsx';
 import '../design/design.css';
 import { AddAccountDialog, EditAccountDialog, type AccountEdits } from '../screens/accounts/AccountDialogs.tsx';
+import { RegisterScreen } from '../screens/accounts/RegisterScreen.tsx';
 import { stepAccount } from '../screens/accounts/accountsModel.ts';
 import { moneyFormat } from '../screens/plan/planModel.ts';
 import { shownMonth } from '../screens/plan/planMonths.ts';
@@ -311,7 +311,7 @@ function PlanFrame({ open, system }: { open: OpenPlan; /** A Windows-colour (con
         {route.kind === 'reflect' ? (
           <ReflectScreen plan={open.plan} today={today} sampleLabel={false} />
         ) : route.kind === 'accounts' ? (
-          <RegisterScreen key={route.accountId ?? 'all'} plan={open.plan} today={today} accountId={route.accountId} actions={actions} />
+          <RegisterScreen key={route.accountId ?? 'all'} plan={open.plan} today={today} accountId={route.accountId} actions={actions} history={history} />
         ) : (
           <PlanScreen
             plan={open.plan}

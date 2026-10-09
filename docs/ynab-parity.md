@@ -96,22 +96,22 @@ A row is `done` only after Sarg validates it on hardware. Rows whose engine half
 | AC-07 | Sidebar groups with totals; Starred accounts section | — | S3.3 / S4.4 | done |
 | AC-08 | Reorder accounts; account notes | — | S4.4 | done |
 | AC-09 | Register header: cleared + uncleared = working balance | S1.6 | S4.4 | done |
-| AC-10 | Cash-type transactions auto-marked cleared | S1.6 | S4.5 | in-progress |
+| AC-10 | Cash-type transactions auto-marked cleared | S1.6 | S4.5 | done |
 | AC-11 | Linked accounts, optional, via SimpleFIN Bridge instead of YNAB's providers (ADR 0006) | — | S6.7 | todo |
 
 ## 6. Register ([split](https://support.ynab.com/en_us/split-transactions-a-guide-SJLEKwY0q), [search](https://support.ynab.com/en_us/searching-transactions-a-guide-r1gxyQryj), [shortcuts](https://support.ynab.com/en_us/keyboard-shortcuts-Skw9Xp9A9))
 
 | ID | Feature | Engine | UI | Status |
 |---|---|---|---|---|
-| R-01 | Add / edit / delete inline; Enter, Tab, Esc, Ctrl+Enter | — | S4.5 | todo |
-| R-02 | Payee picker: Payments & Transfers group, saved payees, Manage Payees | S1.6 | S4.5 | in-progress |
-| R-03 | Category picker with available amounts and suggestions | S1.6 | S4.5 | in-progress |
-| R-04 | Transfers (paired legs; category rules per §5.9) | S1.2 | S4.5 | in-progress |
-| R-05 | Cleared toggle (C), reconciled lock | S1.6 | S4.5 | in-progress |
-| R-06 | Flags: 6 colors + custom names (Shift+F, 0–6) | — | S4.5 | todo |
-| R-07 | Memo; date picker with YNAB keys (+/−, T, M, Shift+M, Y, Shift+Y) | — | S4.5 | todo |
-| R-08 | Amount math in outflow/inflow (+ − × ÷) | S1.1 | S3.2 | in-progress |
-| R-09 | Optional running balance column | S1.6 | S4.5 | in-progress |
+| R-01 | Add / edit / delete inline; Enter, Tab, Esc, Ctrl+Enter | — | S4.5 | done |
+| R-02 | Payee picker: Payments & Transfers group, saved payees, Manage Payees | S1.6 | S4.5 | in-progress (Manage Payees link with S5.5) |
+| R-03 | Category picker with available amounts and suggestions | S1.6 | S4.5 | done |
+| R-04 | Transfers (paired legs; category rules per §5.9) | S1.2 | S4.5 | done |
+| R-05 | Cleared toggle (C), reconciled lock | S1.6 | S4.5 | done |
+| R-06 | Flags: 6 colors + custom names (Shift+F, 0–6) | — | S4.5 | done |
+| R-07 | Memo; date picker with YNAB keys (+/−, T, M, Shift+M, Y, Shift+Y) | — | S4.5 | done |
+| R-08 | Amount math in outflow/inflow (+ − × ÷) | S1.1 | S3.2 | done |
+| R-09 | Optional running balance column | S1.6 | S4.5 | done |
 | R-10 | Split transactions (S) with amount remaining, add another split, transfer in split | S1.6 | S4.6 | in-progress |
 | R-11 | Multi-select with checkboxes; floating action bar; right-click menu | — | S4.6 | todo |
 | R-12 | Bulk categorize (K), memo, flag, date, payee, move account, delete | S1.6 | S4.6 | in-progress |
@@ -125,7 +125,7 @@ A row is `done` only after Sarg validates it on hardware. Rows whose engine half
 | R-20 | Match (M) / unmatch (Shift+U) | S1.6 | S6.5 | in-progress |
 | R-21 | Photo attachments (thumbnail, viewer) stored in the .hafb | — | S7.6 | todo |
 | R-22 | Bank Import Details panel (original payee/memo as imported) | — | S6.5 | todo |
-| R-23 | New transaction shortcut (Shift+N) | — | S4.5 | todo |
+| R-23 | New transaction shortcut (Shift+N) | — | S4.5 | done |
 | R-24 | Retailer order-history links | — | — | wontfix (server) |
 
 ## 7. Scheduled transactions ([scheduled](https://support.ynab.com/en_us/scheduled-transactions-a-guide-BygrAIFA9))
@@ -161,7 +161,7 @@ A row is `done` only after Sarg validates it on hardware. Rows whose engine half
 | PY-02 | Rename rules learned from edits | S1.6 | S5.5 | in-progress |
 | PY-03 | Default category: 2-of-last-3 rule | S1.6 | S5.5 | in-progress |
 | PY-04 | Fixed default category per payee; auto-categorize off per payee | S1.6 | S5.5 | in-progress |
-| PY-05 | Transfer payees (system-managed) | S1.2 | S4.5 | in-progress |
+| PY-05 | Transfer payees (system-managed) | S1.2 | S4.5 | done |
 
 ## 10. Reconciliation ([reconciling](https://support.ynab.com/en_us/reconciling-accounts-a-guide-BJFE3fHys))
 

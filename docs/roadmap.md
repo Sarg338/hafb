@@ -211,6 +211,21 @@ The 2026-10-08 research (YNAB What's New and help center) found that CLAUDE.md w
     - Drag to reorder within a section.
     - Star and edit buttons in the register header.
   - Exit check: a smoke test in the release app creates one account of every type and checks balances, section totals and Ready to Assign. Edit, close-with-balance, reopen and star are covered too.
+- **S4.5 done (2026-10-08).** The register is rebuilt on the DataGrid (`screens/accounts/RegisterScreen.tsx`, view model `registerModel.ts`).
+  - Editing:
+    - The whole row opens for editing, with an edit strip under it (Cancel / Save and add another / Save).
+    - Enter saves, Esc cancels, Ctrl+Enter saves and opens another row, Tab moves between fields. Saving an unapproved transaction approves it.
+    - Fields: account (All Accounts), date (YNAB date keys), payee (Payments & Transfers, saved payees, create a new one), category (with available amounts), memo, outflow/inflow (with math), cleared.
+  - Rules:
+    - Transfers: both legs; between two budget accounts the category is "Category not needed"; budget → tracking keeps one (§5.9).
+    - Cash accounts default to cleared.
+    - A payee's default category fills an empty category.
+  - Labels follow YNAB: "Transfer : X", "Payment: X", "Category not needed", "Split (n)" with split lines under the row (split editing is S4.6).
+  - Shortcuts: Shift+N, C, Shift+F then 0–6, Delete, Ctrl+Shift+F. Rows also have a right-click menu.
+  - Flags: six colours with custom names (Flag names dialog; `setFlagName` in the store).
+  - View menu: Show running balance (engine `runningBalances`: oldest first, entry order within a day).
+  - Bug found by the smoke test: money and date fields selected their text a frame after focus. A fast keystroke was overwritten, and tabbing on quickly pulled focus back to the previous field. Both fields now skip the late select once the user types or focus moves on.
+  - Exit check: a smoke test in the release app enters a month of transactions with the keyboard only, adds a transfer, edits, clears, flags, deletes and undoes; balances tie out and survive a relaunch.
 
 ## Phase 5: Planning power → **M2**
 

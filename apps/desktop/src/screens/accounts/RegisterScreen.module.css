@@ -1,0 +1,319 @@
+/* The register (S4.5): the approved S3.1 register (.rg-*) rebuilt from tokens (ADR 0004, ADR 0007). */
+
+.screen {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+  background: var(--c-surface);
+}
+
+/* ---- header -------------------------------------------------------------------------------- */
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px 32px;
+  padding: 16px 20px 14px;
+}
+
+.title {
+  min-width: 0;
+  margin-right: auto;
+}
+
+.title h1 {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin: 0;
+  font-family: var(--t-font-display);
+  font-size: var(--t-size-title);
+  font-weight: var(--t-weight-semibold);
+  line-height: 1.2;
+  letter-spacing: var(--t-display-tracking);
+}
+
+.star {
+  color: var(--c-text-subtle);
+}
+
+.starOn {
+  color: var(--c-flag-yellow);
+}
+
+.subtitle {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin: 3px 0 0;
+  color: var(--c-text-muted);
+  font-size: var(--t-size-small);
+}
+
+.inline {
+  margin-right: 4px;
+  color: var(--c-text-muted);
+}
+
+.balances {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.balances > div {
+  display: grid;
+  gap: 2px;
+}
+
+.balances strong {
+  font-family: var(--t-font-display);
+  font-size: var(--t-size-subtitle);
+  font-weight: var(--t-weight-semibold);
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+
+.balances span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--c-text-muted);
+  font-size: var(--t-size-caption);
+}
+
+.ok {
+  color: var(--c-bar-funded);
+}
+
+.op {
+  color: var(--c-text-subtle);
+  font-size: var(--t-size-subtitle);
+}
+
+.working {
+  padding: 6px 12px;
+  border-radius: var(--s-radius-large);
+  background: var(--c-surface-alt);
+}
+
+.negative {
+  color: var(--c-negative);
+}
+
+.headActions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ---- toolbar and banner -------------------------------------------------------------------- */
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 40px;
+  padding: 0 14px;
+  border-top: var(--s-border-width) solid var(--c-border);
+  border-bottom: var(--s-border-width) solid var(--c-border);
+}
+
+.spacer {
+  flex: 1;
+}
+
+.search {
+  width: 260px;
+  margin-left: 6px;
+}
+
+.banner {
+  padding: 10px 14px 0;
+}
+
+/* ---- grid ---------------------------------------------------------------------------------- */
+
+.gridWrap {
+  display: grid;
+  flex: 1;
+  min-height: 0;
+  margin-top: 6px;
+}
+
+.gridWrap > * {
+  min-height: 0;
+}
+
+.ellipsis {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.muted {
+  color: var(--c-text-muted);
+}
+
+.warn {
+  color: var(--c-warn-text);
+}
+
+.date {
+  font-variant-numeric: tabular-nums;
+}
+
+.payee {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.dot {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--c-accent);
+}
+
+/* Unapproved rows are bold (the approved .rg-row.unapproved). */
+[role='row']:has(.dot) [role='gridcell'] {
+  font-weight: var(--t-weight-semibold);
+}
+
+.flag,
+.cleared {
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--s-radius);
+  background: transparent;
+  color: var(--c-text-subtle);
+  cursor: pointer;
+}
+
+.flag {
+  opacity: 0;
+}
+
+.flagOn,
+[role='row']:hover .flag,
+.flag:focus-visible {
+  opacity: 1;
+}
+
+.flag:hover,
+.cleared:hover:not(:disabled) {
+  background: var(--c-hover);
+}
+
+.isCleared {
+  color: var(--c-bar-funded);
+}
+
+.isReconciled {
+  color: var(--c-text-muted);
+  cursor: default;
+}
+
+/* ---- the row being edited ------------------------------------------------------------------ */
+
+.field {
+  display: flex;
+  align-items: center;
+  width: calc(100% + 12px);
+  min-width: 0;
+  margin: 0 -6px;
+}
+
+.field > * {
+  flex: 1;
+  min-width: 0;
+}
+
+.strip {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  height: 100%;
+  padding: 0 12px;
+  border-bottom: var(--s-border-width) solid var(--c-border);
+  background: var(--c-selected);
+  box-shadow: inset 3px 0 0 var(--c-selected-border);
+}
+
+.hint {
+  margin-right: auto;
+  color: var(--c-text-muted);
+  font-size: var(--t-size-caption);
+}
+
+/* ---- split lines (on the grid's own columns) ------------------------------------------------ */
+
+.splits {
+  display: grid;
+}
+
+.splitLine {
+  display: grid;
+  grid-template-columns: var(--grid-template);
+  height: 26px;
+}
+
+.splitCell {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  padding: 0 var(--grid-pad-x);
+  border-bottom: var(--s-border-width) var(--s-sub-rule-style) var(--c-border);
+  font-size: var(--t-size-small);
+  font-variant-numeric: tabular-nums;
+}
+
+.splitCell.end {
+  justify-content: flex-end;
+}
+
+.splitCell.indent {
+  padding-left: calc(var(--grid-pad-x) + 16px);
+}
+
+/* ---- flag names ------------------------------------------------------------------------------ */
+
+.flagNames {
+  display: grid;
+  gap: 8px;
+}
+
+.flagName {
+  display: grid;
+  grid-template-columns: 24px 1fr;
+  align-items: center;
+  gap: 8px;
+}
+
+/* The Scheduled section header spans the empty columns beside it (the approved .rg-schedhead). */
+.schedLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: var(--t-weight-semibold);
+  white-space: nowrap;
+}
+
+[role='gridcell']:has(.schedLabel) {
+  z-index: 2;
+  overflow: visible;
+}
