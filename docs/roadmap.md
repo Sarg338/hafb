@@ -31,8 +31,8 @@
 | **M0 – Stack validated** | Phase 0 ✅ | Tauri 2 + React + SQLite proven on hardware. |
 | **M1 – Daily driver** | end of Phase 4 | Sarg runs his real budget in HAFB alongside YNAB for 2 weeks and the numbers match to the cent. |
 | **M2 – Planning parity** | end of Phase 5 | Targets, auto-assign, scheduled, payees and reconcile. A full monthly workflow is possible without YNAB. |
-| **M3 – Feature parity** | end of Phase 6 | Every non-server row in `ynab-parity.md` is `done`. |
-| **v1.0** | end of Phase 8 | Professional polish, accessibility, performance at scale, privacy audit, installer, docs, beta. |
+| **M3 – Feature parity** | end of Phase 6 ✅ (signed off 2026-10-09) | Every non-server row in `ynab-parity.md` is `done`, except optional bank sync, which Sarg moved to S8.6 as the very last item before v1.0. |
+| **v1.0** | end of Phase 8 | Professional polish, accessibility, performance at scale, privacy audit, installer, docs, beta, and last, optional SimpleFIN bank sync (S8.6). |
 
 ## Inputs needed from Sarg (blocking dates)
 
@@ -40,7 +40,8 @@
 |---|---|
 | — | ~~Sarg's own YNAB export~~: **Sarg has no YNAB account.** Golden data comes from a public real export kept local-only (`packages/engine/test/fixtures/local/`, git-ignored, never committed), plus optionally a YNAB free-trial scenario (below). |
 | S1.7 (optional) | A **YNAB free-trial scenario**: we write a scripted month of transactions covering splits, targets, credit overspending, future assignments and loans. Sarg enters it in a YNAB trial, exports it, and screenshots the open items (D7, D11, D12). This is the only way to verify those items and to get splits and targets into a golden file; the public sample has neither. |
-| S6.5 | Sample bank files: OFX/QFX, QIF and CSV from your banks. |
+| — | ~~Sample bank files from your banks~~: Sarg has none; 50 public sample exports from real banks were accepted instead (2026-10-09). |
+| S8.6 | A SimpleFIN Bridge subscription and a setup token for the Regions accounts. |
 | S8.1 | Access to a slower (2019-era) Windows laptop for the launch-time budget, or agreement to throttle the CPU instead. |
 
 ## Spec changes (approved by Sarg 2026-10-08; applied to CLAUDE.md §4–§7)
@@ -300,7 +301,8 @@ Progress (all built from the YNAB trial plan, 2026-10-08; YNAB was put back as i
 | **S6.4 Loans & loan planner** | Loan setup (rate, escrow, fees, minimum payment, original principal), monthly interest posting (editable), paired category with Record Payment and Monthly Debt Payment target, payoff calculator (payment ↔ payoff date), what-if extra payments, payoff celebration. | Monthly interest and the payoff simulator (payoff date, payments, **total interest to the cent**) match YNAB; see Timed follow-ups. |
 | **S6.5 Bank file import** | CSV (column mapper remembered per account, date-format detection, swap inflow/outflow, semicolons), OFX/QFX (multi-file), QIF. Dedupe by FITID plus fuzzy match. Approve/reject/match/unmatch review (D4); auto-match to entered and scheduled transactions (≤ 10 days); CC payment pairing; skip rule (D13); rename rules applied; inflows default to Ready to Assign. | Real banks' files import with zero duplicates on re-import. ✅ 50 public sample exports from real banks, 11 of them in the release app (Sarg has no exports of his own and accepted the public samples, 2026-10-09). |
 | **S6.6 Export & backups** | YNAB-format CSV export (verified to import back into YNAB); raw SQLite copy; backup settings (count, location) and restore UI. | A YNAB-format export imports back into YNAB; a restore round-trips. |
-| **S6.7 Bank sync, optional + M3** (ADR 0006) | SimpleFIN Bridge: paste a setup token, claim it, and keep the access URL in Windows Credential Manager (never in the plan). Map SimpleFIN accounts to HAFB accounts (new migration). Sync on open, about every 6 hours while open (random minute), and *Sync now*. Fetch window = last sync minus 5 days, capped at 90 days. Results feed the S6.5 pipeline (unapproved, auto-match, rename rules, RejectedImport). Unlink deletes the secret. One Rust HTTP client (rustls). | Sarg's Regions accounts sync with zero duplicates across repeated syncs and alongside file imports. With sync off, a firewall log shows zero connections. **M3:** every non-server parity row is `done`. |
+
+**Signed off by Sarg 2026-10-09** (S6.1–S6.6). S6.7 bank sync moved to **S8.6**, the very last item before v1.0.
 
 Progress (built from the YNAB trial plan, 2026-10-09; YNAB was put back as it was after every probe):
 - **S6.1 done in code** (ADR 0008). The production Reflect screen (`screens/reflect/`) replaces the S3.1 mockup in the app: five tabs over one filter bar (YNAB's presets This Month … All Dates, Custom start/end month, previous / next by the range's length, clipped to the plan's months; category and account trees with search, Select All / Select None, "N Selected Categories"), remembered per plan file. Any figure opens its transactions; a row opens the transaction in its register (`#/accounts/<id>?tx=`). Export: YNAB's file layouts (CSV, TSV for decimal-comma currencies; the Spending reports as a zip of summary + transactions) and a PNG of any chart, saved through the native Save dialog. Engine: `spendingLines`, `incomeLines`, `accountBalances`, trend group rollups. The S3.1 stylesheet no longer loads in the app.
@@ -329,10 +331,11 @@ Progress (built from the YNAB trial plan, 2026-10-09; YNAB was put back as it wa
 |---|---|---|
 | **S8.1 Performance at scale** | Launch to usable plan < 1.5 s on a 2019-era laptop with 20k transactions; recompute < 50 ms (5y × 100 categories); register at 60 fps and on 120/144 Hz; memory budget; profiling fixes. | All CLAUDE.md §8 budgets met on hardware. |
 | **S8.2 Reliability & data safety** | Property-based engine tests; upgrade tests from every prior schema; power-loss/WAL tests; corruption detection and recovery; backup-restore drills; very large files. | No data-loss path found. |
-| **S8.3 Privacy audit** | Resolve the WebView2 **Crashpad** / diagnostic-data question (ADR 0001 open item); firewall-verified zero connections (app and installer) with bank sync off, and only the SimpleFIN host with it on (ADR 0006); dependency license and network audit; CSP review. | Written privacy statement backed by evidence. |
+| **S8.3 Privacy audit** | Resolve the WebView2 **Crashpad** / diagnostic-data question (ADR 0001 open item); firewall-verified zero connections (app and installer); the bank-sync check (only the SimpleFIN host, ADR 0006) is repeated in S8.6, which comes after; dependency license and network audit; CSP review. | Written privacy statement backed by evidence. |
 | **S8.4 Packaging** | Versioning, MSI upgrade path (stable upgrade code), portable-mode data location, uninstall keeps data, ARM64 build (nice-to-have); document SmartScreen behavior for unsigned builds. | Upgrade from the previous build keeps every file intact. |
-| **S8.5 Docs, beta, v1.0** | User guide, YNAB migration guide, shortcut reference; beta with a few YNAB users; final parity audit against `ynab-parity.md`. | **v1.0** tagged. |
+| **S8.5 Docs & beta** | User guide, YNAB migration guide, shortcut reference; beta with a few YNAB users; final parity audit against `ynab-parity.md`. | Beta feedback triaged; the parity audit has only S8.6 rows open. |
+| **S8.6 Bank sync, optional** (ADR 0006; the very last item before v1.0) | SimpleFIN Bridge: paste a setup token, claim it, and keep the access URL in Windows Credential Manager (never in the plan). Map SimpleFIN accounts to HAFB accounts (new migration). Sync on open, about every 6 hours while open (random minute), and *Sync now*. Fetch window = last sync minus 5 days, capped at 90 days. Results feed the S6.5 pipeline (unapproved, auto-match, rename rules, RejectedImport). Unlink deletes the secret. One Rust HTTP client (rustls). | Sarg's Regions accounts sync with zero duplicates across repeated syncs and alongside file imports. A firewall log shows zero connections with sync off and only the SimpleFIN host with it on. Every non-server parity row is `done`; then **v1.0** is tagged. |
 
 ## Out of scope (wontfix; server-dependent)
 
-YNAB's Direct Import providers (Plaid, MX, TrueLayer, Apple Card; HAFB's optional bank sync uses SimpleFIN instead, S6.7), pending transactions, institution logos, retailer order-history links, YNAB Together (members, avatars, "who moved it"), the "For You" content feed, API / Zapier / widgets / Siri / Watch, mobile apps and mobile-only screens, referrals and gifts, Mint migration, template sharing by link. The engine stays portable so a mobile or web app is possible later.
+YNAB's Direct Import providers (Plaid, MX, TrueLayer, Apple Card; HAFB's optional bank sync uses SimpleFIN instead, S8.6), pending transactions, institution logos, retailer order-history links, YNAB Together (members, avatars, "who moved it"), the "For You" content feed, API / Zapier / widgets / Siri / Watch, mobile apps and mobile-only screens, referrals and gifts, Mint migration, template sharing by link. The engine stays portable so a mobile or web app is possible later.

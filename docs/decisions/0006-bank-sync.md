@@ -1,6 +1,6 @@
 # ADR 0006 — Optional bank sync through SimpleFIN Bridge
 
-- **Status:** Accepted (2026-10-08) by Sarg. Built in S6.7.
+- **Status:** Accepted (2026-10-08) by Sarg. Built in S8.6, the very last item before v1.0 (moved from S6.7 by Sarg, 2026-10-09).
 - **Context:** CLAUDE.md §1 forbade all network calls, so bank sync was wontfix. Sarg asked for "live" transactions from his bank (Regions), with these conditions: completely optional, done through an existing API or framework, and the app never sees or stores bank credentials.
 
 ## Why SimpleFIN Bridge
@@ -33,7 +33,7 @@
    - The access URL is the only secret. It's stored in **Windows Credential Manager**, which encrypts it per Windows user.
    - It's never stored in the `.hafb` file, prefs, logs, backups or error messages.
    - Unlinking deletes it, and the user can also revoke it at SimpleFIN at any time.
-   - **Open question for S6.7:** offer "Don't remember on this PC" (the token is kept in memory only and re-pasted each session).
+   - **Open question for S8.6:** offer "Don't remember on this PC" (the token is kept in memory only and re-pasted each session).
 5. **What the plan file stores:** only non-secret metadata: which HAFB account maps to which SimpleFIN account id, and the time of the last successful sync. This needs a new migration in S6.7.
 6. **When it syncs:**
    - **Automatically while the app is open:** on plan open (if the last sync is over an hour old), then about every 6 hours at a random minute. This stays far under SimpleFIN's limit of 24 requests a day, and SimpleFIN only refreshes from banks about once a day, so polling more often brings nothing new.
@@ -46,7 +46,7 @@
    - They go through auto-match (§5.12), payee rename rules, RejectedImport, the reconciliation skip rule, and "cash inflows default to Ready to Assign".
    - Amounts are parsed from SimpleFIN's decimal strings straight to minor units, never through a float.
 8. **Pending transactions are not imported** (they stay wontfix).
-9. **Dependency:** S6.7 adds one Rust HTTP client with rustls. It's the only crate allowed to make network calls; its commit message states that, and it must not add telemetry.
+9. **Dependency:** S8.6 adds one Rust HTTP client with rustls. It's the only crate allowed to make network calls; its commit message states that, and it must not add telemetry.
 
 ## Consequences
 

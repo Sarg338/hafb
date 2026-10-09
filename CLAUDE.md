@@ -383,9 +383,9 @@ The full sprint plan with exit criteria is in `docs/roadmap.md`. Phases were ren
 - **Phase 3, Design system & shell:** design direction, tokens and components, app shell, editable-grid foundation.
 - **Phase 4, Daily driver:** Plan screen, accounts, register, credit cards, undo. Ends with **M1**: two weeks of real use alongside YNAB.
 - **Phase 5, Planning power:** inspector, targets, auto-assign and Focused Views, scheduled, payees, reconciliation, Recent Moves (**M2**).
-- **Phase 6, Reflect & data:** reports, loans, bank-file import, export and backups, optional SimpleFIN bank sync (**M3**: feature parity).
+- **Phase 6, Reflect & data:** reports, loans, bank-file import, export and backups (**M3**: feature parity).
 - **Phase 7, Polish:** settings, multiple plans, templates and Fresh Start, keyboard, accessibility, onboarding, attachments, visual polish.
-- **Phase 8, Release:** performance at scale, reliability, privacy audit, packaging, docs and beta → **v1.0**.
+- **Phase 8, Release:** performance at scale, reliability, privacy audit, packaging, docs and beta, then optional SimpleFIN bank sync as the very last item (S8.6) → **v1.0**.
 
 Mark phase status here when it changes:
 - Phase 0: done. Validated on Sarg's machine 2026-10-08 (ADR 0001 §7). The spike screens (`apps/desktop/src/spike/`, `src-tauri/src/spike/`) stay until S3.3 replaces them.
@@ -394,7 +394,7 @@ Mark phase status here when it changes:
 - Phase 3: done, signed off by Sarg 2026-10-08. S3.1 design direction (approved look; DESIGN.md; themes as data, ADR 0003). S3.2 component library in `src/ui` with gallery `#/gallery` (ADR 0004). S3.3 app shell in `src/shell` (spike and Phase 2 screens retired). S3.4 `DataGrid` (50k-row benchmark: 0 missed frames in WebView2; cells exposed to Narrator via UIA). S3.5 shortcut registry, `?` overlay, error surfacing, `pnpm smoke` (9 tests, ADR 0005). Launch to first paint 812 ms.
 - Phase 4: in progress. S4.1 Plan screen, S4.2 Plan editing, S4.3 Moving money, S4.4 Accounts, S4.5 Register core, S4.6 Register power and S4.7 Credit cards done 2026-10-08 (S4.7 still needs the real-card check during M1) (ADR 0007: production screens in `src/screens` from the component library; the S3.1 mockups stay as the look reference).
 - Phase 5: done in code 2026-10-08 (roadmap Phase 5 progress notes): S5.1 inspector, S5.2 targets, S5.3 Focused Views / scoped Auto-Assign / Plan Reset, S5.4 scheduled transactions, S5.5 Manage Payees (migration 0002 adds `payees.hidden`), S5.6 reconciliation, S5.7 Recent Moves. Smoke tests cover each in the release app. **M2** (a month on real data with YNAB closed) needs Sarg, so the phase isn't signed off.
-- Phase 6: S6.1–S6.6 done in code 2026-10-09 (roadmap Phase 6 progress notes): S6.1 Reflect framework (ADR 0008), S6.2 Spending Breakdown & Trends, S6.3 Net Worth, Income v Expense, Age of Money and Share Your Progress, S6.4 Loans & loan planner, S6.5 Bank file import (migration 0003), S6.6 Export & backups. Smoke tests cover each in the release app. S6.7 (SimpleFIN) is deferred by Sarg to its own effort, so **M3** waits on it. Exit checks met 2026-10-09: bank import on 50 public sample exports from real banks and exports cell-exact in OpenOffice Calc (Sarg accepted both in place of his own bank files and Excel, which this PC lacks); the payoff simulator matches YNAB to the cent. The phase isn't signed off until Sarg runs it on the real machine.
+- Phase 6: done, signed off by Sarg 2026-10-09 (roadmap Phase 6 progress notes): S6.1 Reflect framework (ADR 0008), S6.2 Spending Breakdown & Trends, S6.3 Net Worth, Income v Expense, Age of Money and Share Your Progress, S6.4 Loans & loan planner (the payoff simulator matches YNAB to the cent), S6.5 Bank file import (migration 0003; 50 public sample exports from real banks), S6.6 Export & backups (cell-exact in OpenOffice Calc). Smoke tests cover each in the release app. Optional SimpleFIN bank sync (was S6.7) moved by Sarg to **S8.6, the very last item before v1.0**.
 - Phase 7: todo
 - Phase 8: todo
 
@@ -441,7 +441,7 @@ pnpm smoke            # end-to-end smoke tests on the release app (run pnpm buil
 
 ## 10. Things not to do
 
-- Don't add a dependency without stating why in the commit message and confirming it makes no network calls. The one exception is the S6.7 HTTP client for SimpleFIN (ADR 0006).
+- Don't add a dependency without stating why in the commit message and confirming it makes no network calls. The one exception is the S8.6 HTTP client for SimpleFIN (ADR 0006).
 - Don't store derived budget numbers as truth. Cache if you must, invalidate aggressively.
 - Don't put math in React components.
 - Don't "simplify" a YNAB rule because it's awkward. Parity is the point; if a rule seems wrong, write down the exact YNAB behavior and ask.
