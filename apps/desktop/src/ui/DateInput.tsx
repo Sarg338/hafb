@@ -19,6 +19,10 @@ export interface DateInputProps {
   help?: string;
   size?: 'medium' | 'compact';
   disabled?: boolean;
+  /** Focus on mount (the register's row editor). */
+  autoFocus?: boolean;
+  /** Leave the calendar button out of the Tab order (row editors: Tab goes field to field; Alt+Down opens it). */
+  calendarTabStop?: boolean;
   id?: string;
   className?: string;
 }
@@ -33,7 +37,7 @@ const LETTER_KEYS = new Set(['t', 'm', 'y']);
  * or pick from the calendar.
  */
 export const DateInput = forwardRef<HTMLInputElement, DateInputProps>(function DateInput(
-  { value, format, today, onCommit, label, hideLabel, help, size = 'medium', disabled, id, className },
+  { value, format, today, onCommit, label, hideLabel, help, size = 'medium', disabled, autoFocus, calendarTabStop = true, id, className },
   ref,
 ) {
   const [draft, setDraft] = useState<string | null>(null);
@@ -43,6 +47,7 @@ export const DateInput = forwardRef<HTMLInputElement, DateInputProps>(function D
   const boxRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const done = useRef(false);
+  const typed = useRef(false);
   const { inputId, helpId, errorId, describedBy } = useFieldIds(id, help, error);
   const shown = pending ?? value;
 
@@ -117,17 +122,21 @@ export const DateInput = forwardRef<HTMLInputElement, DateInputProps>(function D
           spellCheck={false}
           aria-invalid={error ? true : undefined}
           aria-describedby={describedBy}
-          aria-keyshortcuts="+ - PageUp PageDown T M H Y R"
+          aria-keyshortcuts="+ - T M Shift+M Y Shift+Y PageUp PageDown"
           disabled={disabled}
+          autoFocus={autoFocus}
           value={draft ?? formatDate(shown, format)}
           onFocus={(e) => {
             done.current = false;
             const el = e.currentTarget;
+            typed.current = false;
+            // Select a frame later, unless a fast keystroke already landed or focus moved on (select() refocuses).
             requestAnimationFrame(() => {
-              el.select();
+              if (!typed.current && document.activeElement === el) el.select();
             });
           }}
           onChange={(e) => {
+            typed.current = true;
             setDraft(e.target.value);
             setPending(null);
             if (error) setError(null);
@@ -141,6 +150,7 @@ export const DateInput = forwardRef<HTMLInputElement, DateInputProps>(function D
           icon="calendar"
           label="Choose a date"
           size="small"
+          tabIndex={calendarTabStop ? undefined : -1}
           disabled={disabled}
           aria-expanded={open}
           aria-haspopup="dialog"

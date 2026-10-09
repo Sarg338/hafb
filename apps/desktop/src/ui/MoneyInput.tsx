@@ -53,6 +53,7 @@ export const MoneyInput = forwardRef<HTMLInputElement, MoneyInputProps>(function
     return r.ok ? null : r.error;
   });
   const done = useRef(false);
+  const typed = useRef(false);
   const previewId = useId();
   const { inputId, helpId, errorId, describedBy } = useFieldIds(id, help, error);
   const preview = draft !== null && hasArithmetic(draft) ? evaluateAmount(draft, options) : null;
@@ -111,11 +112,15 @@ export const MoneyInput = forwardRef<HTMLInputElement, MoneyInputProps>(function
         done.current = false;
         if (draft === null) setDraft(value === 0 ? '' : plainAmount(value, format));
         const el = e.currentTarget;
+        typed.current = false;
+        // Select a frame later (a click would undo it now), unless a fast keystroke already landed or focus
+        // moved on: select() pulls focus back, which sent fast typing into the previous field.
         requestAnimationFrame(() => {
-          el.select();
+          if (!typed.current && document.activeElement === el) el.select();
         });
       }}
       onChange={(e) => {
+        typed.current = true;
         setDraft(e.target.value);
         if (error) setError(null);
       }}
