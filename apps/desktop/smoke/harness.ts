@@ -24,8 +24,12 @@ export interface Sandbox {
   cleanup: () => void;
 }
 
-/** A temp folder with a real .hafb plan file: the sample household unless another plan is given. */
-export function makeSandbox(plan: PlanData = buildSamplePlan().plan): Sandbox {
+/**
+ * A temp folder with a real .hafb plan file: the sample household unless another plan is given.
+ * The sample's schedules are left out by default: they come due by the real calendar (and would
+ * enter themselves on open), so tests that want schedules add their own relative to today.
+ */
+export function makeSandbox(plan: PlanData = { ...buildSamplePlan().plan, scheduled: [] }): Sandbox {
   const root = mkdtempSync(join(tmpdir(), 'hafb-smoke-'));
   const planPath = join(root, `${plan.settings.name.replace(/[^\w -]/g, '')}.hafb`);
   const changes = join(root, 'plan.json');

@@ -5,7 +5,9 @@ import { after, before, describe, test } from 'node:test';
 import type { Page } from 'playwright-core';
 import { existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { addMonths, compareMonths, monthOf } from '@hafb/shared';
+import { addDays, addMonths, addMonthsToDate, compareMonths, minor, monthOf } from '@hafb/shared';
+import { addScheduled, applyChanges, type PlanData } from '@hafb/store';
+import { buildSamplePlan } from '../src/design/sample.ts';
 import { launch, makeSandbox, type App, type Sandbox } from './harness.ts';
 import { expectedReadyToAssign, expectedRows, importExport, norm, readGrid, todayLocal } from './planCheck.ts';
 
@@ -998,5 +1000,184 @@ void describe('credit cards', () => {
     await page.waitForTimeout(400);
     assert.equal(cents(/([-+]?\$[\d,]+\.\d\d) Payment/.exec(norm(await page.getByLabel('Credit card').innerText()))?.[1] ?? ''), available - amount, 'a payment takes its amount out of the payment category');
     await app.close();
+  });
+});
+
+void describe('planning power (Phase 5)', () => {
+  let box: Sandbox;
+  const running: App[] = [];
+  const open = async (sandbox: Sandbox = box): Promise<App> => {
+    const a = await launch(sandbox, ['--open', sandbox.planPath]);
+    running.push(a);
+    // A relaunch reopens where the plan was left (the last route), so wait for the sidebar.
+    await a.page.getByRole('navigation', { name: 'Plan navigation' }).waitFor();
+    return a;
+  };
+  before(() => {
+    box = makeSandbox();
+  });
+  after(async () => {
+    for (const a of running) await a.close().catch(() => undefined);
+    box.cleanup();
+  });
+  const planRow = (page: Page, name: string) => page.getByRole('treegrid', { name: 'Categories' }).locator('[role=row]', { has: page.locator('[data-col=category]', { hasText: new RegExp(`^${name}`) }) });
+  const sidebar = (page: Page) => page.getByRole('navigation', { name: 'Plan navigation' });
+  const mdy = (d: string): string => `${d.slice(5, 7)}/${d.slice(8, 10)}/${d.slice(0, 4)}`;
+
+  void test('inspector, target snooze, a custom Focused View, Recent Moves and a category’s Moves', { timeout: 300_000 }, async () => {
+    const app = await open();
+    const { page } = app;
+    await page.getByRole('treegrid', { name: 'Categories' }).waitFor();
+    // Select Gifts: the inspector shows it and its target; Shift+Z snoozes, undo restores.
+    const gifts = planRow(page, 'Gifts');
+    await gifts.locator('[data-select]').click();
+    const insp = page.getByRole('complementary', { name: 'Inspector' });
+    await insp.getByRole('heading', { name: 'Gifts' }).waitFor();
+    assert.match(norm(await insp.innerText()), /Target/);
+    const message = async (): Promise<string> => norm(await gifts.locator('[data-col=category]').innerText());
+    const before = await message();
+    await insp.getByRole('switch', { name: /Snooze/ }).click();
+    await page.waitForTimeout(300);
+    assert.match(await message(), /Snoozed/i);
+    await page.keyboard.press('Control+z');
+    await page.waitForTimeout(300);
+    assert.equal(await message(), before);
+
+    // A custom view shows only its categories.
+    await page.getByRole('button', { name: 'Focused views' }).click();
+    await page.getByRole('menuitem', { name: 'New View' }).click();
+    const dlg = page.getByRole('dialog', { name: 'New Custom View' });
+    await dlg.getByRole('textbox', { name: 'View Name' }).fill('Food');
+    await dlg.getByRole('checkbox', { name: 'Groceries' }).check();
+    await dlg.getByRole('checkbox', { name: 'Dining Out' }).check();
+    await dlg.getByRole('button', { name: 'Save' }).click();
+    await page.waitForTimeout(300);
+    const shown = (await page.getByRole('treegrid', { name: 'Categories' }).locator('[role=row] [data-col=category]').allInnerTexts()).map(norm).filter((t) => t !== '');
+    assert.ok(shown.some((t) => t.startsWith('Groceries')) && shown.some((t) => t.startsWith('Dining Out')), shown.join(' | '));
+    assert.ok(!shown.some((t) => t.startsWith('Gifts')), 'Gifts is outside the view');
+    await page.getByRole('button', { name: 'Focused views' }).click();
+    await page.getByRole('menuitem', { name: 'Manage Views' }).click();
+    const manage = page.getByRole('dialog', { name: 'Manage Views' });
+    await manage.getByRole('button', { name: 'Delete Food' }).click();
+    await manage.getByRole('button', { name: 'Done' }).click();
+
+    // Recent Moves lists a new assignment; the category's Moves too.
+    await page.getByRole('radio', { name: 'All' }).first().click().catch(() => undefined);
+    await assignVia(page, 'Hobbies', '55');
+    await page.waitForTimeout(400);
+    await page.getByRole('button', { name: 'Recent Moves' }).click();
+    const recent = page.getByRole('dialog', { name: 'Recent Moves' });
+    assert.match(norm(await recent.innerText()), /Today Assigned \$55\.00 to Hobbies/);
+    await page.keyboard.press('Escape');
+    const hobbies = planRow(page, 'Hobbies');
+    if ((await hobbies.getAttribute('aria-selected')) !== 'true') await hobbies.locator('[data-select]').click();
+    await hobbies.getByRole('button', { name: 'Moves for Hobbies' }).click();
+    const moves = page.getByRole('dialog', { name: 'Moves for Hobbies' });
+    assert.match(norm(await moves.innerText()), /Assigned \$55\.00/);
+    await moves.getByRole('button', { name: 'Close' }).click();
+    await app.close();
+  });
+
+  void test('scheduled: a future-dated row schedules, Enter Now (E) enters it, due ones enter on open', { timeout: 300_000 }, async () => {
+    const today = todayLocal();
+    // A plan with a monthly bill that came due yesterday.
+    const sample = buildSamplePlan();
+    const base: PlanData = { ...sample.plan, scheduled: [] };
+    const ctx = { now: new Date().toISOString(), today, newId: () => crypto.randomUUID() };
+    const due = addScheduled(base, ctx, { accountId: sample.ids.accounts.cash ?? '', date: addDays(today, -1), frequency: 'monthly', amount: minor(-1234), payeeName: 'Due Club', categoryId: sample.ids.categories.Hobbies ?? null });
+    const dueBox = makeSandbox(applyChanges(base, due.changes).plan);
+    try {
+      const app = await open(dueBox);
+      const { page } = app;
+      await sidebar(page).locator('[data-section=cash]', { hasText: 'Wallet' }).click();
+      const grid = page.getByRole('treegrid', { name: /Wallet transactions/ });
+      await grid.waitFor();
+      const entered = grid.locator('[role=row]:not([data-row-id^="sched:"])', { hasText: 'Due Club' });
+      assert.equal(await entered.count(), 1, 'the due occurrence was entered on open');
+      assert.ok((await entered.locator('[title="Needs approval"]').count()) === 1, 'and needs approval');
+      const next = grid.locator('[role=row][data-row-id^="sched:"]', { hasText: 'Due Club' });
+      assert.match(norm(await next.innerText()), new RegExp(mdy(addMonthsToDate(addDays(today, -1), 1)).replace(/\//g, '\\/')));
+
+      // A new row dated after today becomes a schedule.
+      await page.locator('#main').focus();
+      await page.keyboard.press('Shift+N');
+      const editor = grid.locator('[data-row-editor]').first();
+      await editor.waitFor();
+      await page.keyboard.press('Control+a');
+      await page.keyboard.type(mdy(addDays(today, 10)));
+      await page.keyboard.press('Tab');
+      await page.keyboard.type('Future Gym');
+      await page.waitForTimeout(150);
+      await page.keyboard.press('Enter');
+      await page.getByRole('textbox', { name: 'Outflow' }).fill('45');
+      await page.getByRole('button', { name: 'Save', exact: true }).click();
+      await page.waitForTimeout(400);
+      const gym = grid.locator('[role=row][data-row-id^="sched:"]', { hasText: 'Future Gym' });
+      assert.equal(await gym.count(), 1, 'scheduled, not entered');
+
+      // Enter Now (E): entered today, and a one-time schedule is used up.
+      await gym.locator('[data-select]').click();
+      await page.keyboard.press('e');
+      await page.waitForTimeout(400);
+      assert.equal(await gym.count(), 0);
+      const now = grid.locator('[role=row]:not([data-row-id^="sched:"])', { hasText: 'Future Gym' });
+      assert.match(norm(await now.innerText()), new RegExp(mdy(today).replace(/\//g, '\\/')));
+      await page.waitForTimeout(500);
+      await app.close();
+
+      // Both survive a relaunch, and nothing is entered twice.
+      const again = await open(dueBox);
+      await sidebar(again.page).locator('[data-section=cash]', { hasText: 'Wallet' }).click();
+      const g2 = again.page.getByRole('treegrid', { name: /Wallet transactions/ });
+      await g2.waitFor();
+      assert.equal(await g2.locator('[role=row]:not([data-row-id^="sched:"])', { hasText: 'Due Club' }).count(), 1);
+      assert.equal(await g2.locator('[role=row]:not([data-row-id^="sched:"])', { hasText: 'Future Gym' }).count(), 1);
+      await again.close();
+    } finally {
+      // A failed assertion leaves the app holding the file; close it before deleting the folder.
+      for (const a of running.splice(0)) await a.close().catch(() => undefined);
+      dueBox.cleanup();
+    }
+  });
+
+  void test('Manage Payees renames and hides; Reconcile locks the cleared transactions and survives a relaunch', { timeout: 300_000 }, async () => {
+    const app = await open();
+    const { page } = app;
+    await sidebar(page).locator('button').first().click();
+    await page.getByRole('menuitem', { name: 'Manage Payees…' }).click();
+    const dlg = page.getByRole('dialog', { name: 'Manage Payees' });
+    await dlg.getByRole('checkbox', { name: 'Corner Grocery' }).check();
+    const name = dlg.getByRole('textbox', { name: 'Payee Name' });
+    await name.fill('Corner Market');
+    await name.press('Enter');
+    await page.waitForTimeout(300);
+    await dlg.getByRole('button', { name: 'Hide', exact: true }).click();
+    await page.waitForTimeout(200);
+    assert.match(norm(await dlg.locator('[role=group][aria-label="Hidden Payees"]').innerText()), /Corner Market/);
+    await dlg.getByRole('button', { name: 'Done' }).click();
+
+    await sidebar(page).locator('[data-section=cash]', { hasText: 'Wallet' }).click();
+    const grid = page.getByRole('treegrid', { name: /Wallet transactions/ });
+    await grid.waitFor();
+    assert.ok((await grid.locator('[role=row]', { hasText: 'Corner Market' }).count()) > 0, 'the register shows the new name');
+
+    // Reconcile: "Is your current balance …?" Yes.
+    await page.keyboard.press('Shift+E');
+    const pop = page.getByRole('dialog', { name: 'Reconcile' });
+    await pop.getByRole('button', { name: 'Yes' }).click();
+    await page.waitForTimeout(500);
+    assert.match(norm(await page.getByRole('main').innerText()), /Reconciled today/);
+    const locks = await grid.getByRole('button', { name: 'Reconciled. Unlock' }).count();
+    assert.ok(locks >= 3, `locked ${String(locks)}`);
+    await page.waitForTimeout(500);
+    await app.close();
+
+    const again = await open();
+    await sidebar(again.page).locator('[data-section=cash]', { hasText: 'Wallet' }).click();
+    const g2 = again.page.getByRole('treegrid', { name: /Wallet transactions/ });
+    await g2.waitFor();
+    assert.equal(await g2.getByRole('button', { name: 'Reconciled. Unlock' }).count(), locks);
+    assert.match(norm(await again.page.getByRole('main').innerText()), /Reconciled today/);
+    await again.close();
   });
 });

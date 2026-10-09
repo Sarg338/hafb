@@ -30,11 +30,11 @@ A row is `done` only after Sarg validates it on hardware. Rows whose engine half
 | P-17 | Negative Ready to Assign: Fix This (un-assign from a category); future-month shortfall warning on Assigned in Future Months, without taking this month below zero | S1.2 | S4.3 | done |
 | P-18 | Category notes | — | S4.2 | done |
 | P-19 | Multi-select categories (checkboxes, Shift+Up/Down) | — | S4.2 | done |
-| P-20 | Recent Moves (34 days; All/Moved/Assigned; event icons) | S2.3 | S5.7 | todo |
-| P-21 | Per-category assigned history (3 months) | S2.3 | S5.7 | todo |
-| P-22 | Focused Views: built-ins Underfunded, Overfunded, Snoozed, Money Available (+ Overspent) | S1.5 | S5.3 | in-progress |
-| P-23 | Focused Views: up to 12 custom, reorderable, remembered per device; hidden categories excluded | — | S5.3 | todo |
-| P-24 | Plan Reset (all unspent → Ready to Assign; CC payments keep money; confirm + undo) | S1.5 | S5.3 | in-progress |
+| P-20 | Recent Moves (34 days; All/Moved/Assigned; event icons) | S2.3 | S5.7 | done |
+| P-21 | Per-category assigned history (3 months) | S2.3 | S5.7 | done |
+| P-22 | Focused Views: built-ins Underfunded, Overfunded, Snoozed, Money Available (+ Overspent) | S1.5 | S5.3 | done |
+| P-23 | Focused Views: up to 12 custom, reorderable, remembered per device; hidden categories excluded | — | S5.3 | done |
+| P-24 | Plan Reset (all unspent → Ready to Assign; CC payments keep money; confirm + undo) | S1.5 | S5.3 | done |
 | P-25 | Hide Amounts toggle | — | S4.1 | done |
 | P-26 | Undo / Redo buttons in the plan toolbar | S2.3 | S4.1 | done |
 
@@ -42,46 +42,46 @@ A row is `done` only after Sarg validates it on hardware. Rows whose engine half
 
 | ID | Feature | Engine | UI | Status |
 |---|---|---|---|---|
-| I-01 | Plan summary: Available in [Month] = left over + assigned + activity | S1.2 | S5.1 | in-progress |
-| I-02 | Cost to Be Me: this month's targets vs expected income (editable) | S1.4 | S5.1 | in-progress |
-| I-03 | Assigned in the Future: total, per-month list, next-month funded pie | S1.2 | S5.1 | in-progress |
-| I-04 | Auto-Assign section with live amounts per option | S1.5 | S5.3 | in-progress |
-| I-05 | Category detail: available-balance breakdown (left over, assigned, cash spending, credit spending) | S1.2 | S5.1 | in-progress |
-| I-06 | Category detail: target card (ring %, "Assign $X more", Assign button, needed / funded / to go) | S1.4 | S5.2 | in-progress |
-| I-07 | Category detail: upcoming scheduled + "available after upcoming" | S1.6 | S5.1 | in-progress |
-| I-08 | Multi-selection totals; collapsible sections remembered | — | S5.1 | todo |
+| I-01 | Plan summary: Available in [Month] = left over + assigned + activity | S1.2 | S5.1 | done |
+| I-02 | Cost to Be Me: this month's targets vs expected income (editable) | S1.4 | S5.1 | done |
+| I-03 | Assigned in the Future: total, per-month list, next-month funded pie | S1.2 | S5.1 | done |
+| I-04 | Auto-Assign section with live amounts per option | S1.5 | S5.3 | done |
+| I-05 | Category detail: available-balance breakdown (left over, assigned, cash spending, credit spending) | S1.2 | S5.1 | done |
+| I-06 | Category detail: target card (ring %, "Assign $X more", Assign button, needed / funded / to go) | S1.4 | S5.2 | done |
+| I-07 | Category detail: upcoming scheduled + "available after upcoming" | S1.6 | S5.1 | done |
+| I-08 | Multi-selection totals; collapsible sections remembered | — | S5.1 | done |
 | I-09 | "For You" content feed | — | — | wontfix (server content) |
 
 ## 3. Targets ([how to use targets](https://support.ynab.com/en_us/how-to-use-targets-rk5kkI9ks), [underfunded logic](https://support.ynab.com/en_us/underfunded-a-guide-BJwPhQO09))
 
 | ID | Feature | Engine | UI | Status |
 |---|---|---|---|---|
-| T-01 | Cadences: weekly (weekday), monthly (day / last day), yearly (date), custom (by date) | S1.4 | S5.2 | in-progress |
-| T-02 | Behaviors: Set aside another / Refill up to / Have a balance of (non-repeating custom only) | S1.4 | S5.2 | in-progress |
-| T-03 | Custom repeat every N months/years | S1.4 | S5.2 | in-progress |
-| T-04 | Underfunded calculation per cadence × behavior (§5.4) | S1.4 | S5.2 | in-progress |
-| T-05 | Statuses: on track, underfunded, funded, overspent, snoozed | S1.4 | S5.2 | in-progress |
-| T-06 | Snooze (Shift+Z), current month only | S1.4 | S5.2 | in-progress |
-| T-07 | Target editor with behavior explanations and the "Most people choose this" hint | — | S5.2 | todo |
-| T-08 | Edit Plan mode (pencil); target suggestions from history | S1.4 | S5.2 | in-progress |
-| T-09 | Expected income (for Cost to Be Me) | S1.4 | S5.1 | in-progress |
+| T-01 | Cadences: weekly (weekday), monthly (day / last day), yearly (date), custom (by date) | S1.4 | S5.2 | done |
+| T-02 | Behaviors: Set aside another / Refill up to / Have a balance of (non-repeating custom only) | S1.4 | S5.2 | done |
+| T-03 | Custom repeat every N months/years | S1.4 | S5.2 | done |
+| T-04 | Underfunded calculation per cadence × behavior (§5.4) | S1.4 | S5.2 | done |
+| T-05 | Statuses: on track, underfunded, funded, overspent, snoozed | S1.4 | S5.2 | done |
+| T-06 | Snooze (Shift+Z), current month only | S1.4 | S5.2 | done |
+| T-07 | Target editor with behavior explanations and the "Most people choose this" hint | — | S5.2 | done |
+| T-08 | Edit Plan mode (pencil); target suggestions from history | S1.4 | S5.2 | done |
+| T-09 | Expected income (for Cost to Be Me) | S1.4 | S5.1 | done |
 | T-10 | Legacy target types mapped on import | S1.4 | S2.4 | in-progress |
 | T-11 | Monthly Debt Payment target for paired loan categories | S1.7 | S6.4 | in-progress |
-| T-12 | CC payoff target drives the CC underfunded alert | S1.3 | S5.2 | in-progress |
+| T-12 | CC payoff target drives the CC underfunded alert | S1.3 | S5.2 | done |
 
 ## 4. Auto-Assign ([auto-assign](https://support.ynab.com/en_us/auto-assign-a-guide-r1gBNbBJo))
 
 | ID | Feature | Engine | UI | Status |
 |---|---|---|---|---|
-| A-01 | Underfunded | S1.5 | S5.3 | in-progress |
-| A-02 | Assigned Last Month | S1.5 | S5.3 | in-progress |
-| A-03 | Spent Last Month | S1.5 | S5.3 | in-progress |
-| A-04 | Average Assigned (12 months) | S1.5 | S5.3 | in-progress |
-| A-05 | Average Spent (12 months) | S1.5 | S5.3 | in-progress |
-| A-06 | Reduce Overfunding | S1.5 | S5.3 | in-progress |
-| A-07 | Reset Available Amounts | S1.5 | S5.3 | in-progress |
-| A-08 | Reset Assigned Amounts | S1.5 | S5.3 | in-progress |
-| A-09 | Scope: selection → focused view → all; amount preview; one undo step | S1.5 | S5.3 | in-progress |
+| A-01 | Underfunded | S1.5 | S5.3 | done |
+| A-02 | Assigned Last Month | S1.5 | S5.3 | done |
+| A-03 | Spent Last Month | S1.5 | S5.3 | done |
+| A-04 | Average Assigned (12 months) | S1.5 | S5.3 | done |
+| A-05 | Average Spent (12 months) | S1.5 | S5.3 | done |
+| A-06 | Reduce Overfunding | S1.5 | S5.3 | done |
+| A-07 | Reset Available Amounts | S1.5 | S5.3 | done |
+| A-08 | Reset Assigned Amounts | S1.5 | S5.3 | done |
+| A-09 | Scope: selection → focused view → all; amount preview; one undo step | S1.5 | S5.3 | done |
 
 ## 5. Accounts ([account types](https://support.ynab.com/en_us/account-types-an-overview-BkmGM0qCq))
 
@@ -104,7 +104,7 @@ A row is `done` only after Sarg validates it on hardware. Rows whose engine half
 | ID | Feature | Engine | UI | Status |
 |---|---|---|---|---|
 | R-01 | Add / edit / delete inline; Enter, Tab, Esc, Ctrl+Enter | — | S4.5 | done |
-| R-02 | Payee picker: Payments & Transfers group, saved payees, Manage Payees | S1.6 | S4.5 | in-progress (Manage Payees link with S5.5) |
+| R-02 | Payee picker: Payments & Transfers group, saved payees, Manage Payees | S1.6 | S4.5 | done (Manage Payees under the payee list, S5.5) |
 | R-03 | Category picker with available amounts and suggestions | S1.6 | S4.5 | done |
 | R-04 | Transfers (paired legs; category rules per §5.9) | S1.2 | S4.5 | done |
 | R-05 | Cleared toggle (C), reconciled lock | S1.6 | S4.5 | done |
@@ -132,13 +132,13 @@ A row is `done` only after Sarg validates it on hardware. Rows whose engine half
 
 | ID | Feature | Engine | UI | Status |
 |---|---|---|---|---|
-| S-01 | All 13 frequencies; 31st → last day of month | S1.6 | S5.4 | in-progress |
-| S-02 | Collapsible Scheduled section in register; no plan impact until due | S1.6 | S5.4 | in-progress |
-| S-03 | Due items appear bold and unapproved | S1.6 | S5.4 | in-progress |
-| S-04 | Enter Now / Skip | S1.6 | S5.4 | in-progress |
-| S-05 | Make repeating (Shift+T); recurring icon | — | S5.4 | todo |
-| S-06 | Upcoming shortfall: calendar icon on Available | S1.6 | S5.4 | in-progress |
-| S-07 | Scheduled splits and transfers | S1.6 | S5.4 | in-progress |
+| S-01 | All 13 frequencies; 31st → last day of month | S1.6 | S5.4 | done |
+| S-02 | Collapsible Scheduled section in register; no plan impact until due | S1.6 | S5.4 | done |
+| S-03 | Due items appear bold and unapproved | S1.6 | S5.4 | done |
+| S-04 | Enter Now / Skip | S1.6 | S5.4 | done (Enter Now dates an early entry today: an assumption, budget-math §8.1; Skip Next is in the right-click menu) |
+| S-05 | Make repeating (Shift+T); recurring icon | — | S5.4 | done |
+| S-06 | Upcoming shortfall: calendar icon on Available | S1.6 | S5.4 | done |
+| S-07 | Scheduled splits and transfers | S1.6 | S5.4 | done |
 
 ## 8. Credit cards ([CC payments](https://support.ynab.com/en_us/credit-card-payments-a-guide-r1_506Q1j), [CC activity](https://support.ynab.com/en_us/credit-card-activity-an-overview-Sk2mLluA9))
 
@@ -157,20 +157,20 @@ A row is `done` only after Sarg validates it on hardware. Rows whose engine half
 
 | ID | Feature | Engine | UI | Status |
 |---|---|---|---|---|
-| PY-01 | Payee manager: rename, combine, delete | — | S5.5 | todo |
-| PY-02 | Rename rules learned from edits | S1.6 | S5.5 | in-progress |
-| PY-03 | Default category: 2-of-last-3 rule | S1.6 | S5.5 | in-progress |
-| PY-04 | Fixed default category per payee; auto-categorize off per payee | S1.6 | S5.5 | in-progress |
+| PY-01 | Payee manager: rename, combine, delete | — | S5.5 | done |
+| PY-02 | Rename rules learned from edits | S1.6 | S5.5 | in-progress (renaming rules managed in Manage Payees, S5.5; the "rename future …?" offer after editing an imported payee comes with import, S6.5) |
+| PY-03 | Default category: 2-of-last-3 rule | S1.6 | S5.5 | done |
+| PY-04 | Fixed default category per payee; auto-categorize off per payee | S1.6 | S5.5 | done |
 | PY-05 | Transfer payees (system-managed) | S1.2 | S4.5 | done |
 
 ## 10. Reconciliation ([reconciling](https://support.ynab.com/en_us/reconciling-accounts-a-guide-BJFE3fHys))
 
 | ID | Feature | Engine | UI | Status |
 |---|---|---|---|---|
-| RC-01 | Reconcile flow (Shift+E): confirm cleared balance → yes / "Let's fix it" | S1.6 | S5.6 | in-progress |
-| RC-02 | Reconciliation Balance Adjustment transaction | S1.6 | S5.6 | in-progress |
-| RC-03 | Lock icons; reconciled-edit warning (unlocks one transaction) | — | S5.6 | todo |
-| RC-04 | Hide/show reconciled; "Reconciled N days ago" | — | S5.6 | todo |
+| RC-01 | Reconcile flow (Shift+E): confirm cleared balance → yes / "Let's fix it" | S1.6 | S5.6 | done |
+| RC-02 | Reconciliation Balance Adjustment transaction | S1.6 | S5.6 | done |
+| RC-03 | Lock icons; reconciled-edit warning (unlocks one transaction) | — | S5.6 | done |
+| RC-04 | Hide/show reconciled; "Reconciled N days ago" | — | S5.6 | done |
 
 ## 11. Reflect ([Reflect](https://support.ynab.com/en_us/reflect-in-ynab-B1GJsrWkj), [export](https://support.ynab.com/en_us/how-to-export-reflection-data-Bykou09))
 

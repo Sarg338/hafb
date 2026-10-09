@@ -347,7 +347,7 @@ function TargetSection({ model, id, name, actions, money }: { model: PlanModel; 
           <p className={styles.targetHeading}>{card.heading}</p>
           <p className={styles.note}>{card.subline}</p>
           <div className={styles.ring}>
-            <ProgressRing percent={card.percent} size={64} stroke={6} state={card.status === 'underfunded' ? 'underfunded' : card.status === 'snoozed' ? 'snoozed' : 'funded'} label={`${String(card.percent)}% of the target`} />
+            <ProgressRing percent={card.percent} size={64} stroke={6} state={card.status === 'underfunded' ? 'underfunded' : card.status === 'snoozed' ? 'snoozed' : 'funded'} label={card.percent >= 100 && card.status !== 'snoozed' ? 'Target met' : `${String(card.percent)}% of the target`} done={card.percent >= 100 && card.status !== 'snoozed'} />
           </div>
           {card.box && (
             <div className={styles.targetBox} data-tone={card.box.tone}>

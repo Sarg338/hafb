@@ -164,7 +164,7 @@ export function targetCard(target: Target, tm: TargetMonth, cm: CategoryMonth, f
   else if (target.behavior === 'haveBalance' && c.kind === 'custom' && c.due === undefined && tm.toGo > 0) {
     // YNAB, no date: "If you assign $200.00 each month, you will meet your target in 24 months."
     box = cm.assigned > 0 ? { tone: 'good', text: `If you assign ${money(cm.assigned)} each month, you will meet your target in ${String(Math.ceil(tm.toGo / cm.assigned))} months.` } : { tone: 'plain', text: 'Assign any amount each month to work toward it.' };
-  } else if (tm.toGo === 0) box = { tone: 'good', text: 'Funded. You’ve set aside everything this target needs.' };
+  } else if (tm.toGo === 0) box = { tone: 'good', text: 'You’ve met your target!' };
   else box = { tone: 'good', text: 'On track.' };
 
   const dueText = due === undefined ? null : shortDate(due);

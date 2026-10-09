@@ -266,6 +266,13 @@ These are the worked examples behind `packages/engine/src/{scheduled,reconcile,s
 - *Example 8.1.1:* a monthly rent of −1,000.00 starting 2026-01-31, run on 2026-03-31, creates Jan 31, Feb 28 and Mar 31. The schedule's next date becomes Apr 30.
 - *Example 8.1.2:* a one-time (`never`) schedule creates its transaction, and its next date becomes `null` (used up).
 
+**Entering by hand** (the store's `enterScheduledNow`, `skipScheduled`, `makeRepeating`; S5.4).
+- *Enter Now* enters the next occurrence and moves the schedule on. **Assumption** (YNAB's help is silent): an occurrence still in the future is dated **today** (YNAB's "pay early" case); one already due keeps its date. It is approved, since the user entered it.
+- *Skip Next* moves the schedule on without entering anything; a one-time schedule is used up.
+- *Make Repeating* (Shift+T) schedules a copy of a transaction one period after its date, keeping its day of the month as the anchor.
+- A new row dated after today is saved as a one-time schedule; dated today or earlier with a repeat, it is entered and its next occurrence scheduled.
+- Verified in the UI (preview, 2026-10-08): monthly from 01/31/2028, skipping gives 02/29/2028 → 03/31/2028 → 04/30/2028.
+
 **Upcoming shortfall** (`upcomingByCategory`, `availableAfterUpcoming`, `upcomingShortfalls`).
 - Scheduled amounts still to come in a month count from after `today` (or from the 1st, for a future month) through the month's end. Each category gets a signed total; split lines count toward their own categories. Scheduled transactions never change the plan itself.
 - *Example 8.1.3:* today is Mar 15. Bills has 50.00 available and a phone bill of −60.00 due Mar 25. Fun has 30.00 available, a gym charge of −20.00 on Mar 26, and a refund of +10.00 on Mar 20. Available after upcoming: Bills −10.00 (shortfall, shown with YNAB's calendar icon), Fun 20.00.
@@ -598,5 +605,5 @@ Each item needs real YNAB behavior to confirm. The optional YNAB free-trial scen
 | Q8 | Converted-account card behavior (public export, 95 values) | ❓ Unexplained; optional trial extra |
 | Q9 | Split rows in the export | ✅ **Verified:** `Split (k/n)` rows, recombined on import |
 | Q10 | YNAB "Credit Card Interest" categorization | ⏳ Rolling out; not modeled |
-| Q11 | Recurrence edge cases (twice a month, 31st) | ⏳ Documented only |
+| Q11 | Recurrence edge cases (twice a month, 31st) | ⏳ Month-end and leap-year clamping checked in the app (S5.4); twice a month is still documented only. Enter Now dating an early entry today is an assumption (§8.1) |
 | Q12 | Reports | ✅ **Verified** for October: Spending Breakdown, Income v Expense, Net Worth |

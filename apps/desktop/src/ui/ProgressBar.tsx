@@ -1,4 +1,5 @@
 import type { MoneyState } from './Pill.tsx';
+import { Icon } from './Icon.tsx';
 import styles from './ProgressBar.module.css';
 
 export interface ProgressBarProps {
@@ -43,10 +44,12 @@ export interface ProgressRingProps {
   stroke?: number;
   /** Accessible summary; the visible label is the rounded percentage. */
   label: string;
+  /** A met target: a check instead of the percentage (YNAB). */
+  done?: boolean;
 }
 
 /** Target progress ring (CLAUDE.md §5.4 "progress-ring percentage"), for the target detail card. */
-export function ProgressRing({ percent, state, size = 44, stroke = 4, label }: ProgressRingProps) {
+export function ProgressRing({ percent, state, size = 44, stroke = 4, label, done = false }: ProgressRingProps) {
   const r = (size - stroke) / 2;
   const circumference = 2 * Math.PI * r;
   const clamped = Math.max(0, Math.min(100, percent));
@@ -65,7 +68,7 @@ export function ProgressRing({ percent, state, size = 44, stroke = 4, label }: P
         />
       </svg>
       <span className={styles.ringLabel} aria-hidden="true">
-        {Math.floor(clamped)}%
+        {done ? <Icon name="checkmark" /> : `${String(Math.floor(clamped))}%`}
       </span>
     </span>
   );

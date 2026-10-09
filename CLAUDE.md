@@ -100,7 +100,7 @@ Entities (table ≈ TS type ≈ Rust struct; keep them in lockstep via `packages
 - **FocusedView:** name, sort order, category ids.
   - Up to 12 custom views. The built-in views (Underfunded, Overfunded, Snoozed, Money Available, plus Overspent when applicable) store only their order.
   - The selected view is a per-device preference, not stored in the file.
-- **Payee:** name, `transfer_account_id` (transfer payees are system-managed), default category, `default_category_fixed: bool`, `auto_categorize: bool`, note, deleted.
+- **Payee:** name, `transfer_account_id` (transfer payees are system-managed), default category, `default_category_fixed: bool`, `auto_categorize: bool`, `hidden: bool` (not suggested while typing; migration 0002), note, deleted.
 - **PayeeRenameRule:** pattern (contains / starts with / equals, case-insensitive), target payee.
 - **Transaction:**
   - Core fields: account, date, payee, category, memo, amount (signed minor units; negative = outflow).
@@ -393,7 +393,7 @@ Mark phase status here when it changes:
 - Phase 2: done, signed off by Sarg 2026-10-08 (ADR 0002). Tests: 537 TS + 25 Rust. Validated by driving the release build on Sarg's PC: import, edit, undo/redo, reopen, second-window lock, backup restore, save a copy, new plan; the empty `-wal` left after quitting was found and fixed. Carried into Phase 3: replace the browser `confirm()` box with an in-app dialog.
 - Phase 3: done, signed off by Sarg 2026-10-08. S3.1 design direction (approved look; DESIGN.md; themes as data, ADR 0003). S3.2 component library in `src/ui` with gallery `#/gallery` (ADR 0004). S3.3 app shell in `src/shell` (spike and Phase 2 screens retired). S3.4 `DataGrid` (50k-row benchmark: 0 missed frames in WebView2; cells exposed to Narrator via UIA). S3.5 shortcut registry, `?` overlay, error surfacing, `pnpm smoke` (9 tests, ADR 0005). Launch to first paint 812 ms.
 - Phase 4: in progress. S4.1 Plan screen, S4.2 Plan editing, S4.3 Moving money, S4.4 Accounts, S4.5 Register core, S4.6 Register power and S4.7 Credit cards done 2026-10-08 (S4.7 still needs the real-card check during M1) (ADR 0007: production screens in `src/screens` from the component library; the S3.1 mockups stay as the look reference).
-- Phase 5: todo
+- Phase 5: done in code 2026-10-08 (roadmap Phase 5 progress notes): S5.1 inspector, S5.2 targets, S5.3 Focused Views / scoped Auto-Assign / Plan Reset, S5.4 scheduled transactions, S5.5 Manage Payees (migration 0002 adds `payees.hidden`), S5.6 reconciliation, S5.7 Recent Moves. Smoke tests cover each in the release app. **M2** (a month on real data with YNAB closed) needs Sarg, so the phase isn't signed off.
 - Phase 6: todo
 - Phase 7: todo
 - Phase 8: todo
