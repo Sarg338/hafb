@@ -14,7 +14,7 @@
 - **Phase gates:** a phase closes only when every sprint in it is validated. Status is updated in CLAUDE.md §7.
 - **Decisions get ADRs:**
   - `docs/decisions/NNNN-*.md`, one per choice.
-  - Upcoming: undo/command architecture (S2.3), styling approach (S3.2), charting (S6.1), attachment storage (S7.6).
+  - Upcoming: undo/command architecture (S2.3), styling approach (S3.2), charting (S6.1), attachment storage (S7.6, ADR 0009).
 - **Look and feel** (Sarg, 2026-10-08): HAFB presents the plan, transactions and data **in a very similar way to YNAB**: the same screen structure, columns, available pills and progress bars, inspector, register layout and vocabulary (CLAUDE.md §9), so YNAB users feel at home. HAFB keeps its **own visual identity** (colors, logo, illustrations, typography details) and never copies YNAB's branding or artwork.
 
 ## Timed follow-ups
@@ -351,6 +351,19 @@ Progress (YNAB used as the reference throughout, 2026-10-09; it was put back as 
   - **Help (plan menu):** ten short topics in YNAB's vocabulary, bundled with the app so they work offline, with a button to the shortcut list.
   - **Copy review:** every store error and app notification was reviewed. Fixes: a split mismatch now says "$12.34, not $15.00" rather than minor units, apostrophes are consistent, and every message ends with a full stop.
   - **Smoke test:** from the welcome screen, a new user makes a plan from a template, adds an account, records a transaction and assigns money, in under 10 minutes, and the card reads "You're all set". The roadmap's human check, a fresh user other than Sarg, is still to do.
+- **S7.6 done in code.**
+  - **Transaction photos (ADR 0009),** as in YNAB's trial (2026-10-09):
+    - A photo column after the flag; one image per transaction.
+    - A viewer with Delete Image (confirmed), Download Image and Close.
+    - The photo is stored as a BLOB inside the .hafb with a ~10 KB thumbnail made in the webview (migration 0005), so backups and Save a copy carry photos.
+  - **Credit Card Interest (CC-07),** behind a Preferences switch that is off by default:
+    - Card registers offer the category; the interest stays off the plan and shows as card debt in the payment category; the Activity popover lists it.
+    - Modeled from YNAB's 2026-10-07 announcement, because the trial account doesn't have the feature yet. The open assumptions are in budget-math §3.15 and §13 Q10.
+    - Migration 0006 adds its system category row.
+  - **Legacy goal mapping (T-10):** `legacyTarget` turns YNAB's old goal types (TB, TBD, MF, NEED, DEBT, with their cadences) into current targets (budget-math §6.10). YNAB's CSV export has no targets, so the S7.2 re-entry screen remains the import path.
+  - **Available pills (P-09):** checked complete and marked done.
+  - **Exit check:** the parity checklist has no `todo` left outside Phase 8, apart from X-02 (high DPI), which is S7.7's.
+  - **Smoke tests:** photo, and Credit Card Interest end to end in the release app.
 
 ## Phase 8: Release hardening → **v1.0**
 

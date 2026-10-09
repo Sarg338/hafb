@@ -19,7 +19,7 @@ A row is `done` only after Sarg validates it on hardware. Rows whose engine half
 | P-06 | Hide/unhide categories (Hidden Categories group) | S1.2 | S4.2 | done |
 | P-07 | Collapse/expand groups, collapse all (Ctrl+Up/Down) | — | S4.1 | done |
 | P-08 | Assigned / Activity / Available columns; inline assign with math (+ − × ÷) | S1.2 | S4.2 | done |
-| P-09 | Available pills: green, yellow (underfunded, or overspent only on credit, with a card icon), red (cash overspending), grey; icons (calendar = upcoming shortfall, pie = underfunded, snooze) | S1.4 | S4.1 | in-progress |
+| P-09 | Available pills: green, yellow (underfunded, or overspent only on credit, with a card icon), red (cash overspending), grey; icons (calendar = upcoming shortfall, pie = underfunded, snooze) | S1.4 | S4.1 | done (S7.6 check: every state and icon; underfunded uses the design system's clock icon) |
 | P-10 | Segmented progress bars (rollover / weekly / extra; light = spent, dark = available) | S1.4 | S4.1 | done |
 | P-11 | Display Options: progress bars on/off; balance style "differentiate without color"; theme | — | S4.1 / S7.1 | done (YNAB's Display Options dialog in the plan menu: Theme Default / Dark / Match System, plus High contrast; Progress Bars; Balance Style; Apply or Cancel) |
 | P-12 | Cash overspending (zeroed next month, reduces Ready to Assign) | S1.2 | S4.1 | done |
@@ -65,7 +65,7 @@ A row is `done` only after Sarg validates it on hardware. Rows whose engine half
 | T-07 | Target editor with behavior explanations and the "Most people choose this" hint | — | S5.2 | done |
 | T-08 | Edit Plan mode (pencil); target suggestions from history | S1.4 | S5.2 | done |
 | T-09 | Expected income (for Cost to Be Me) | S1.4 | S5.1 | done |
-| T-10 | Legacy target types mapped on import | S1.4 | S2.4 | in-progress |
+| T-10 | Legacy target types mapped on import | S1.4 | S2.4 | done (`legacyTarget`, budget-math §6.10; YNAB's CSV has no targets, so imports use the S7.2 re-entry screen) |
 | T-11 | Monthly Debt Payment target for paired loan categories | S1.7 | S6.4 | done (the paired category's target becomes a Monthly Debt Payment with the payoff calculator and a due day) |
 | T-12 | CC payoff target drives the CC underfunded alert | S1.3 | S5.2 | done |
 
@@ -123,7 +123,7 @@ A row is `done` only after Sarg validates it on hardware. Rows whose engine half
 | R-18 | Banners: "N new transactions to approve or categorize", uncategorized filter | S1.6 | S4.6 | done |
 | R-19 | Approve (A) / reject (Shift+R) / unapproved state | S1.6 | S6.5 | done (Reject, Shift+R, only for unapproved imports; never re-imports) |
 | R-20 | Match (M) / unmatch (Shift+U) | S1.6 | S6.5 | done (auto-match on import; Match, M, for one import + one entered; Unmatch, Shift+U, restores both) |
-| R-21 | Photo attachments (thumbnail, viewer) stored in the .hafb | — | S7.6 | todo |
+| R-21 | Photo attachments (thumbnail, viewer) stored in the .hafb | — | S7.6 | done (ADR 0009) |
 | R-22 | Bank Import Details panel (original payee/memo as imported) | — | S6.5 | done (Bank Import Details: imported payee, memo, date and amount; match note) |
 | R-23 | New transaction shortcut (Shift+N) | — | S4.5 | done |
 | R-24 | Retailer order-history links | — | — | wontfix (server) |
@@ -150,7 +150,7 @@ A row is `done` only after Sarg validates it on hardware. Rows whose engine half
 | CC-04 | Activity popover: spending, returns, funded spending, payments | S1.3 | S4.7 | done (matches the trial plan to the cent) |
 | CC-05 | Record Payment (pre-fill = min(available, cleared balance)) | S1.3 | S4.7 | done |
 | CC-06 | Pay-in-full gap; underfunded alert (current month) | S1.3 | S4.7 | done (payoff-target variant with T-12, S5.2) |
-| CC-07 | Credit Card Interest categorization (YNAB rolling out Oct 2026; research first) | S1.3 | S7.x | todo (not in the trial plan yet; revisit when YNAB documents it) |
+| CC-07 | Credit Card Interest categorization (YNAB rolling out Oct 2026; research first) | S1.3 | S7.6 | done behind a preference, off by default (budget-math §3.15; recheck against YNAB once the trial has it, §13 Q10) |
 | CC-08 | CC payment auto-matching across checking ↔ card on import | S1.6 | S6.5 | done (a card payment imported on both sides pairs into a transfer) |
 
 ## 9. Payees ([categorizing](https://support.ynab.com/en_us/categorizing-transactions-a-guide-HyRl60sks))

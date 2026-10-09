@@ -170,7 +170,7 @@ RTA(m) = RTA(m-1)
 - The CC payment category's *available* is how much cash is set aside to pay the card. Account balance vs. available = the "pay in full" gap. Show it.
 - **Record Payment** pre-fills the lower of the payment category's available amount and the card's cleared balance.
 - **Underfunded alert** on the payment category (current month only) when available < card balance. If the card has a payoff target, the alert follows the target instead.
-- YNAB is rolling out **Credit Card Interest** categorization (Oct 2026): interest stays out of the plan and doesn't overspend a category. Its details are thin, so research it before implementing; keep it behind a flag.
+- YNAB is rolling out **Credit Card Interest** categorization (Oct 2026): interest stays out of the plan and doesn't overspend a category. Implemented in S7.6 behind a Preferences switch, off by default (`CREDIT_CARD_INTEREST`, migration 0006, budget-math §3.15). It's modeled from YNAB's announcement because the trial account doesn't have it yet; recheck it there when it arrives (§13 Q10).
 
 ### 5.4 Targets
 YNAB reworked targets in May 2024. A target is a **cadence** plus a **behavior**:

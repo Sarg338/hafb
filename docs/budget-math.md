@@ -125,6 +125,29 @@ $40, yellow, because the card owes $50 (the pay-in-full gap). visa spent $80, go
 $50 from checking. The inspector's Current Balance is Prior Balance + Spending and Outflows (−80) +
 Payments and Inflows (returns + payments, +70).
 
+### 3.15 Credit Card Interest (YNAB, rolling out Oct 2026; behind a preference)
+
+- **YNAB's description** (What's New, 2026-10-07): when categorizing interest on a card, pick *Credit
+  Card Interest*. The interest stays out of the spending plan and doesn't overspend a category; the
+  payment category's details show the interest transactions and the month's interest cost, with a
+  prompt for a payoff target. **Not in the trial account yet** (its category picker has no such
+  option, checked 2026-10-09), so nothing below is verified against YNAB.
+- **Rule (HAFB):** `CREDIT_CARD_INTEREST` is a category reference like `READY_TO_ASSIGN`, allowed only on
+  credit accounts. Its lines are treated like a card's starting debt (§3.12): no category activity,
+  no Ready to Assign, nothing moves into the payment category. The card's balance grows, so the
+  payment category shows the interest as debt to cover (underfunded; Auto-Assign → Underfunded asks
+  for it). `CreditCardMonth.interest` is the month's net interest.
+- **Example:** $1,000 Ready to Assign, a Visa with no debt, $12.34 interest charged on Oct 20.
+  Ready to Assign stays $1,000; the payment category shows Available $0.00 with the card at −$12.34;
+  Underfunded asks for $12.34. A $5 interest line in a split with $25 of groceries: Groceries'
+  activity is −$25 only. A $2 interest refund nets the month's interest to −$10.34.
+- **Assumptions to check when YNAB's version reaches the trial:** interest is left out of Spending
+  Breakdown, Spending Trends and Income v Expense (it is "out of the spending plan"); the YNAB export
+  writes it as `Credit Card Interest` with no group (unknown); the payoff-target prompt is not built.
+- **Storage:** a system category row `credit-card-interest` in the Inflow group (migration 0006) so the
+  transaction's category stays a foreign key; the codec hides it as it hides Ready to Assign.
+- **Tests:** `budget.test.ts` 3.15, `reports.test.ts`, store `commands.test.ts`, the release-app smoke test.
+
 ## 4. Transfers (CLAUDE.md §5.9)
 
 | Ex. | Transfer | Effect |
@@ -195,6 +218,23 @@ A target is a **cadence** (weekly / monthly / yearly / custom ± repeat) plus a 
 - **Confirmed unchanged:** set aside / refill / have-a-balance formulas, months remaining, and progress %. All 19 cards matched in October and November.
 
 **Suggested amounts** (S5.2, `suggestTargetAmount`). YNAB says suggestions come from past spending (Feb 2025) and its onboarding reads 90 days, but publishes no formula. ASSUMPTION: the average net spending over the last three complete months the plan has (each month's −activity, floored at 0), rounded half up. Example: $40.00, $50.00, $60.01 → $50.00; $0, $0, $20.00 → $6.67. No spending, or no earlier month, suggests nothing.
+
+### 6.10 Legacy goal types (T-10, `legacyTarget`)
+
+YNAB's CSV export carries no targets (S7.2 offers a re-entry screen instead), but YNAB's API still
+describes goals in the pre-2024 terms. `legacyTarget` maps them per CLAUDE.md §5.4:
+
+| Legacy goal | Target |
+|---|---|
+| TB, Target Balance | custom, *Have a balance of*, no date |
+| TBD, Target Balance by Date | custom, *Have a balance of*, by the date |
+| MF, Monthly Savings Builder | monthly (on its day, else the last day), *Set aside another* |
+| DEBT, Monthly Debt Payment | monthly, *Set aside another* |
+| NEED, Needed for Spending | the matching cadence; `needs_whole_amount` true → *Set aside another*, false → *Refill up to* |
+
+NEED cadences: 1 × 1 monthly; 2 × 1 weekly; 13 × 1 yearly; 1 × n every n months; 3–12 every 2–11
+months; 13 × n every 12n months; 14 every 2 years; 0 a one-time amount by its date. Every n weeks
+(2 × n, n > 1) has no current equivalent and is refused, as is a repeating cadence without its date.
 
 ## 7. Plan operations (CLAUDE.md §5.5, §5.6, §5.14)
 
@@ -670,6 +710,6 @@ Each item needs real YNAB behavior to confirm. The optional YNAB free-trial scen
 | Q7 | Loan interest accrual | ✅ **Simulator totals verified to the cent** (2026-10-09, §10.5): YNAB uses the closed-form annuity, not a schedule sum, which explains the old $0.50 gap and YNAB's own $0.01 disagreement. Checked at two payments. Still open: YNAB's first posted monthly interest after 2026-11-01 (§10.4; roadmap Timed follow-ups) |
 | Q8 | Converted-account card behavior (public export, 95 values) | ❓ Unexplained; optional trial extra |
 | Q9 | Split rows in the export | ✅ **Verified:** `Split (k/n)` rows, recombined on import |
-| Q10 | YNAB "Credit Card Interest" categorization | ⏳ Rolling out; not modeled |
+| Q10 | YNAB "Credit Card Interest" categorization | ⏳ Rolling out; not in the trial yet. Modeled behind a preference from YNAB's description (§3.15); its reports, export format and payoff prompt are assumptions |
 | Q11 | Recurrence edge cases (twice a month, 31st) | ⏳ Month-end and leap-year clamping checked in the app (S5.4); twice a month is still documented only. Enter Now dating an early entry today is an assumption (§8.1) |
 | Q12 | Reports | ✅ **Verified** for October: Spending Breakdown, Income v Expense, Net Worth |
