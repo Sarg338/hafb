@@ -9,6 +9,7 @@ pub mod error;
 pub mod recent;
 pub mod schema;
 pub mod time;
+pub mod backup_settings;
 pub mod wire;
 
 use backup::{BackupKind, make_backup};
@@ -31,6 +32,8 @@ pub struct OpenOptions {
     pub backup_dir: Option<PathBuf>,
     /// Make an `open-<stamp>` backup (needs `backup_dir`).
     pub backup_on_open: bool,
+    /// How many open backups to keep (the user's setting, S6.6); `None` = `backup::KEEP_BACKUPS`.
+    pub keep_backups: Option<usize>,
 }
 
 /// What opening did, for the UI ("Upgraded from v1; a copy was saved first").
@@ -130,7 +133,7 @@ impl Plan {
                     Some(d) => d.clone(),
                     None => path.parent().map(Path::to_path_buf).unwrap_or_default(),
                 };
-                let copy = make_backup(&conn, &dir, BackupKind::BeforeMigration, Some(found))?;
+                let copy = make_backup(&conn, &dir, BackupKind::BeforeMigration, Some(found), backup::KEEP_BACKUPS)?;
                 report.pre_migration_backup_path = Some(copy.to_string_lossy().into_owned());
             }
             schema::migrate(&conn, migrations)?;
@@ -140,7 +143,7 @@ impl Plan {
         plan.name()?; // a plan without its plan row is not a plan
         if options.backup_on_open {
             if let Some(dir) = &options.backup_dir {
-                let copy = make_backup(&plan.conn, dir, BackupKind::Open, None)?;
+                let copy = make_backup(&plan.conn, dir, BackupKind::Open, None, options.keep_backups.unwrap_or(backup::KEEP_BACKUPS))?;
                 report.backup_path = Some(copy.to_string_lossy().into_owned());
             }
         }
@@ -399,7 +402,7 @@ impl Plan {
     /// Returns the reopened plan and the path of the `restore-` copy of what was replaced.
     pub fn restore(self, backup_file: &Path, backup_dir: &Path) -> Result<(Plan, OpenReport, PathBuf)> {
         check_restorable(backup_file)?;
-        let saved = make_backup(&self.conn, backup_dir, BackupKind::Restore, None)?;
+        let saved = make_backup(&self.conn, backup_dir, BackupKind::Restore, None, backup::KEEP_BACKUPS)?;
         let path = self.path.clone();
         drop(self);
         let tmp = sibling(&path, "restoring");
@@ -408,9 +411,14 @@ impl Plan {
         // A stale -wal beside the replaced file would be replayed onto the restored one.
         remove_with_sidecars(&path)?;
         std::fs::rename(&tmp, &path)?;
-        let options = OpenOptions { backup_dir: Some(backup_dir.to_path_buf()), backup_on_open: false };
+        let options = OpenOptions { backup_dir: Some(backup_dir.to_path_buf()), backup_on_open: false, keep_backups: None };
         let (plan, report) = Plan::open(&path, &options)?;
         Ok((plan, report, saved))
+    }
+
+    /// Back up now (S6.6): a `manual-<stamp>` copy in `dir`, keeping the newest `keep`.
+    pub fn backup_now(&self, dir: &Path, keep: usize) -> Result<PathBuf> {
+        make_backup(&self.conn, dir, BackupKind::Manual, None, keep)
     }
 
     #[doc(hidden)]

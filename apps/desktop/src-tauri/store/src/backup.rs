@@ -1,7 +1,9 @@
 //! Backups (ADR 0002 §7): one folder per plan under the app's local data folder.
 //!
 //! File names inside a plan's folder:
-//! - `open-<stamp>.hafb`: made on every open; the newest `KEEP_BACKUPS` are kept.
+//! - `open-<stamp>.hafb`: made on every open; the newest `keep` are kept (default `KEEP_BACKUPS`;
+//!   a setting, S6.6).
+//! - `manual-<stamp>.hafb`: made by Back up now (S6.6); the newest `keep` are kept.
 //! - `restore-<stamp>.hafb`: the plan as it was just before a restore; newest `KEEP_BACKUPS` kept.
 //! - `before-migration-v<N>-<stamp>.hafb`: made before upgrading a v<N> file; never pruned.
 
@@ -18,6 +20,7 @@ pub const KEEP_BACKUPS: usize = 10;
 #[serde(rename_all = "camelCase")]
 pub enum BackupKind {
     Open,
+    Manual,
     Restore,
     BeforeMigration,
 }
@@ -26,6 +29,7 @@ impl BackupKind {
     fn prefix(self) -> &'static str {
         match self {
             Self::Open => "open-",
+            Self::Manual => "manual-",
             Self::Restore => "restore-",
             Self::BeforeMigration => "before-migration-",
         }
@@ -89,9 +93,9 @@ pub fn vacuum_into(conn: &Connection, dest: &Path) -> Result<()> {
     Ok(())
 }
 
-/// Write a backup of `conn` into `dir` and prune that kind. `migration_from` names
-/// before-migration copies.
-pub fn make_backup(conn: &Connection, dir: &Path, kind: BackupKind, migration_from: Option<u32>) -> Result<PathBuf> {
+/// Write a backup of `conn` into `dir` and keep the newest `keep` of that kind (before-migration
+/// copies are never pruned). `migration_from` names before-migration copies.
+pub fn make_backup(conn: &Connection, dir: &Path, kind: BackupKind, migration_from: Option<u32>, keep: usize) -> Result<PathBuf> {
     std::fs::create_dir_all(dir)?;
     let stamp = file_stamp(SystemTime::now());
     let name = match (kind, migration_from) {
@@ -101,13 +105,13 @@ pub fn make_backup(conn: &Connection, dir: &Path, kind: BackupKind, migration_fr
     let dest = unique_path(dir, &name);
     vacuum_into(conn, &dest)?;
     if kind != BackupKind::BeforeMigration {
-        prune(dir, kind, KEEP_BACKUPS)?;
+        prune(dir, kind, keep.max(1))?;
     }
     Ok(dest)
 }
 
 fn kind_of(file_name: &str) -> Option<BackupKind> {
-    [BackupKind::BeforeMigration, BackupKind::Restore, BackupKind::Open]
+    [BackupKind::BeforeMigration, BackupKind::Restore, BackupKind::Open, BackupKind::Manual]
         .into_iter()
         .find(|k| file_name.starts_with(k.prefix()))
 }

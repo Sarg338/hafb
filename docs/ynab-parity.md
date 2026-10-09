@@ -210,9 +210,9 @@ A row is `done` only after Sarg validates it on hardware. Rows whose engine half
 | IE-06 | Auto-match imports to entered/scheduled (same amount, ≤ 10 days) | S1.6 | S6.5 | done |
 | IE-07 | Imported cash inflows default to Ready to Assign; rename rules applied | S1.6 | S6.5 | done (YNAB-style payee cleanup too; the bank's text is kept) |
 | IE-08 | Rejected imports never re-import | S1.6 | S6.5 | done |
-| IE-09 | Export to YNAB-format CSV (round-trip verified) | S1.8 | S6.6 | in-progress |
-| IE-10 | Raw SQLite copy ("save a copy") | — | S2.5 | in-progress |
-| IE-11 | Automatic backups on open (keep N), manual backup, restore | — | S2.5 / S6.6 | in-progress |
+| IE-09 | Export to YNAB-format CSV (round-trip verified) | S1.8 | S6.6 | done (Plan.csv + Register.csv in YNAB's layout; round-trips through the YNAB importer to the cent. YNAB itself has no whole-plan import; its File Import reads the Register rows per account) |
+| IE-10 | Raw SQLite copy ("save a copy") | — | S2.5 | done (Save a copy…, S2.5) |
+| IE-11 | Automatic backups on open (keep N), manual backup, restore | — | S2.5 / S6.6 | done (keep 3–100, a chosen folder, Back up now, restore) |
 | IE-12 | Bank sync, optional, via SimpleFIN Bridge: on open, every ~6 h while open, Sync now; same review pipeline as file import (ADR 0006) | S1.6 | S6.7 | todo |
 | IE-13 | Pending transactions | — | — | wontfix (server) |
 

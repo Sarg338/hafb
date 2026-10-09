@@ -216,3 +216,35 @@
 .warnings {
   color: var(--c-warn-text);
 }
+
+/* Backups dialog settings (S6.6). */
+.backupSettings {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 14px;
+  padding: 12px;
+  border: var(--s-border-width) solid var(--c-border);
+  border-radius: var(--s-radius-medium);
+  background: var(--c-surface-alt);
+}
+
+.backupKeep,
+.backupFolder {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.backupFolder code {
+  max-width: 340px;
+  overflow: hidden;
+  font-family: var(--t-font-ui);
+  font-size: var(--t-size-small);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.spacer {
+  flex: 1;
+}

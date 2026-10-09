@@ -1,11 +1,12 @@
 // Dialogs the shell opens from its menus: new plan, backups, import report.
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { ImportReport } from '@hafb/store';
 import { Button } from '../ui/Button.tsx';
+import { Combobox } from '../ui/Combobox.tsx';
 import { Dialog, useConfirm } from '../ui/Dialog.tsx';
 import { TextInput } from '../ui/TextInput.tsx';
 import { backupTime } from './format.ts';
-import type { BackupInfo } from './ipc.ts';
+import { errorMessage, type BackupInfo, type BackupSettingsInfo } from './ipc.ts';
 import styles from './Shell.module.css';
 
 export function NewPlanDialog({ open, onClose, onCreate }: { open: boolean; onClose: () => void; onCreate: (name: string) => void }) {
@@ -53,41 +54,78 @@ export function NewPlanDialog({ open, onClose, onCreate }: { open: boolean; onCl
 
 const KIND_LABEL: Record<BackupInfo['kind'], string> = {
   open: 'When opened',
+  manual: 'Backed up by you',
   restore: 'Before a restore',
   beforeMigration: 'Before a file update',
 };
+
+const KEEP_CHOICES = [3, 5, 10, 20, 30, 50, 100];
+
+/** Backup settings and actions (S6.6), from the Rust side. */
+export interface BackupControls {
+  settings: () => Promise<BackupSettingsInfo>;
+  saveSettings: (keep: number, folder: string | null) => Promise<BackupSettingsInfo>;
+  pickFolder: () => Promise<string | null>;
+  backupNow: () => Promise<string>;
+}
 
 export function BackupsDialog({
   open,
   onClose,
   load,
   onRestore,
+  controls,
 }: {
   open: boolean;
   onClose: () => void;
   load: () => Promise<BackupInfo[]>;
   onRestore: (backup: BackupInfo) => void;
+  controls: BackupControls;
 }) {
   const [backups, setBackups] = useState<BackupInfo[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [settings, setSettings] = useState<BackupSettingsInfo | null>(null);
+  const [note, setNote] = useState<string | null>(null);
   const confirm = useConfirm();
+  const refresh = useCallback((live: () => boolean) => {
+    load().then(
+      (list) => {
+        if (live()) setBackups(list);
+      },
+      (e: unknown) => {
+        if (live()) setError(errorMessage(e));
+      },
+    );
+  }, [load]);
   useEffect(() => {
     if (!open) return;
     let live = true;
-    load().then(
-      (list) => {
-        if (live) setBackups(list);
+    refresh(() => live);
+    controls.settings().then(
+      (s) => {
+        if (live) setSettings(s);
       },
-      (e: unknown) => {
-        if (live) setError(e instanceof Error ? e.message : String(e));
-      },
+      () => undefined,
     );
     return () => {
       live = false;
       setBackups(null);
       setError(null);
+      setSettings(null);
+      setNote(null);
     };
-  }, [open, load]);
+  }, [open, refresh, controls]);
+  const save = (keep: number, folder: string | null): void => {
+    controls.saveSettings(keep, folder).then(
+      (s) => {
+        setSettings(s);
+        refresh(() => true);
+      },
+      (e: unknown) => {
+        setNote(`Couldn’t save that: ${errorMessage(e)}`);
+      },
+    );
+  };
 
   return (
     <Dialog
@@ -95,9 +133,77 @@ export function BackupsDialog({
       onClose={onClose}
       size="wide"
       title="Backups"
-      description="HAFB keeps a copy of this plan every time you open it (the newest 10), plus one before any file update."
+      description="A copy of this plan is made every time you open it, plus one before any file update. Restore puts the plan back as it was; the plan as it is now is backed up first."
       footer={<Button onClick={onClose}>Close</Button>}
     >
+      {settings && (
+        <div className={styles.backupSettings}>
+          <div className={styles.backupKeep}>
+            <span>Keep the newest</span>
+            <Combobox
+              label="Backups to keep"
+              groups={[{ id: 'keep', label: 'Backups to keep', options: KEEP_CHOICES.map((n) => ({ id: String(n), label: String(n) })) }]}
+              value={String(settings.keep)}
+              onChange={(id) => {
+                save(Number(id), settings.folder);
+              }}
+            />
+            <span>backups made when you open it</span>
+          </div>
+          <div className={styles.backupFolder}>
+            <span className={styles.muted}>Saved in</span>
+            <code title={settings.planFolder ?? settings.defaultFolder}>{settings.folder ?? settings.defaultFolder}</code>
+            <Button
+              size="small"
+              onClick={() => {
+                controls.pickFolder().then(
+                  (f) => {
+                    if (f !== null) save(settings.keep, f);
+                  },
+                  () => undefined,
+                );
+              }}
+            >
+              Change folder…
+            </Button>
+            {settings.folder !== null && (
+              <Button
+                size="small"
+                onClick={() => {
+                  save(settings.keep, null);
+                }}
+              >
+                Use the default
+              </Button>
+            )}
+            <span className={styles.spacer} />
+            <Button
+              size="small"
+              variant="primary"
+              icon="history"
+              onClick={() => {
+                controls.backupNow().then(
+                  () => {
+                    setNote('Backed up just now.');
+                    refresh(() => true);
+                  },
+                  (e: unknown) => {
+                    setNote(`Couldn’t back up: ${errorMessage(e)}`);
+                  },
+                );
+              }}
+            >
+              Back up now
+            </Button>
+          </div>
+          {settings.folder !== null && <p className={styles.muted}>Backups made before a folder change stay where they were.</p>}
+          {note !== null && (
+            <p className={styles.muted} role="status">
+              {note}
+            </p>
+          )}
+        </div>
+      )}
       {error !== null && <p className={styles.error}>Couldn’t list backups: {error}</p>}
       {backups === null && error === null && <p className={styles.muted}>Looking for backups…</p>}
       {backups?.length === 0 && <p className={styles.muted}>No backups yet. One is made the next time you open this plan.</p>}

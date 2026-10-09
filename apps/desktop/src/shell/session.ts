@@ -79,6 +79,13 @@ export function todayLocal(): ISODate {
   return makeDate(d.getFullYear(), d.getMonth() + 1, d.getDate());
 }
 
+/** Local "YYYY-MM-DD HH-MM", as YNAB writes it in export file names ("… as of 2026-10-08 10-55"). */
+export function localStamp(): string {
+  const d = new Date();
+  const two = (n: number) => String(n).padStart(2, '0');
+  return `${todayLocal()} ${two(d.getHours())}-${two(d.getMinutes())}`;
+}
+
 const newId = uuidv7Generator(
   () => Date.now(),
   (n) => crypto.getRandomValues(new Uint8Array(n)),

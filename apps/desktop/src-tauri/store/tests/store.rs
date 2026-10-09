@@ -202,7 +202,7 @@ fn an_older_file_is_backed_up_then_migrated() {
         .copied()
         .chain(std::iter::once("ALTER TABLE accounts ADD COLUMN test_only_color TEXT;"))
         .collect();
-    let options = OpenOptions { backup_dir: Some(backups.clone()), backup_on_open: false };
+    let options = OpenOptions { backup_dir: Some(backups.clone()), backup_on_open: false, keep_backups: None };
     let (plan, report) = Plan::open_with(&path, &options, &next).unwrap();
     assert_eq!(report.migrated_from, Some(1));
     assert_eq!(plan.schema_version().unwrap(), u32::try_from(next.len()).unwrap());
@@ -415,7 +415,7 @@ fn the_command_log_is_written_with_the_change_and_pruned() {
 // ---- backups, copies, restore ------------------------------------------------------------------------
 
 fn open_with_backups(path: &Path, dir: &Path) -> (Plan, hafb_store::OpenReport) {
-    Plan::open(path, &OpenOptions { backup_dir: Some(dir.to_path_buf()), backup_on_open: true }).unwrap()
+    Plan::open(path, &OpenOptions { backup_dir: Some(dir.to_path_buf()), backup_on_open: true, keep_backups: None }).unwrap()
 }
 
 #[test]
@@ -441,6 +441,25 @@ fn every_open_backs_up_and_only_the_newest_ten_are_kept() {
     let expected = Plan::open(&path, &no_backups()).unwrap().0.load().unwrap();
     let (copy, _) = Plan::open(Path::new(&list[0].path), &no_backups()).unwrap();
     assert_eq!(copy.load().unwrap(), expected);
+}
+
+#[test]
+fn the_number_kept_is_a_setting_and_back_up_now_keeps_its_own() {
+    let dir = TempDir::new("keep");
+    let path = create_sample(&dir);
+    let backups = dir.join("backups");
+    for _ in 0..5 {
+        Plan::open(&path, &OpenOptions { backup_dir: Some(backups.clone()), backup_on_open: true, keep_backups: Some(3) }).unwrap();
+    }
+    let opens = backup::list_backups(&backups).unwrap();
+    assert_eq!(opens.len(), 3);
+    let (plan, _) = Plan::open(&path, &no_backups()).unwrap();
+    let manual: Vec<PathBuf> = (0..3).map(|_| plan.backup_now(&backups, 2).unwrap()).collect();
+    let list = backup::list_backups(&backups).unwrap();
+    assert_eq!(list.iter().filter(|b| b.kind == BackupKind::Manual).count(), 2);
+    assert_eq!(list.iter().filter(|b| b.kind == BackupKind::Open).count(), 3, "manual backups don't prune open ones");
+    assert!(list.iter().any(|b| Path::new(&b.path) == manual[2].as_path()));
+    assert!(manual[2].file_name().unwrap().to_string_lossy().starts_with("manual-"));
 }
 
 #[test]

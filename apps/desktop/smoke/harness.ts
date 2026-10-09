@@ -64,7 +64,7 @@ export interface App {
 let nextPort = 9400 + Math.floor(Math.random() * 300);
 
 /** Launch the release app (optionally opening a plan) and connect Playwright to its webview. */
-export async function launch(sandbox: Sandbox, args: string[] = []): Promise<App> {
+export async function launch(sandbox: Sandbox, args: string[] = [], env: Record<string, string> = {}): Promise<App> {
   if (!existsSync(EXE)) throw new Error(`Build the app first (pnpm build): ${EXE} is missing`);
   const port = nextPort++;
   const child = spawn(EXE, args, {
@@ -75,6 +75,7 @@ export async function launch(sandbox: Sandbox, args: string[] = []): Promise<App
       HAFB_EXPORT_DIR: sandbox.exportDir,
       WEBVIEW2_USER_DATA_FOLDER: sandbox.webviewDir,
       WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${String(port)}`,
+      ...env,
     },
     stdio: 'ignore',
   });

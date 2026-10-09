@@ -19,6 +19,7 @@ import {
   reopenAccount,
   reorderAccounts,
   undoLabel,
+  ynabExport,
 } from '@hafb/store';
 import type { Actions, Screen } from '../design/DesignApp.tsx';
 import { ReflectScreen } from '../screens/reflect/ReflectScreen.tsx';
@@ -40,17 +41,25 @@ import type { MenuItem } from '../ui/Menu.tsx';
 import { Splitter } from '../ui/Splitter.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import { useConfirm } from '../ui/Dialog.tsx';
-import { BackupsDialog, ImportReportDialog, NewPlanDialog } from './dialogs.tsx';
-import { appIpc, type TitlebarMode } from './ipc.ts';
+import { BackupsDialog, ImportReportDialog, NewPlanDialog, type BackupControls } from './dialogs.tsx';
+import { saveFile } from './files.ts';
+import { appIpc, errorMessage, planIpc, type TitlebarMode } from './ipc.ts';
 import { INSPECTOR_DEFAULT, INSPECTOR_MAX, INSPECTOR_MIN, prefs, usePrefs, type ThemePref } from './prefs.ts';
 import { navigate, useRoute, type Route } from './router.ts';
-import { session, todayLocal, type OpenPlan } from './session.ts';
+import { localStamp, session, todayLocal, type OpenPlan } from './session.ts';
 import styles from './Shell.module.css';
 import { Sidebar, type AccountAction } from './Sidebar.tsx';
 import { useAppliedTheme } from './theme.ts';
 import { Welcome } from './Welcome.tsx';
 
 const INSPECTOR_RANGE = { min: INSPECTOR_MIN, max: INSPECTOR_MAX, step: 16, initial: INSPECTOR_DEFAULT };
+
+const BACKUP_CONTROLS: BackupControls = {
+  settings: planIpc.backupSettings,
+  saveSettings: planIpc.setBackupSettings,
+  pickFolder: planIpc.pickBackupFolder,
+  backupNow: planIpc.backupNow,
+};
 
 /** Show the plan's name in the custom title bar and as the window's title (taskbar, Alt+Tab). */
 function useWindowTitle(planName: string | null): void {
@@ -253,6 +262,7 @@ function PlanFrame({ open, system }: { open: OpenPlan; /** A Windows-colour (con
     { id: 'import', label: 'Import YNAB export…', icon: 'import' },
     { id: 'sep1', label: '', separator: true },
     { id: 'copy', label: 'Save a copy…', icon: 'export' },
+    { id: 'exportYnab', label: 'Export for YNAB (CSV)…', icon: 'export' },
     { id: 'backups', label: 'Backups…', icon: 'history', disabled: open.inMemory === true },
     { id: 'sep2', label: '', separator: true },
     { id: 'payees', label: 'Manage Payees…', icon: 'settings' },
@@ -264,6 +274,18 @@ function PlanFrame({ open, system }: { open: OpenPlan; /** A Windows-colour (con
     else if (id === 'new') setDialog('new');
     else if (id === 'import') void session.importExport();
     else if (id === 'copy') void session.saveCopy();
+    else if (id === 'exportYnab') {
+      // YNAB's own export layout (S6.6): Plan.csv and Register.csv in a zip.
+      const file = ynabExport(open.plan, today, localStamp());
+      saveFile(file.name, file.bytes).then(
+        (saved) => {
+          if (saved !== null) session.notify(`Exported for YNAB to ${saved}.`);
+        },
+        (e: unknown) => {
+          session.notify(`Couldn’t export: ${errorMessage(e)}`, 'error');
+        },
+      );
+    }
     else if (id === 'backups') setDialog('backups');
     else if (id === 'payees') setDialog('payees');
     else if (id === 'close') void session.close();
@@ -403,6 +425,7 @@ function PlanFrame({ open, system }: { open: OpenPlan; /** A Windows-colour (con
         }}
         load={loadBackups}
         onRestore={(b) => void session.restore(b)}
+        controls={BACKUP_CONTROLS}
       />
       {dialog === 'addAccount' && (
         <AddAccountDialog

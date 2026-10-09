@@ -3,11 +3,11 @@
 import assert from 'node:assert/strict';
 import { after, before, describe, test } from 'node:test';
 import type { Page } from 'playwright-core';
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { netWorth, spendingBreakdown } from '@hafb/engine';
 import { addDays, addMonths, addMonthsToDate, compareMonths, formatMoney, minor, monthOf } from '@hafb/shared';
-import { addScheduled, applyChanges, budgetSnapshot, readZip, type PlanData } from '@hafb/store';
+import { addScheduled, applyChanges, budgetSnapshot, postLoanCharges, readZip, type PlanData } from '@hafb/store';
 import { buildSamplePlan } from '../src/design/sample.ts';
 import { launch, makeSandbox, type App, type Sandbox } from './harness.ts';
 import { expectedReadyToAssign, expectedRows, importExport, norm, readGrid, todayLocal } from './planCheck.ts';
@@ -845,7 +845,8 @@ void describe('register power', () => {
     assert.equal(await row(first).getAttribute('aria-selected'), 'false', 'the copies are selected, not the originals');
     await page.keyboard.press('Control+z');
     await page.waitForTimeout(300);
-    assert.match((await undoButton.getAttribute('title')) ?? '', /Undo Categorize|Nothing to undo/);
+    // Opening posts the sample mortgage's monthly charges (S6.4), the step before the user's own.
+    assert.match((await undoButton.getAttribute('title')) ?? '', /Undo Categorize|Undo Post loan interest and charges|Nothing to undo/);
     // The selected copies are gone, so the bar goes too.
     await bar.waitFor({ state: 'detached' });
 
@@ -1206,7 +1207,10 @@ void describe('reflect (Phase 6)', () => {
     const today = todayLocal();
     const month = monthOf(today);
     const from = compareMonths(addMonths(month, -2), plan.settings.firstMonth ?? month) < 0 ? (plan.settings.firstMonth ?? month) : addMonths(month, -2);
-    const snapshot = budgetSnapshot(plan);
+    // Opening posts the sample mortgage's monthly interest and escrow (S6.4): expect them too.
+    let seq = 0;
+    const charges = postLoanCharges(plan, { now: '2026-10-09T00:00:00.000Z', today, newId: () => `smoke-${String((seq += 1))}` });
+    const snapshot = budgetSnapshot(charges ? applyChanges(plan, charges.changes).plan : plan);
     const app = await open();
     const { page } = app;
     await page.getByRole('link', { name: 'Reflect' }).click();
@@ -1276,6 +1280,161 @@ void describe('reflect (Phase 6)', () => {
     await selected.first().waitFor();
     const picked = norm(await selected.first().innerText());
     assert.ok(picked.includes(date ?? '?') && picked.includes(payee ?? '?'), `${picked} vs ${String(date)} ${String(payee)}`);
+    await again.close();
+  });
+});
+
+const CHECKING_CSV = `Date,Description,Debit,Credit,Balance
+10/09/2026,"FIBERNET INTERNET 0042",70.00,,5000.00
+10/10/2026,SQ *BLUE BOTTLE COFFEE,4.50,,4995.50
+10/12/2026,PAYPAL *STREAMBOX,12.99,,4982.51
+10/13/2026,ACME LOGISTICS PAYROLL,,250.00,5232.51
+10/13/2026,PAYMENT TO VISA REWARDS,300.00,,4932.51
+`;
+const VISA_QFX = `OFXHEADER:100
+DATA:OFXSGML
+VERSION:102
+
+<OFX><CREDITCARDMSGSRSV1><CCSTMTTRNRS><CCSTMTRS><CURDEF>USD
+<CCACCTFROM><ACCTID>4111000011112222</CCACCTFROM>
+<BANKTRANLIST>
+<STMTTRN><TRNTYPE>CREDIT<DTPOSTED>20261014<TRNAMT>300.00<FITID>V-1001<NAME>PAYMENT THANK YOU</STMTTRN>
+<STMTTRN><TRNTYPE>DEBIT<DTPOSTED>20261013<TRNAMT>-18.25<FITID>V-1002<NAME>TST* TACO STAND 0042<MEMO>Lunch</STMTTRN>
+</BANKTRANLIST></CCSTMTRS></CCSTMTTRNRS></CREDITCARDMSGSRSV1></OFX>
+`;
+
+void describe('loans, bank import, export and backups (Phase 6)', () => {
+  let box: Sandbox;
+  const running: App[] = [];
+  const plan: PlanData = { ...buildSamplePlan().plan, scheduled: [] };
+  const open = async (env: Record<string, string> = {}): Promise<App> => {
+    const a = await launch(box, ['--open', box.planPath], env);
+    running.push(a);
+    await a.page.getByRole('navigation', { name: 'Plan navigation' }).waitFor();
+    return a;
+  };
+  before(() => {
+    box = makeSandbox(plan);
+    writeFileSync(join(box.root, 'checking.csv'), CHECKING_CSV);
+    writeFileSync(join(box.root, 'visa.qfx'), VISA_QFX);
+  });
+  after(async () => {
+    for (const a of running) await a.close().catch(() => undefined);
+    box.cleanup();
+  });
+  const sidebar = (page: Page) => page.getByRole('navigation', { name: 'Plan navigation' });
+  const grid = (page: Page) => page.locator('[role=treegrid], [role=grid]').first();
+  const rowTexts = async (page: Page): Promise<string[]> => (await grid(page).locator('[role=row]').allInnerTexts()).map(norm);
+  const mdy = (d: string): string => `${d.slice(5, 7)}/${d.slice(8, 10)}/${d.slice(0, 4)}`;
+
+  void test('a loan: charges post monthly, the simulator, pairing and Record Payment survive a relaunch', { timeout: 300_000 }, async () => {
+    const app = await open();
+    const { page } = app;
+    await sidebar(page).getByText('Home Mortgage').click();
+    const loan = page.getByRole('region', { name: 'Loan details' });
+    await loan.waitFor();
+    assert.match(norm(await loan.innerText()), /Remaining Balance .*Interest Rate .*Minimum Payment .*Escrow .*Payoff Date/);
+    const interest = (await rowTexts(page)).filter((t) => ` ${t} `.includes(' Interest '));
+    assert.ok(interest.length >= 1, 'monthly interest is posted');
+    await loan.getByRole('button', { name: 'Open Payoff Simulator' }).click();
+    const sim = page.getByRole('dialog', { name: 'Loan Payoff Simulator' });
+    const pay = sim.getByLabel('Monthly Payment');
+    await pay.click();
+    await page.keyboard.press('Control+a');
+    await page.keyboard.type('2500');
+    await page.keyboard.press('Tab');
+    assert.match(norm(await sim.innerText()), /You’d save \$[\d,]+\.\d\d in interest/);
+    await sim.getByRole('button', { name: 'Done' }).click();
+    await loan.getByRole('button', { name: 'Get Started' }).click();
+    const pair = page.getByRole('dialog', { name: /^Pair Home Mortgage/ });
+    await pair.getByRole('combobox', { name: 'Category' }).click();
+    await page.getByRole('option', { name: 'Mortgage', exact: true }).click();
+    await pair.getByRole('button', { name: 'Pair', exact: true }).click();
+    await loan.getByText(/Paired with/).waitFor();
+    await page.getByRole('button', { name: 'Record Payment' }).click();
+    const rp = page.getByRole('dialog', { name: 'Add Payment' });
+    await rp.getByRole('button', { name: 'Record Payment' }).click();
+    await page.waitForTimeout(400);
+    const today = todayLocal();
+    assert.ok((await rowTexts(page)).some((t) => t.startsWith(mdy(today)) && t.includes('Transfer : Everyday Checking')), 'the payment is in the register');
+    await app.close();
+
+    const again = await open();
+    await sidebar(again.page).getByText('Home Mortgage').click();
+    const loan2 = again.page.getByRole('region', { name: 'Loan details' });
+    await loan2.waitFor();
+    assert.match(norm(await loan2.innerText()), /Paired with Mortgage/);
+    const interest2 = (await rowTexts(again.page)).filter((t) => ` ${t} `.includes(' Interest '));
+    assert.equal(interest2.length, interest.length, 'charges are posted once');
+    await again.close();
+  });
+
+  void test('bank files import once (CSV and QFX), match, pair the card payment, and skip on re-import', { timeout: 300_000 }, async () => {
+    const csv = { HAFB_PICK_FILES: join(box.root, 'checking.csv') };
+    const app = await open(csv);
+    const { page } = app;
+    await sidebar(page).getByText('Everyday Checking').first().click();
+    await page.getByRole('button', { name: 'File Import' }).click();
+    const dlg = page.getByRole('dialog', { name: 'Import Transactions' });
+    await dlg.waitFor();
+    const preview = norm(await dlg.getByRole('region', { name: 'Preview' }).innerText());
+    assert.match(preview, /4 new · 1 matched to transactions you entered · 0 skipped/);
+    await dlg.getByRole('button', { name: 'Import 5' }).click();
+    await page.waitForTimeout(400);
+    const rows = await rowTexts(page);
+    assert.ok(rows.some((t) => t.includes('Blue Bottle Coffee')), 'cleaned payee');
+    assert.ok(rows.some((t) => t.includes('Acme Logistics Payroll') && t.includes('Ready to Assign')), 'inflow to Ready to Assign');
+    await app.close();
+
+    const again = await open(csv);
+    await sidebar(again.page).getByText('Everyday Checking').first().click();
+    await again.page.getByRole('button', { name: 'File Import' }).click();
+    const dlg2 = again.page.getByRole('dialog', { name: 'Import Transactions' });
+    assert.match(norm(await dlg2.getByRole('region', { name: 'Preview' }).innerText()), /0 new · 0 matched to transactions you entered · 5 skipped/);
+    assert.equal(await dlg2.getByRole('button', { name: 'Nothing to Import' }).isDisabled(), true);
+    await dlg2.getByRole('button', { name: 'Cancel' }).click();
+    await again.close();
+
+    const card = await open({ HAFB_PICK_FILES: join(box.root, 'visa.qfx') });
+    await sidebar(card.page).getByText('Visa Rewards').first().click();
+    await card.page.getByRole('button', { name: 'File Import' }).click();
+    const dlg3 = card.page.getByRole('dialog', { name: 'Import Transactions' });
+    await dlg3.getByRole('button', { name: 'Import 2' }).click();
+    await card.page.waitForTimeout(400);
+    const visa = await rowTexts(card.page);
+    assert.ok(visa.some((t) => t.includes('Everyday Checking') && t.includes('$300.00')), `the payment pairs into a transfer: ${visa.slice(0, 6).join(' | ')}`);
+    await card.close();
+  });
+
+  void test('Export for YNAB writes Plan.csv and Register.csv; Back up now and the keep setting survive a relaunch', { timeout: 300_000 }, async () => {
+    const app = await open();
+    const { page } = app;
+    await sidebar(page).locator('button').first().click();
+    await page.getByRole('menuitem', { name: 'Export for YNAB (CSV)…' }).click();
+    await page.waitForTimeout(800);
+    const zipName = readdirSync(box.exportDir).find((f) => f.endsWith(' - YNAB format.zip'));
+    assert.ok(zipName, readdirSync(box.exportDir).join(', '));
+    const zip = await readZip(new Uint8Array(readFileSync(join(box.exportDir, zipName))));
+    const names = [...zip.keys()];
+    assert.ok(names.some((n) => n.endsWith(' - Plan.csv')) && names.some((n) => n.endsWith(' - Register.csv')), names.join(', '));
+
+    await sidebar(page).locator('button').first().click();
+    await page.getByRole('menuitem', { name: 'Backups…' }).click();
+    const dlg = page.getByRole('dialog', { name: 'Backups' });
+    await dlg.getByRole('button', { name: 'Back up now' }).click();
+    await dlg.getByText('Backed up by you').first().waitFor();
+    await dlg.getByRole('combobox', { name: 'Backups to keep' }).click();
+    await page.getByRole('option', { name: '3', exact: true }).click();
+    await page.waitForTimeout(300);
+    await dlg.getByRole('button', { name: 'Close' }).last().click();
+    await app.close();
+
+    const again = await open();
+    await sidebar(again.page).locator('button').first().click();
+    await again.page.getByRole('menuitem', { name: 'Backups…' }).click();
+    const dlg2 = again.page.getByRole('dialog', { name: 'Backups' });
+    await dlg2.getByText('Backed up by you').first().waitFor();
+    assert.equal(await dlg2.getByRole('combobox', { name: 'Backups to keep' }).inputValue(), '3');
     await again.close();
   });
 });

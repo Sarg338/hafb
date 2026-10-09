@@ -15,9 +15,19 @@ export interface PlanInfo {
 export interface BackupInfo {
   path: string;
   fileName: string;
-  kind: 'open' | 'restore' | 'beforeMigration';
+  kind: 'open' | 'manual' | 'restore' | 'beforeMigration';
   stamp: string;
   sizeBytes: number;
+}
+
+/** Backup settings (S6.6): kept per PC in the app's data folder. */
+export interface BackupSettingsInfo {
+  keep: number;
+  /** A chosen folder, or null for the default. */
+  folder: string | null;
+  defaultFolder: string;
+  /** Where the open plan's backups go now. */
+  planFolder: string | null;
 }
 
 export interface RecentPlan {
@@ -55,6 +65,10 @@ export const planIpc = {
   saveCopy: (dest: string) => invoke<null>('plan_save_copy', { dest }),
   backups: () => invoke<BackupInfo[]>('plan_backups'),
   restore: (backupPath: string) => invoke<PlanInfo>('plan_restore', { backupPath }),
+  backupNow: () => invoke<string>('plan_backup_now'),
+  backupSettings: () => invoke<BackupSettingsInfo>('backup_settings_get'),
+  setBackupSettings: (keep: number, folder: string | null) => invoke<BackupSettingsInfo>('backup_settings_set', { keep, folder }),
+  pickBackupFolder: () => invoke<string | null>('pick_backup_folder'),
   recent: () => invoke<RecentPlan[]>('recent_plans'),
   removeRecent: (path: string) => invoke<null>('recent_remove', { path }),
   pickPlanPath: (mode: 'open' | 'save', defaultName?: string) => invoke<string | null>('pick_plan_path', { mode, defaultName }),

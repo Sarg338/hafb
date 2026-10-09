@@ -2,6 +2,7 @@
 //! work and `@hafb/store` owns every rule. Errors reach JS as `{ kind, message }`.
 
 use hafb_store::backup::{self, BackupInfo};
+use hafb_store::backup_settings::{self, BackupSettings};
 use hafb_store::error::{ErrorKind, Result, StoreError};
 use hafb_store::recent::{self, RecentPlan};
 use hafb_store::wire::{LoadedTables, LogEntry, RowChanges};
@@ -54,7 +55,8 @@ fn recent_file(app: &AppHandle) -> Result<PathBuf> {
 }
 
 fn backup_dir_for(app: &AppHandle, plan: &Path) -> Result<PathBuf> {
-    Ok(backup::plan_backup_dir(&data_dir(app)?.join("backups"), plan))
+    let data = data_dir(app)?;
+    Ok(backup::plan_backup_dir(&backup_settings::load(&data).root(&data), plan))
 }
 
 fn path_string(p: &Path) -> String {
@@ -66,7 +68,8 @@ fn open_into(app: &AppHandle, state: &PlanState, path: &Path, backup_on_open: bo
     let mut slot = state.open.lock().map_err(lock_err)?;
     *slot = None; // release the previous plan's lock before opening (it may be the same file)
     let backup_dir = backup_dir_for(app, path)?;
-    let options = OpenOptions { backup_dir: Some(backup_dir.clone()), backup_on_open };
+    let keep = backup_settings::load(&data_dir(app)?).keep;
+    let options = OpenOptions { backup_dir: Some(backup_dir.clone()), backup_on_open, keep_backups: Some(keep) };
     let (plan, report) = Plan::open(path, &options)?;
     let info = plan.info(&report)?;
     recent::add(&recent_file(app)?, &info.path)?;
@@ -149,6 +152,68 @@ pub async fn plan_restore(app: AppHandle, state: State<'_, PlanState>, backup_pa
     recent::add(&recent_file(&app)?, &info.path)?;
     *slot = Some(OpenPlan { plan, report, backup_dir });
     Ok(info)
+}
+
+/// The backup settings (S6.6), with the default folder for the UI.
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BackupSettingsInfo {
+    keep: usize,
+    folder: Option<String>,
+    default_folder: String,
+    /// Where this plan's backups go now.
+    plan_folder: Option<String>,
+}
+
+fn settings_info(app: &AppHandle, state: &PlanState, s: &BackupSettings) -> Result<BackupSettingsInfo> {
+    let data = data_dir(app)?;
+    let slot = state.open.lock().map_err(lock_err)?;
+    Ok(BackupSettingsInfo {
+        keep: s.keep,
+        folder: s.folder.clone(),
+        default_folder: path_string(&data.join("backups")),
+        plan_folder: slot.as_ref().map(|o| path_string(&o.backup_dir)),
+    })
+}
+
+#[tauri::command]
+pub async fn backup_settings_get(app: AppHandle, state: State<'_, PlanState>) -> Result<BackupSettingsInfo> {
+    let s = backup_settings::load(&data_dir(&app)?);
+    settings_info(&app, &state, &s)
+}
+
+/// Save how many backups to keep and where (`folder: null` = the app's data folder). Backups
+/// already made stay where they are; the open plan's next backups use the new folder.
+#[tauri::command]
+pub async fn backup_settings_set(app: AppHandle, state: State<'_, PlanState>, keep: usize, folder: Option<String>) -> Result<BackupSettingsInfo> {
+    let data = data_dir(&app)?;
+    let s = BackupSettings { keep, folder }.sanitized();
+    if let Some(f) = &s.folder {
+        std::fs::create_dir_all(f).map_err(|e| StoreError::invalid(format!("Can't use that folder: {e}")))?;
+    }
+    backup_settings::save(&data, &s)?;
+    {
+        let mut slot = state.open.lock().map_err(lock_err)?;
+        if let Some(open) = slot.as_mut() {
+            open.backup_dir = backup::plan_backup_dir(&s.root(&data), open.plan.path());
+        }
+    }
+    settings_info(&app, &state, &s)
+}
+
+/// Native folder picker for the backup folder; null if cancelled.
+#[tauri::command]
+pub async fn pick_backup_folder(window: WebviewWindow) -> Result<Option<String>> {
+    Ok(rfd::FileDialog::new().set_parent(&window).set_title("Choose a folder for backups").pick_folder().map(|p| path_string(&p)))
+}
+
+/// Back up now (S6.6): a copy of the open plan in its backup folder.
+#[tauri::command]
+pub async fn plan_backup_now(app: AppHandle, state: State<'_, PlanState>) -> Result<String> {
+    let keep = backup_settings::load(&data_dir(&app)?).keep;
+    let slot = state.open.lock().map_err(lock_err)?;
+    let open = slot.as_ref().ok_or_else(not_open)?;
+    Ok(path_string(&open.plan.backup_now(&open.backup_dir, keep)?))
 }
 
 #[tauri::command]
