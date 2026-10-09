@@ -395,7 +395,16 @@ Mark phase status here when it changes:
 - Phase 4: in progress. S4.1 Plan screen, S4.2 Plan editing, S4.3 Moving money, S4.4 Accounts, S4.5 Register core, S4.6 Register power and S4.7 Credit cards done 2026-10-08 (S4.7 still needs the real-card check during M1) (ADR 0007: production screens in `src/screens` from the component library; the S3.1 mockups stay as the look reference).
 - Phase 5: done in code 2026-10-08 (roadmap Phase 5 progress notes): S5.1 inspector, S5.2 targets, S5.3 Focused Views / scoped Auto-Assign / Plan Reset, S5.4 scheduled transactions, S5.5 Manage Payees (migration 0002 adds `payees.hidden`), S5.6 reconciliation, S5.7 Recent Moves. Smoke tests cover each in the release app. **M2** (a month on real data with YNAB closed) needs Sarg, so the phase isn't signed off.
 - Phase 6: done, signed off by Sarg 2026-10-09 (roadmap Phase 6 progress notes): S6.1 Reflect framework (ADR 0008), S6.2 Spending Breakdown & Trends, S6.3 Net Worth, Income v Expense, Age of Money and Share Your Progress, S6.4 Loans & loan planner (the payoff simulator matches YNAB to the cent), S6.5 Bank file import (migration 0003; 50 public sample exports from real banks), S6.6 Export & backups (cell-exact in OpenOffice Calc). Smoke tests cover each in the release app. Optional SimpleFIN bank sync (was S6.7) moved by Sarg to **S8.6, the very last item before v1.0**.
-- Phase 7: todo
+- Phase 7: done in code 2026-10-09 (roadmap Phase 7 progress notes):
+  - S7.1 settings (migration 0004).
+  - S7.2 multiple plans, templates and Fresh Start.
+  - S7.3 keyboard (`docs/shortcuts.md`).
+  - S7.4 WCAG 2.2 AA (`docs/accessibility.md`).
+  - S7.5 onboarding and empty states.
+  - S7.6 photo attachments (ADR 0009, migration 0005) and Credit Card Interest behind a preference (migration 0006). The parity checklist has no `todo` outside Phase 8.
+  - S7.7 polish audit, with no change to the approved look.
+  - Smoke tests cover each sprint in the release app.
+  - Not signed off. Two human checks remain: a first-run test by a new user other than Sarg (S7.5), and Sarg's design sign-off (S7.7).
 - Phase 8: todo
 
 ---

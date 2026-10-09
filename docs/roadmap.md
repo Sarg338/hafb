@@ -364,6 +364,21 @@ Progress (YNAB used as the reference throughout, 2026-10-09; it was put back as 
   - **Available pills (P-09):** checked complete and marked done.
   - **Exit check:** the parity checklist has no `todo` left outside Phase 8, apart from X-02 (high DPI), which is S7.7's.
   - **Smoke tests:** photo, and Credit Card Interest end to end in the release app.
+- **S7.7 done in code; Sarg's design sign-off is pending.** It was an audit, not a restyle: the approved look is unchanged.
+  - **Consistency:** colours, sizes, radii and durations were already token-only (`sourceScan`). Every UI icon goes through `Icon`; the only inline SVGs are charts. Plan rows are ~34 px and register rows ~30 px.
+  - **Photo column:** an empty cell now shows its button only on row hover or keyboard focus, like the flag column; attached thumbnails always show. Button size 26 px, matching the flag button.
+  - **Motion:** two durations in use, 120 ms and 180 ms, both tokens. Under reduced motion, nothing transitions or animates (checked in the browser).
+  - **Dark mode and high DPI:**
+    - Every main screen and dialog was screenshotted at 100%, 150% and 200%, in light and dark. A DOM scan found no clipped text and nothing past the window edge.
+    - The release app ran at WebView2 forced scale factors 1.25, 1.5 and 2: the caption buttons stay 46×32, and the page never scrolls sideways (down to an effective 640×410).
+  - **Multi-monitor and snap (the release app, on this PC's two 1920×1080 monitors):**
+    - Closed on the second monitor, it reopens there. With that monitor gone from the saved state, it comes back centred on the primary.
+    - Win+Left snaps to the left half; Win+Up then makes the top-left quarter, as Windows 11 does.
+    - Mixed-DPI monitors weren't available here.
+  - **Fixes:**
+    - The last grid column's resize handle overhung the grid by 3 px, so the plan grid scrolled sideways at every size. A smoke test now guards it.
+    - Below 1024 px (a half-screen snap), the plan's money columns are 100 px and the category column 160 px, so the grid fits beside the inspector.
+    - The register still scrolls sideways at half-screen width; data tables are exempt from reflow (WCAG 1.4.10) and its columns stay reachable.
 
 ## Phase 8: Release hardening → **v1.0**
 
