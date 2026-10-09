@@ -9,3 +9,4 @@ export * from './import/ynab.ts';
 export * from './export/zipWrite.ts';
 export * from './export/csv.ts';
 export * from './export/register.ts';
+export * from './export/ynabExport.ts';
