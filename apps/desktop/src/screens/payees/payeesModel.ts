@@ -1,7 +1,7 @@
 // Manage Payees (S5.5), as YNAB lays it out (trial, 2026-10-08): the payee list on the left in
 // three groups (Payees, Hidden Payees, Transfer Payees), the selection's details on the right.
 // Pure: plan records in, display data out.
-import { READY_TO_ASSIGN, type Id, type RenameMatch } from '@hafb/engine';
+import { CREDIT_CARD_INTEREST, READY_TO_ASSIGN, type Id, type RenameMatch } from '@hafb/engine';
 import type { PayeeRecord, PayeeRenameRuleRecord, PlanData } from '@hafb/store';
 
 export interface PayeeItem {
@@ -62,6 +62,7 @@ export function defaultCategoryName(plan: PlanData, p: PayeeRecord): string | nu
   const id = p.defaultCategoryId;
   if (id === undefined || id === null) return null;
   if (id === READY_TO_ASSIGN) return 'Inflow: Ready to Assign';
+  if (id === CREDIT_CARD_INTEREST) return 'Credit Card Interest';
   const c = plan.categories.find((x) => x.id === id);
   if (!c) return null;
   const g = plan.categoryGroups.find((x) => x.id === c.groupId);

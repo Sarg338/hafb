@@ -18,7 +18,7 @@ const MAX_IMPORT_BYTES: u64 = 200 * 1024 * 1024;
 
 #[derive(Default)]
 pub struct PlanState {
-    open: Mutex<Option<OpenPlan>>,
+    pub(crate) open: Mutex<Option<OpenPlan>>,
     /// The files the user last picked in an import dialog: the only files `read_import_file` reads.
     picked_import: Mutex<Vec<PathBuf>>,
 }
@@ -34,7 +34,7 @@ impl PlanState {
 }
 
 pub struct OpenPlan {
-    plan: Plan,
+    pub(crate) plan: Plan,
     report: OpenReport,
     backup_dir: PathBuf,
 }

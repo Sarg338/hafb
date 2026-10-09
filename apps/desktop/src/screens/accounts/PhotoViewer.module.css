@@ -1,0 +1,45 @@
+/* Transaction photo viewer and register thumbnails (S7.6). Tokens only. */
+
+.frame {
+  display: grid;
+  place-items: center;
+  min-height: 200px;
+  max-height: 70vh;
+  overflow: auto;
+  border-radius: var(--s-radius);
+  background: var(--c-app);
+}
+
+.image {
+  display: block;
+  max-width: 100%;
+  max-height: 68vh;
+  object-fit: contain;
+}
+
+.cellButton {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--s-radius);
+  background: transparent;
+  color: var(--c-text-subtle);
+  cursor: pointer;
+}
+
+.cellButton:hover {
+  background: var(--c-hover);
+  color: var(--c-text);
+}
+
+.thumb {
+  display: block;
+  width: 20px;
+  height: 20px;
+  border: var(--s-border-width) solid var(--c-border);
+  border-radius: var(--s-radius);
+  object-fit: cover;
+}

@@ -5,13 +5,15 @@
 // - Any other category's Activity popover lists its transactions (split lines at their own amount).
 // - The card register's header: "Overspending (Oct)" and "Payment" pills.
 // - Record Payment pre-fills the lower of the payment category's Available and the card's cleared debt.
-import { CREDIT_ACCOUNT_TYPES, READY_TO_ASSIGN, type BudgetState, type CategoryMonth, type Id } from '@hafb/engine';
+import { CREDIT_ACCOUNT_TYPES, CREDIT_CARD_INTEREST, READY_TO_ASSIGN, type BudgetState, type CategoryMonth, type Id } from '@hafb/engine';
 import { minor, monthOf, ZERO, type ISODate, type Minor, type Month } from '@hafb/shared';
 import type { AccountRecord, PlanData } from '@hafb/store';
 
 export interface PaymentActivity {
   spending: Minor;
   returns: Minor;
+  /** Credit Card Interest this month (negative = charged); off the plan, so not in the totals (§3.15). */
+  interest: Minor;
   totalSpending: Minor;
   /** Spending the categories covered, net of returns (YNAB trial: visa spent $80, $20 back → +$60). */
   funded: Minor;
@@ -26,6 +28,7 @@ export function paymentActivity(cm: CategoryMonth): PaymentActivity | null {
   return {
     spending: card.spending,
     returns: card.returns,
+    interest: card.interest,
     totalSpending: minor(card.spending + card.returns),
     funded: card.fundedSpending,
     paymentsAndReturns: minor(0 - card.payments),
@@ -37,8 +40,10 @@ export function paymentActivity(cm: CategoryMonth): PaymentActivity | null {
 export function cardBalance(cm: CategoryMonth): { prior: Minor; spending: Minor; inflows: Minor; current: Minor } | null {
   const card = cm.creditCard;
   if (!card) return null;
-  const inflows = card.returns + card.payments;
-  return { prior: minor(card.balance - card.spending - inflows), spending: card.spending, inflows: minor(inflows), current: card.balance };
+  // Credit Card Interest charged is an outflow on the card; refunded interest an inflow (§3.15).
+  const outflows = card.spending + Math.min(0, card.interest);
+  const inflows = card.returns + card.payments + Math.max(0, card.interest);
+  return { prior: minor(card.balance - outflows - inflows), spending: minor(outflows), inflows: minor(inflows), current: card.balance };
 }
 
 /** What the card owes at the end of the month (positive), and what its payment category is short. */
@@ -68,7 +73,7 @@ export function activityLines(plan: PlanData, categoryId: Id, month: Month): Act
   const categories = new Map(plan.categories.map((c) => [c.id, c.name]));
   const paymentCategory = plan.categories.find((c) => c.id === categoryId);
   const cardId = paymentCategory?.creditCardAccountId;
-  const nameOf = (ref: Id | null): string => (ref === null ? '' : ref === READY_TO_ASSIGN ? 'Ready to Assign' : (categories.get(ref) ?? ''));
+  const nameOf = (ref: Id | null): string => (ref === null ? '' : ref === READY_TO_ASSIGN ? 'Ready to Assign' : ref === CREDIT_CARD_INTEREST ? 'Credit Card Interest' : (categories.get(ref) ?? ''));
   const transferName = (self: AccountRecord | undefined, otherId: Id): string => {
     const other = accounts.get(otherId);
     const payment = self !== undefined && other !== undefined && self.onBudget && other.onBudget && isCredit(self) !== isCredit(other);

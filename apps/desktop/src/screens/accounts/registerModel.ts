@@ -7,6 +7,7 @@
 // - Starting balances on cards and off-budget accounts read "Category not needed".
 import {
   CREDIT_ACCOUNT_TYPES,
+  CREDIT_CARD_INTEREST,
   matchesSearch,
   parseSearch,
   READY_TO_ASSIGN,
@@ -90,6 +91,7 @@ function categoryLabel(t: Pick<TransactionRecord, 'categoryId' | 'transferAccoun
     if (t.isStartingBalance === true && isCredit(account)) return { text: 'Category not needed', tone: 'muted' };
     return { text: 'Inflow: Ready to Assign', tone: 'plain' };
   }
+  if (t.categoryId === CREDIT_CARD_INTEREST) return { text: 'Credit Card Interest', tone: 'plain' };
   if (t.categoryId !== null) return { text: look.categories.get(t.categoryId)?.name ?? 'Unknown category', tone: 'plain' };
   if (t.transferAccountId !== undefined) {
     const other = look.accounts.get(t.transferAccountId);

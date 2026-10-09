@@ -13,6 +13,7 @@ import history16 from '@fluentui/svg-icons/icons/history_16_regular.svg?raw';
 import search16 from '@fluentui/svg-icons/icons/search_16_regular.svg?raw';
 import filter16 from '@fluentui/svg-icons/icons/filter_16_regular.svg?raw';
 import flag16 from '@fluentui/svg-icons/icons/flag_16_regular.svg?raw';
+import image16 from '@fluentui/svg-icons/icons/image_16_regular.svg?raw';
 import cleared16 from '@fluentui/svg-icons/icons/checkmark_circle_16_regular.svg?raw';
 import uncleared16 from '@fluentui/svg-icons/icons/circle_16_regular.svg?raw';
 import lock16 from '@fluentui/svg-icons/icons/lock_closed_16_regular.svg?raw';
@@ -65,6 +66,7 @@ import history20 from '@fluentui/svg-icons/icons/history_20_regular.svg?raw';
 import search20 from '@fluentui/svg-icons/icons/search_20_regular.svg?raw';
 import filter20 from '@fluentui/svg-icons/icons/filter_20_regular.svg?raw';
 import flag20 from '@fluentui/svg-icons/icons/flag_20_regular.svg?raw';
+import image20 from '@fluentui/svg-icons/icons/image_20_regular.svg?raw';
 import cleared20 from '@fluentui/svg-icons/icons/checkmark_circle_20_regular.svg?raw';
 import uncleared20 from '@fluentui/svg-icons/icons/circle_20_regular.svg?raw';
 import lock20 from '@fluentui/svg-icons/icons/lock_closed_20_regular.svg?raw';
@@ -119,6 +121,7 @@ const ICONS = {
   search: { 16: search16, 20: search20 },
   filter: { 16: filter16, 20: filter20 },
   flag: { 16: flag16, 20: flag20 },
+  image: { 16: image16, 20: image20 },
   cleared: { 16: cleared16, 20: cleared20 },
   uncleared: { 16: uncleared16, 20: uncleared20 },
   lock: { 16: lock16, 20: lock20 },

@@ -1697,6 +1697,97 @@ void describe('settings, templates and Fresh Start (Phase 7)', () => {
     }
   });
 
+  void test('Credit Card Interest behind its preference: off the plan, in the card activity (S7.6)', { timeout: 300_000 }, async () => {
+    const app = await open();
+    const { page } = app;
+    try {
+      const before = await rta(page);
+      await planMenu(page, 'Preferences…');
+      const prefsDlg = page.getByRole('dialog', { name: 'Preferences' });
+      const flag = prefsDlg.getByRole('switch', { name: 'Credit Card Interest category (early)' });
+      assert.equal(await flag.getAttribute('aria-checked'), 'false', 'off by default');
+      await flag.click();
+      await prefsDlg.getByRole('button', { name: 'Done' }).click();
+
+      await sidebar(page).locator('[data-section=credit]', { hasText: 'Visa Rewards' }).click();
+      const grid = page.getByRole('treegrid', { name: /Visa Rewards transactions/ });
+      await grid.waitFor();
+      const editor = grid.locator('[data-row-editor]').first();
+      await page.locator('#main').focus();
+      await page.keyboard.press('Shift+N');
+      await editor.waitFor();
+      await page.keyboard.press('Tab');
+      await page.keyboard.type('Card Interest');
+      await page.waitForTimeout(150);
+      await page.keyboard.press('Enter');
+      await page.keyboard.press('Tab');
+      await page.keyboard.type('Credit Card Interest');
+      await page.waitForTimeout(150);
+      await page.keyboard.press('Enter');
+      await grid.getByRole('textbox', { name: 'Outflow' }).click();
+      await page.keyboard.type('12.34');
+      await page.keyboard.press('Enter');
+      await editor.waitFor({ state: 'detached' });
+      const row = grid.locator('[role=row][data-row-id]', { hasText: 'Card Interest' }).first();
+      assert.match(norm(await row.innerText()), /Card Interest.*Credit Card Interest.*\$12\.34/);
+
+      // Off the plan: Ready to Assign is unchanged; the payment category's Activity shows the interest.
+      await sidebar(page).getByText('Plan', { exact: true }).first().click();
+      const planGrid = page.getByRole('treegrid', { name: 'Categories' });
+      await planGrid.waitFor();
+      assert.equal(await rta(page), before, 'interest leaves Ready to Assign alone');
+      const visaRow = planGrid.locator('[role=row]', { has: page.locator('[data-col=category]', { hasText: /^Visa Rewards/ }) });
+      await visaRow.locator('[data-col=activity]').click();
+      const pop = page.getByRole('dialog', { name: /Activity: Visa Rewards/ });
+      assert.match(norm(await pop.innerText()), /Credit Card Interest -\$12\.34/);
+      await pop.getByRole('button', { name: 'Close' }).click();
+    } finally {
+      await app.close();
+    }
+  });
+
+  void test('a transaction photo: attach, thumbnail, view, download, survives a relaunch, delete (S7.6)', { timeout: 300_000 }, async () => {
+    // A real 16x16 PNG, written for the picker (HAFB_PICK_FILES stands in for the Open dialog).
+    const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAI0lEQVR4nGMUqYhiIAUwkaSaYVQDcYCJSHVwMKqBGEByKAEA8nwBBu6ofKsAAAAASUVORK5CYII=', 'base64');
+    const photoPath = join(box.root, 'receipt.png');
+    writeFileSync(photoPath, png);
+    const env = { HAFB_PICK_FILES: photoPath };
+    const app = await open(env);
+    const { page } = app;
+    let rowId: string;
+    try {
+      await sidebar(page).getByText('Wallet').first().click();
+      // The first transaction row (the Scheduled Transactions header has no photo cell).
+      const attach = page.getByRole('main').getByRole('button', { name: 'Attach a photo' }).first();
+      rowId = (await attach.evaluate((el) => el.closest('[role=row]')?.getAttribute('data-row-id'))) ?? '';
+      await attach.click();
+      const thumb = page.locator(`[role=row][data-row-id="${rowId}"]`).getByRole('button', { name: 'Photo attached: receipt.png. Open' });
+      await thumb.waitFor();
+      await thumb.locator('img').waitFor();
+      await thumb.click();
+      const viewer = page.getByRole('dialog').filter({ has: page.getByRole('button', { name: 'Download Image' }) });
+      await viewer.locator('img').waitFor();
+      await viewer.getByRole('button', { name: 'Download Image' }).click();
+      await page.waitForTimeout(500);
+      assert.ok(existsSync(join(box.exportDir, 'receipt.png')), 'downloaded');
+      await viewer.getByRole('button', { name: 'Close' }).last().click();
+    } finally {
+      await app.close();
+    }
+    const again = await open(env);
+    try {
+      await sidebar(again.page).getByText('Wallet').first().click();
+      const row = again.page.locator(`[role=row][data-row-id="${rowId}"]`);
+      await row.getByRole('button', { name: 'Photo attached: receipt.png. Open' }).click();
+      const viewer = again.page.getByRole('dialog').filter({ has: again.page.getByRole('button', { name: 'Download Image' }) });
+      await viewer.getByRole('button', { name: 'Delete Image' }).click();
+      await again.page.getByRole('dialog', { name: 'Delete Image' }).getByRole('button', { name: 'Delete' }).click();
+      await row.getByRole('button', { name: 'Attach a photo' }).waitFor();
+    } finally {
+      await again.close();
+    }
+  });
+
   void test('a category template adds its groups at the bottom', { timeout: 300_000 }, async () => {
     const app = await open();
     const { page } = app;

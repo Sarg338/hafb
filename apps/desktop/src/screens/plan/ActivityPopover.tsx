@@ -40,6 +40,12 @@ export function ActivityPopover({ anchor, category, lines, summary, dateFormat, 
               <dt>Returns</dt>
               <dd>{signed(summary.returns, money, summary.returns <= 0)}</dd>
             </div>
+            {summary.interest !== 0 && (
+              <div>
+                <dt>Credit Card Interest</dt>
+                <dd>{signed(summary.interest, money, summary.interest < 0)}</dd>
+              </div>
+            )}
             <div className={styles.total}>
               <dt>Total Spending</dt>
               <dd>{signed(summary.totalSpending, money, summary.totalSpending <= 0)}</dd>

@@ -53,6 +53,12 @@ describe('parsePrefs', () => {
     expect(parsePrefs(JSON.stringify({ version: 1, textScale: 3 })).textScale).toBe(1);
   });
 
+  it('Credit Card Interest is off unless turned on (S7.6)', () => {
+    expect(DEFAULT_PREFS.creditCardInterest).toBe(false);
+    expect(parsePrefs(JSON.stringify({ version: 1, creditCardInterest: true })).creditCardInterest).toBe(true);
+    expect(parsePrefs(JSON.stringify({ version: 1, creditCardInterest: 'yes' })).creditCardInterest).toBe(false);
+  });
+
   it('keeps last routes per plan path as strings only', () => {
     const p = parsePrefs(JSON.stringify({ version: 1, lastRoute: { 'C:\\a.hafb': '#/reflect', bad: 4 } }));
     expect(p.lastRoute).toEqual({ 'C:\\a.hafb': '#/reflect' });

@@ -37,6 +37,7 @@ import {
 import { isTauri } from '@tauri-apps/api/core';
 import { makeDate, monthOf, uuidv7Generator, type ISODate, type Month } from '@hafb/shared';
 import { errorMessage, planIpc, type BackupInfo, type PlanInfo, type RecentPlan } from './ipc.ts';
+import { photos } from './photos.ts';
 
 export interface LoadTimings {
   /** plan_load: SQLite read + JSON + IPC. */
@@ -191,6 +192,8 @@ class PlanSession {
         ...(importReport ? { importReport } : {}),
       },
     });
+    photos.clear();
+    photos.refresh().catch(() => undefined);
     if (info.migratedFrom !== null) this.notify(`Updated the file from version ${String(info.migratedFrom)}. A copy of the old file was kept.`);
     this.enterDue();
   }
@@ -287,6 +290,7 @@ class PlanSession {
     return this.task('Closing…', async () => {
       await this.writes;
       await planIpc.close();
+      photos.clear();
       this.set({ open: null });
       await this.refreshRecent();
     });

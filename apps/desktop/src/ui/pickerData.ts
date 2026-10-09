@@ -1,6 +1,6 @@
 // Adapters from a plan to picker groups. Screens call these; the pickers themselves stay
 // presentational (plain options in, an id out). Amounts come from the engine via planBudget.
-import { READY_TO_ASSIGN, type Id } from '@hafb/engine';
+import { CREDIT_CARD_INTEREST, READY_TO_ASSIGN, type Id } from '@hafb/engine';
 import { ZERO, type ISODate, type Minor, type Month } from '@hafb/shared';
 import { planBudget, type PlanData } from '@hafb/store';
 import type { ComboGroup, ComboOption } from './comboModel.ts';
@@ -41,12 +41,14 @@ export interface CategoryPickerData {
  * Inflow (Ready to Assign) first, then the plan's visible groups and categories in order. Credit
  * card payment categories aren't offered: money reaches them by spending on the card.
  */
-export function categoryPickerData(plan: PlanData, month: Month, today: ISODate, options: { allowSplit?: boolean } = {}): CategoryPickerData {
+export function categoryPickerData(plan: PlanData, month: Month, today: ISODate, options: { allowSplit?: boolean; creditCardInterest?: boolean } = {}): CategoryPickerData {
   const state = planBudget(plan, { today, throughMonth: month });
   const ms = state.byMonth[month];
   const available = new Map<string, Minor>();
   available.set(READY_TO_ASSIGN, ms?.readyToAssign ?? ZERO);
   const groups: ComboGroup[] = [{ id: 'inflow', label: 'Inflow', options: [{ id: READY_TO_ASSIGN, label: 'Ready to Assign' }] }];
+  // YNAB's Credit Card Interest (S7.6, behind a preference): only offered on a card's transactions.
+  if (options.creditCardInterest === true) groups.push({ id: 'interest', label: 'Credit Card Interest', options: [{ id: CREDIT_CARD_INTEREST, label: 'Credit Card Interest', keywords: ['interest'] }] });
   const visibleGroups = plan.categoryGroups
     .filter((g) => g.deletedAt === undefined && g.hidden !== true && g.systemKind === undefined)
     .toSorted((a, b) => a.sortOrder - b.sortOrder);

@@ -80,6 +80,8 @@ import { isLoanType, typeInfo } from './accountsModel.ts';
 import { LoanPanel, RecordLoanPaymentDialog } from './LoanPanel.tsx';
 import { EmptyState } from '../../ui/EmptyState.tsx';
 import { ImportDialog } from './ImportDialog.tsx';
+import { PhotoCell, PhotoViewer } from './PhotoViewer.tsx';
+import type { PhotoInfo } from '../../shell/photos.ts';
 import { pickBankFiles, type PickedFile } from '../../shell/bankFiles.ts';
 import { useToast } from '../../ui/Toast.tsx';
 import { colorLabel, FLAG_COLORS, flagForDigit, flagName } from './flags.ts';
@@ -232,6 +234,7 @@ export function RegisterScreen({ plan, today, accountId, actions, history, focus
   const [repeatFor, setRepeatFor] = useState<{ id: string; at: Rect } | null>(null);
   const [reconcile, setReconcile] = useState<null | { step: 'ask' } | { step: 'enter'; amount: Minor } | { step: 'mode'; statement: Minor }>(null);
   const reconcileButton = useRef<HTMLButtonElement>(null);
+  const [photoOpen, setPhotoOpen] = useState<{ photo: PhotoInfo; label: string } | null>(null);
   const confirm = useConfirm();
   const reconcileAmount = useRef<Minor>(ZERO);
   const bankField = useRef<HTMLInputElement>(null);
@@ -687,7 +690,8 @@ export function RegisterScreen({ plan, today, accountId, actions, history, focus
   const draftMonth = monthOf(draft?.date ?? today);
   const draftPayeeId = draft?.payeeId ?? null;
   const payees = useMemo(() => payeeGroups(plan, { keep: draftPayeeId, ...(draftAccountId === undefined ? {} : { excludeAccountId: draftAccountId }) }), [plan, draftAccountId, draftPayeeId]);
-  const categories = useMemo(() => categoryPickerData(plan, draftMonth, today), [plan, draftMonth, today]);
+  const interestOn = p.creditCardInterest && plan.accounts.some((a) => a.id === draftAccountId && a.onBudget && (a.type === 'creditCard' || a.type === 'lineOfCredit'));
+  const categories = useMemo(() => categoryPickerData(plan, draftMonth, today, { creditCardInterest: interestOn }), [plan, draftMonth, today, interestOn]);
   const payeeById = useMemo(() => new Map(plan.payees.map((x) => [x.id, x])), [plan.payees]);
   const isEditing = (r: GridRow<Row>): boolean => edit !== null && r.id === edit.id;
   const draftAccount = draft ? plan.accounts.find((a) => a.id === draft.accountId) : undefined;
@@ -753,6 +757,17 @@ export function RegisterScreen({ plan, today, accountId, actions, history, focus
             </button>
           );
         },
+      },
+      {
+        // Transaction photos (S7.6): YNAB's photo column, after the flag.
+        id: 'photo',
+        header: 'Photo',
+        headerHidden: true,
+        headerIcon: 'image',
+        width: 34,
+        align: 'center',
+        resizable: false,
+        render: (r) => (r.data.kind === 'tx' && r.data.scheduled === undefined ? <PhotoCell transactionId={r.data.tx.id} label={`${r.data.tx.payee === '' ? 'Transaction' : r.data.tx.payee}, ${r.data.tx.date}`} onOpen={setPhotoOpen} notify={actions.notify} /> : null),
       },
     );
     if (accountId === null) {
@@ -1482,6 +1497,16 @@ export function RegisterScreen({ plan, today, accountId, actions, history, focus
         </div>
       )}
       {picked.length > 0 && edit === null && actionBar()}
+      {photoOpen && (
+        <PhotoViewer
+          photo={photoOpen.photo}
+          label={photoOpen.label}
+          notify={actions.notify}
+          onClose={() => {
+            setPhotoOpen(null);
+          }}
+        />
+      )}
 
       {flagMenu && (
         <Popover open onClose={() => { setFlagMenu(null); }} anchor={flagMenu.at} role="presentation">

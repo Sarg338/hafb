@@ -2,6 +2,7 @@ mod commands;
 mod diagnostics;
 mod exports;
 mod paths;
+mod photos;
 mod startup;
 mod titlebar;
 mod window_state;
@@ -56,6 +57,12 @@ pub fn run() {
             commands::pick_bank_files,
             commands::read_import_file,
             exports::save_export,
+            photos::attachment_list,
+            photos::attachment_pick_add,
+            photos::attachment_data,
+            photos::attachment_thumbnail,
+            photos::attachment_set_thumbnail,
+            photos::attachment_delete,
             diagnostics::launch_timing,
             startup::startup_plan_path,
             titlebar::get_titlebar_mode,

@@ -11,6 +11,13 @@ const KINDS: &[(&str, &str)] = &[
     ("Tab-separated text", "tsv"),
     ("Zip archive", "zip"),
     ("PNG image", "png"),
+    // Download Image (S7.6): a transaction photo, saved as it was attached.
+    ("JPEG image", "jpg"),
+    ("JPEG image", "jpeg"),
+    ("JPEG image", "jfif"),
+    ("GIF image", "gif"),
+    ("WebP image", "webp"),
+    ("Bitmap image", "bmp"),
 ];
 
 /// Decode `%XX` escapes (the file name travels in a header, which must be ASCII).

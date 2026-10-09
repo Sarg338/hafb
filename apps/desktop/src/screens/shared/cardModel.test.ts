@@ -66,6 +66,15 @@ describe('credit card display data (S4.7)', () => {
     expect(paymentActivity(visaMonth as never)).toEqual({ spending: -8_000, returns: 2_000, totalSpending: -6_000, funded: 6_000, paymentsAndReturns: -5_000, total: 1_000 });
   });
 
+  it('Credit Card Interest (§3.15): in the summary on its own, and in the balance lines', () => {
+    const base = { categoryId: 'p', assigned: 0, activity: 0, available: 0, carriedIn: 0, cashActivity: 0, creditActivity: 0, overspending: { cash: 0, credit: 0 } };
+    const card = { accountId: 'c', fundedSpending: 0, payments: 0, unfundedSpending: 0, spending: -3_000, returns: 0, interest: -1_234, balance: -14_234 };
+    const cm = { ...base, creditCard: card } as never;
+    expect(paymentActivity(cm)).toMatchObject({ interest: -1_234, totalSpending: -3_000, total: 0 });
+    expect(cardBalance(cm)).toEqual({ prior: -10_000, spending: -4_234, inflows: 0, current: -14_234 });
+    expect(cardBalance({ ...base, creditCard: { ...card, interest: 500, balance: -12_500 } } as never)).toEqual({ prior: -10_000, spending: -3_000, inflows: 500, current: -12_500 });
+  });
+
   it('the pay-in-full gap: what the card owes beyond the money set aside', () => {
     const base = { categoryId: 'p', assigned: 0, activity: 0, carriedIn: 0, cashActivity: 0, creditActivity: 0, overspending: { cash: 0, credit: 0 } };
     const card = { accountId: 'c', fundedSpending: 0, payments: 0, unfundedSpending: 0, spending: 0, returns: 0 };

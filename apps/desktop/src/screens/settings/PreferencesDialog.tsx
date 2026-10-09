@@ -85,6 +85,14 @@ export function PreferencesDialog({
               prefs.update({ hideAmounts: v });
             }}
           />
+          <Toggle
+            label="Credit Card Interest category (early)"
+            checked={p.creditCardInterest}
+            onChange={(v) => {
+              prefs.update({ creditCardInterest: v });
+            }}
+          />
+          <p className={styles.help}>YNAB is rolling this out: interest on a card stays out of your plan and shows as card debt to cover.</p>
         </section>
         <section className={styles.section} aria-labelledby="pref-account">
           <h3 id="pref-account">Default account</h3>

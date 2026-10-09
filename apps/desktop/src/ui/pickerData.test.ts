@@ -1,4 +1,4 @@
-import { READY_TO_ASSIGN } from '@hafb/engine';
+import { CREDIT_CARD_INTEREST, READY_TO_ASSIGN } from '@hafb/engine';
 import { describe, expect, it } from 'vitest';
 import { buildSamplePlan } from '../design/sample.ts';
 import { categoryPickerData, payeeGroups, SPLIT_ID, TRANSFER_GROUP_ID } from './pickerData.ts';
@@ -59,5 +59,12 @@ describe('categoryPickerData', () => {
     const withSplit = categoryPickerData(plan, '2026-10', today, { allowSplit: true });
     const last = withSplit.groups[withSplit.groups.length - 1];
     expect(last?.options.map((o) => o.id)).toEqual([SPLIT_ID]);
+  });
+
+  it('offers Credit Card Interest after Inflow only when asked (a card register with the preference on)', () => {
+    const ids = (d: ReturnType<typeof categoryPickerData>) => d.groups.flatMap((g) => g.options.map((o) => o.id));
+    expect(ids(categoryPickerData(plan, '2026-10', today))).not.toContain(CREDIT_CARD_INTEREST);
+    const withInterest = categoryPickerData(plan, '2026-10', today, { creditCardInterest: true });
+    expect(withInterest.groups.slice(0, 2).map((g) => g.options.map((o) => o.label))).toEqual([['Ready to Assign'], ['Credit Card Interest']]);
   });
 });

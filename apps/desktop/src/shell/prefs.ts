@@ -64,6 +64,11 @@ export interface Prefs {
   defaultAccounts: Record<string, string>;
   /** Plan file paths whose Get started list was hidden (S7.5). */
   setupHidden: string[];
+  /**
+   * Offer YNAB's Credit Card Interest category on card registers (S7.6). Off by default while YNAB
+   * rolls it out (CLAUDE.md §5.3; budget-math §3.15).
+   */
+  creditCardInterest: boolean;
 }
 
 /** Text size choices (S7.1). */
@@ -95,6 +100,7 @@ export const DEFAULT_PREFS: Prefs = {
   textScale: 1,
   defaultAccounts: {},
   setupHidden: [],
+  creditCardInterest: false,
 };
 
 const THEMES: readonly ThemePref[] = ['system', 'light', 'dark', 'high-contrast'];
@@ -170,6 +176,7 @@ export function parsePrefs(text: string | null): Prefs {
     textScale,
     defaultAccounts,
     setupHidden: strings(raw.setupHidden),
+    creditCardInterest: raw.creditCardInterest === true,
   };
 }
 
