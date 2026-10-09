@@ -248,3 +248,11 @@
 .spacer {
   flex: 1;
 }
+
+/* Windows contrast themes: the theme already paints these with Highlight / HighlightText; stop the
+   forced-colors override from blanking the text on the filled background (S7.4). */
+@media (forced-colors: active) {
+  .bigMark {
+    forced-color-adjust: none;
+  }
+}

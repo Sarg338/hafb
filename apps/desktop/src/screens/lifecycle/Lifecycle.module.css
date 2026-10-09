@@ -84,7 +84,8 @@
 
 .checkItems {
   display: grid;
-  gap: 4px;
+  /* Room around each 16 px box for a 24 px target (WCAG 2.5.8). */
+  gap: 8px;
   padding-left: 22px;
 }
 

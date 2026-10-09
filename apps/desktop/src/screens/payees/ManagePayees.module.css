@@ -31,7 +31,8 @@
 .groupHead {
   display: flex;
   align-items: center;
-  gap: 2px;
+  /* Room between the collapse button and the checkbox for 24 px targets (WCAG 2.5.8). */
+  gap: 8px;
   min-height: var(--d-row-register);
   font-weight: var(--t-weight-semibold);
 }

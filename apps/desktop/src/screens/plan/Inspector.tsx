@@ -47,14 +47,21 @@ export interface InspectorProps {
   onRename?: (id: Id, anchor: Element) => void;
   className?: string;
   edge?: ReactNode;
+  /** When it opens over the plan (a small window), its close button. */
+  onClose?: () => void;
 }
 
-export function Inspector({ model, selected, scope = null, actions, money, future, shortfalls, onRename, className, edge }: InspectorProps) {
+export function Inspector({ model, selected, scope = null, actions, money, future, shortfalls, onRename, className, edge, onClose }: InspectorProps) {
   const ids = [...selected].filter((id) => model.ms.categories[id] !== undefined);
   const first = ids[0];
   return (
     <aside className={cx(styles.inspector, className)} aria-label="Inspector">
       {edge}
+      {onClose && (
+        <div className={styles.closeRow}>
+          <IconButton icon="dismiss" label="Close inspector" onClick={onClose} />
+        </div>
+      )}
       {ids.length === 1 && first !== undefined ? (
         <CategoryDetail key={first} model={model} id={first} actions={actions} money={money} onRename={onRename} />
       ) : ids.length > 1 ? (

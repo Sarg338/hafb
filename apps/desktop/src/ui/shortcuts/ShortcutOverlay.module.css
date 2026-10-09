@@ -57,10 +57,6 @@
   color: var(--c-text-muted);
 }
 
-.row[data-status='planned'] .keys,
-.row[data-status='off'] .keys {
-  opacity: 0.6;
-}
 
 .description {
   display: grid;

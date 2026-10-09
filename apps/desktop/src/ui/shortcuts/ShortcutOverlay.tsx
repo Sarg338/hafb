@@ -92,7 +92,7 @@ export function ShortcutOverlay({ open, onClose }: { open: boolean; onClose: () 
         <Toggle label="Keyboard shortcuts on" checked={enabled} onChange={setEnabled} />
       </div>
       {!enabled && <p className={styles.offNote}>Shortcuts are off. Press ? to open this list and turn them back on.</p>}
-      <div className={styles.groups}>
+      <div className={styles.groups} tabIndex={0} role="region" aria-label="Shortcut list">
         {groups.map((g) => (
           <section key={g.name} aria-labelledby={`sc-${g.name}`}>
             <h3 id={`sc-${g.name}`} className={styles.group}>

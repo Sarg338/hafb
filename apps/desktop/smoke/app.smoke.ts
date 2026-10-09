@@ -16,6 +16,13 @@ const MONEY = /^-?\$[\d,]+\.\d\d$/;
 
 declare global {
   interface Window {
+    /** axe-core, injected by the accessibility smoke test (S7.4). */
+    axe: { run: (context: Document, options: unknown) => Promise<{ violations: { id: string; nodes: { target: string[] }[] }[] }> };
+  }
+}
+
+declare global {
+  interface Window {
     hafbLaunchTiming?: { processToMainMs: number | null; processToFirstPaintMs: number | null };
   }
 }
@@ -1534,6 +1541,94 @@ void describe('settings, templates and Fresh Start (Phase 7)', () => {
       await page.keyboard.press('Control+0');
       await page.waitForTimeout(500);
       assert.ok(Math.abs((await page.evaluate(() => window.devicePixelRatio)) - base) < 0.01);
+    } finally {
+      await app.close();
+    }
+  });
+
+  void test('WCAG 2.2 AA: axe finds nothing on any screen, in light, dark and high contrast (S7.4)', { timeout: 600_000 }, async () => {
+    const app = await open();
+    const { page } = app;
+    const AXE = join(import.meta.dirname, '..', 'node_modules', 'axe-core', 'axe.min.js');
+    const found: string[] = [];
+    const audit = async (where: string): Promise<void> => {
+      await page.waitForTimeout(400);
+      // The app's CSP blocks injected script tags (good); DevTools evaluation isn't subject to it.
+      await page.evaluate(readFileSync(AXE, 'utf8'));
+      const v = await page.evaluate(async () => {
+        const r = await window.axe.run(document, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'] }, resultTypes: ['violations'] });
+        return r.violations.map((x) => `${x.id}: ${x.nodes.map((n) => n.target.join(' ')).slice(0, 3).join(' | ')}`);
+      });
+      for (const x of v) found.push(`${where} → ${x}`);
+    };
+    try {
+      for (const theme of ['Default', 'Dark', 'High contrast']) {
+        await planMenu(page, 'Display Options…');
+        await page.getByRole('radiogroup', { name: 'Theme' }).getByRole('radio', { name: theme }).click();
+        await page.getByRole('button', { name: 'Apply' }).click();
+        await sidebar(page).getByText('Plan', { exact: true }).click();
+        await audit(`${theme} plan`);
+        await sidebar(page).getByText('Everyday Checking').first().click();
+        await page.getByRole('main').locator('[role=grid], [role=treegrid]').first().waitFor();
+        await audit(`${theme} register`);
+        await page.keyboard.press('Shift+N');
+        await audit(`${theme} register editing`);
+        await page.keyboard.press('Escape');
+        await sidebar(page).getByText('Reflect', { exact: true }).click();
+        await page.getByRole('tablist', { name: 'Reports' }).waitFor();
+        await audit(`${theme} reflect`);
+        for (const item of ['Plan Settings…', 'Preferences…', 'New plan…']) {
+          await planMenu(page, item);
+          await page.getByRole('dialog').first().waitFor();
+          await audit(`${theme} ${item}`);
+          await page.keyboard.press('Escape');
+        }
+      }
+      assert.deepEqual(found, []);
+    } finally {
+      await planMenu(page, 'Display Options…').catch(() => undefined);
+      await page.getByRole('radiogroup', { name: 'Theme' }).getByRole('radio', { name: 'Match System' }).click().catch(() => undefined);
+      await page.getByRole('button', { name: 'Apply' }).click().catch(() => undefined);
+      await app.close();
+    }
+  });
+
+  void test('keyboard only: the plan menu, Plan Settings and Reflect (S7.4)', { timeout: 300_000 }, async () => {
+    const app = await open();
+    const { page } = app;
+    try {
+      // The plan menu button is the sidebar's first control: Tab there, open it with Enter.
+      await sidebar(page).locator('button').first().focus();
+      await page.keyboard.press('Enter');
+      await page.getByRole('menu').waitFor();
+      for (let i = 0; i < 12 && (await page.evaluate(() => document.activeElement?.textContent ?? '')) !== 'Plan Settings…'; i++) await page.keyboard.press('ArrowDown');
+      await page.keyboard.press('Enter');
+      const dlg = page.getByRole('dialog', { name: 'Plan Settings' });
+      await dlg.waitFor();
+      // Tab to Date Format and pick 2026-12-30 (ISO) by typing; Enter to choose.
+      for (let i = 0; i < 8 && !(await page.evaluate(() => document.activeElement?.getAttribute('aria-label') === 'Date Format')); i++) await page.keyboard.press('Tab');
+      await page.keyboard.press('Control+a');
+      await page.keyboard.type('-12-30');
+      await page.keyboard.press('Enter');
+      for (let i = 0; i < 6 && !(await page.evaluate(() => document.activeElement?.textContent === 'Apply Settings')); i++) await page.keyboard.press('Tab');
+      await page.keyboard.press('Enter');
+      await dlg.waitFor({ state: 'detached' });
+      // Reflect by its shortcut; tabs by arrow keys.
+      await page.locator('#main').focus();
+      await page.keyboard.press('g');
+      await page.keyboard.press('r');
+      const tabs = page.getByRole('tablist', { name: 'Reports' });
+      await tabs.waitFor();
+      await tabs.getByRole('tab', { name: 'Spending Breakdown' }).focus();
+      await page.keyboard.press('ArrowRight');
+      await page.waitForTimeout(250);
+      await page.keyboard.press('ArrowRight');
+      await page.waitForTimeout(250);
+      assert.equal(await tabs.getByRole('tab', { selected: true }).innerText(), 'Net Worth');
+      // The date format took: the plan shows ISO dates in the register.
+      await page.keyboard.press('g');
+      await page.keyboard.press('a');
+      await page.getByRole('main').getByText(/^\d{4}-\d{2}-\d{2}$/).first().waitFor();
     } finally {
       await app.close();
     }

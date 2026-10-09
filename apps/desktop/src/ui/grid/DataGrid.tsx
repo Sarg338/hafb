@@ -13,6 +13,8 @@ import { Checkbox } from '../Checkbox.tsx';
 import { cx } from '../cx.ts';
 import { tabbables } from '../focus.ts';
 import { Icon, type IconName } from '../Icon.tsx';
+import type { Rect } from '../position.ts';
+import { CLICK_SLOP, ResizeMenu } from '../ResizeMenu.tsx';
 import styles from './DataGrid.module.css';
 import { endEdit, gridIntent, type EditEnd } from './keys.ts';
 import { moveActive, type NavContext } from './navigation.ts';
@@ -205,7 +207,12 @@ const Row = memo(function Row({ vrow, columns, selectable, selected, activeColum
           </div>
         );
       })}
-      {extra !== undefined && <div className={styles.rowExtra}>{extra}</div>}
+      {/* A cell spanning the row, so its controls are inside a gridcell as ARIA requires (axe aria-required-children). */}
+      {extra !== undefined && (
+        <div role="gridcell" className={styles.rowExtra} aria-colspan={columns.length + offset}>
+          {extra}
+        </div>
+      )}
     </div>
   );
 });
@@ -611,18 +618,23 @@ export function DataGrid<T>(props: DataGridProps<T>) {
   };
 
   // ---- column resize -----------------------------------------------------------------------------
+  const [resizeMenu, setResizeMenu] = useState<{ columnId: string; at: Rect } | null>(null);
   const startResize = (col: GridColumn<T>, e: ReactPointerEvent<HTMLDivElement>): void => {
     e.preventDefault();
     e.stopPropagation();
     const startX = e.clientX;
     const startWidth = widthOf(col, widths);
     const base = { ...widths };
+    let moved = false;
     setResizing(col.id);
     const onMove = (ev: PointerEvent): void => {
-      setWidths(resize(base, col, startWidth, ev.clientX - startX));
+      if (Math.abs(ev.clientX - startX) >= CLICK_SLOP) moved = true;
+      if (moved) setWidths(resize(base, col, startWidth, ev.clientX - startX));
     };
-    const onUp = (): void => {
+    const onUp = (ev: PointerEvent): void => {
       setResizing(null);
+      // A click without dragging: Narrower / Wider / Reset width (WCAG 2.5.7).
+      if (!moved) setResizeMenu({ columnId: col.id, at: { top: ev.clientY, left: ev.clientX, width: 0, height: 0 } });
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
     };
@@ -726,6 +738,33 @@ export function DataGrid<T>(props: DataGridProps<T>) {
             ))}
           </div>
         </div>
+        {resizeMenu &&
+          (() => {
+            const col = columns.find((c) => c.id === resizeMenu.columnId);
+            if (!col) return null;
+            const step = (key: string): void => {
+              const next = keyboardResize(widths, col, key, false);
+              if (next) setWidths(next);
+            };
+            return (
+              <ResizeMenu
+                at={resizeMenu.at}
+                label={`Resize ${col.header}`}
+                onClose={() => {
+                  setResizeMenu(null);
+                }}
+                onNarrower={() => {
+                  step('ArrowLeft');
+                }}
+                onWider={() => {
+                  step('ArrowRight');
+                }}
+                onReset={() => {
+                  setWidths(resetWidth(widths, col.id));
+                }}
+              />
+            );
+          })()}
         <div role="rowgroup" className={styles.body} style={{ height: virtualizer.getTotalSize() }}>
           {items.map((vi) => {
             const vrow = visible[vi.index];

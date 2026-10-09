@@ -18,6 +18,21 @@
   background: var(--c-surface);
 }
 
+/* Large text in a small window (WCAG 1.4.10): one column; the inspector opens over the plan. */
+.main[data-compact='true'] {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.inspectorOverlay {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 5;
+  width: min(var(--d-inspector-width), 100%);
+  box-shadow: 0 8px 24px var(--c-shadow);
+}
+
 .inspectorEdge {
   position: absolute;
   top: 0;
@@ -72,7 +87,8 @@
 .noteButton {
   display: block;
   max-width: 260px;
-  height: 20px;
+  /* WCAG 2.5.8: at least 24 px to click. */
+  height: 24px;
   padding: 0 6px;
   overflow: hidden;
   border: 0;

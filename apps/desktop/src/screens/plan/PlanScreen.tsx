@@ -19,7 +19,7 @@ import { ProgressBar } from '../../ui/ProgressBar.tsx';
 import { useShortcut } from '../../ui/shortcuts/ShortcutProvider.tsx';
 import { useTweened } from '../../ui/useTweened.ts';
 import { moneyText, type MoneyText } from '../shared/money.ts';
-import { NARROW_WINDOW, useMediaQuery } from '../shared/useMediaQuery.ts';
+import { COMPACT_WINDOW, NARROW_WINDOW, useMediaQuery } from '../shared/useMediaQuery.ts';
 import { activityLines, paymentActivity } from '../shared/cardModel.ts';
 import { ActivityPopover } from './ActivityPopover.tsx';
 import { ManageViewsDialog, ViewDialog } from './FocusedViews.tsx';
@@ -61,6 +61,9 @@ export function PlanScreen({ plan, planPath, today, month, setMonth, actions, hi
   const model = planModel(plan, month, today);
   const money = useMemo(() => moneyText(model.fmt, p.hideAmounts), [model.fmt, p.hideAmounts]);
   const narrow = useMediaQuery(NARROW_WINDOW);
+  // Large text in a small window (WCAG 1.4.10): the inspector opens over the plan instead of beside it.
+  const compact = useMediaQuery(COMPACT_WINDOW);
+  const [inspectorOpen, setInspectorOpen] = useState(false);
   const moneyWidth = narrow ? 112 : 140;
   // The selected focused view is a per-device preference (CLAUDE.md §4), remembered per plan file.
   const views = useMemo(() => focusedViews(plan).filter((v) => v.builtin !== 'overspent'), [plan]);
@@ -279,10 +282,11 @@ export function PlanScreen({ plan, planPath, today, month, setMonth, actions, hi
     { id: 'expand', label: 'Expand all groups', shortcut: 'Ctrl+↓' },
     { id: 'sep2', label: '', separator: true },
     { id: 'reset', label: 'Plan Reset…', icon: 'undo' },
+    ...(compact ? [{ id: 'sep3', label: '', separator: true }, { id: 'inspector', label: 'Show inspector', checked: inspectorOpen }] : []),
   ];
 
   return (
-    <div className={styles.main}>
+    <div className={styles.main} data-compact={compact}>
       <section className={styles.work} aria-label={`Plan for ${monthName(month)}`}>
         <PlanHeader
           model={model}
@@ -298,6 +302,7 @@ export function PlanScreen({ plan, planPath, today, month, setMonth, actions, hi
             else if (id === 'collapse') collapseAll();
             else if (id === 'expand') expandAll();
             else if (id === 'reset') setViewDialog({ kind: 'reset' });
+            else if (id === 'inspector') setInspectorOpen(!inspectorOpen);
           }}
         />
 
@@ -384,8 +389,20 @@ export function PlanScreen({ plan, planPath, today, month, setMonth, actions, hi
         </div>
         {editing.element}
       </section>
-      {inspectorEdge !== undefined && <div className={styles.inspectorEdge}>{inspectorEdge}</div>}
-      <Inspector model={model} selected={selected} scope={scope} actions={actions} money={money} future={future} shortfalls={shortfalls} onRename={nameActions.rename} />
+      {inspectorEdge !== undefined && !compact && <div className={styles.inspectorEdge}>{inspectorEdge}</div>}
+      {(!compact || inspectorOpen) && (
+        <Inspector
+          model={model}
+          selected={selected}
+          scope={scope}
+          actions={actions}
+          money={money}
+          future={future}
+          shortfalls={shortfalls}
+          onRename={nameActions.rename}
+          {...(compact ? { className: styles.inspectorOverlay, onClose: () => { setInspectorOpen(false); } } : {})}
+        />
+      )}
       {viewDialog?.kind === 'new' && <ViewDialog plan={plan} actions={actions} onClose={() => { setViewDialog(null); }} onSaved={(id) => { setFilter(`view:${id}`); }} />}
       {viewDialog?.kind === 'edit' && <ViewDialog plan={plan} view={viewDialog.view} actions={actions} onClose={() => { setViewDialog({ kind: 'manage' }); }} />}
       {viewDialog?.kind === 'manage' && (

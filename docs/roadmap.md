@@ -329,6 +329,21 @@ Progress (YNAB used as the reference throughout, 2026-10-09; it was put back as 
 - **S7.1 done in code.** Plan Settings in the plan menu is YNAB's dialog: Plan Name, Currency ("Name–CODE", 160 currencies; picking one fills YNAB's placement and number format for it, e.g. SEK "123.456,78kr", INR "1,23,456.78", CHF "123'456.78", KWD three decimals), Currency Placement (before, after, don't show), Number Format (YNAB's eight, shown in the currency's decimals) and Date Format (YNAB's seven). In YNAB, switching a plan to yen showed $3,070.00 as ¥3,070 and $370.01 as ¥370, and switching back brought the cents back, so HAFB keeps every stored amount and only changes the decimals shown (migration 0004 `plan.display_decimals`). A symbol after the amount has no space, as in YNAB. Display Options is YNAB's dialog (Theme, Progress Bars, Balance Style; HAFB adds High contrast). Preferences holds this PC's settings: text size 90–150% (the whole window zooms; Ctrl+= / Ctrl+- / Ctrl+0), keyboard shortcuts, Hide Amounts, the default account for new transactions and imports in All Accounts (per plan) and the plans folder the Open and Save dialogs start in. New Plan uses the same dialog as YNAB's ("Create Plan"). A store test now keeps the Rust contract fixtures in step with the codec (`HAFB_WRITE_FIXTURES=1` rewrites them).
 - **S7.2 done in code.** New Plan is YNAB's dialog plus "Start with" (a blank plan or one of 12 bundled templates) and "Import your YNAB export instead". Add categories from a template (plan menu) is YNAB's Import Category Template dialog: pick a template, untick categories, and the new groups go at the bottom without touching anything; amounts become "Have a balance of" targets with no date, as YNAB's did in the trial. Make a Fresh Start is YNAB's dialog: the new plan is a new file with the open accounts at $0 today, the groups, categories, targets, scheduled transactions, payees and expected income; this file stays, renamed "(Archived on …)" with its history (YNAB keeps archived plans editable, so HAFB does too; CLAUDE.md §5.14 corrected). After a YNAB import, Add targets offers a target choice and amount per category, prefilled with the three-month average assigned, saved as one undo step. The plan menu lists the five most recent plans. Smoke: Plan Settings and text size survive a relaunch; template import; New Plan from a template; Fresh Start writes the new file and archives the old one (`HAFB_SAVE_DIR` replaces the Save dialog in tests).
 - **S7.3 done in code.** Every shortcut on YNAB's help page and in its in-app Keyboard Shortcuts dialog (2026-10-09) works in HAFB. A test checks each listed shortcut is registered with exactly those keys, or handled in a component whose test file covers it, and that `docs/shortcuts.md` (generated from the list) is current. Windows conventions added: F1 (shortcut list), Ctrl+N (new plan), Ctrl+O (open plan), Ctrl+comma (Preferences); text size keys from S7.1. A release-app smoke test checks they do HAFB's thing and not WebView2's (Ctrl+N opens no browser window; Ctrl+= is one 110% step). Shortcut hints are in the plan, register and context menus and on toolbar buttons.
+- **S7.4 done in code.** `docs/accessibility.md` lists every WCAG 2.2 A/AA criterion as pass or not applicable, with evidence. Checks run:
+  - axe-core (development dependency only) on every screen, dialog and open state in light, dark and high contrast; a release-app smoke test reruns it.
+  - The release app's UI Automation tree (what Narrator reads): no unnamed controls on screen. NVDA isn't installed on the test PC.
+  - Keyboard-only smoke tests.
+  - Emulated Windows contrast themes.
+  - 200% text in a 1280×720 window, the 1.4.12 text-spacing overrides, and focus versus the sticky header.
+
+  Fixes:
+  - 24 px targets (WCAG 2.5.8).
+  - A click on a resize handle offers Narrower / Wider / Reset width (2.5.7).
+  - The register's editing panel is now a grid cell (ARIA).
+  - Readable dimmed keys in the `?` list.
+  - Filled elements keep their text in contrast themes.
+  - Text size up to 200%.
+  - Below 1024 CSS px the sidebar becomes its rail, and below 900 px the inspector opens over the plan from Display options.
 
 ## Phase 8: Release hardening → **v1.0**
 

@@ -76,3 +76,11 @@
   border-color: transparent;
   background: transparent;
 }
+
+/* Windows contrast themes: the theme paints the filled states with Mark / MarkText; stop the
+   forced-colors override from blanking their text (S7.4). */
+@media (forced-colors: active) {
+  .pill[data-state='overspent'] {
+    forced-color-adjust: none;
+  }
+}

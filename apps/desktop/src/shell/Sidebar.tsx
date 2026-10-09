@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { CASH_ACCOUNT_TYPES, CREDIT_ACCOUNT_TYPES, LOAN_ACCOUNT_TYPES, type AccountType } from '@hafb/engine';
 import { minor, type ISODate, type Minor } from '@hafb/shared';
 import { planBudget, type AccountRecord, type PlanData } from '@hafb/store';
@@ -6,6 +7,7 @@ import { Icon, type IconName } from '../ui/Icon.tsx';
 import { ContextMenu, MenuButton, type MenuItem } from '../ui/Menu.tsx';
 import { useTooltip } from '../ui/Tooltip.tsx';
 import { moneyFormat } from '../screens/plan/planModel.ts';
+import { TIGHT_WINDOW, useMediaQuery } from '../screens/shared/useMediaQuery.ts';
 import { prefs, usePrefs } from './prefs.ts';
 import { moneyText } from '../screens/shared/money.ts';
 import { stepAccount } from '../screens/accounts/accountsModel.ts';
@@ -74,7 +76,10 @@ function NavLink({ to, icon, label, current, rail }: { to: Route; icon: IconName
 
 export function Sidebar({ plan, subtitle, today, route, planMenu, onPlanMenu, viewMenu, onViewMenu, onAddAccount, onAccountAction, onReorder }: SidebarProps) {
   const p = usePrefs();
-  const rail = p.sidebarCollapsed;
+  // A tight window (large text, WCAG 1.4.10) shows the rail until the user opens the sidebar.
+  const tight = useMediaQuery(TIGHT_WINDOW);
+  const [peek, setPeek] = useState(false);
+  const rail = tight ? !peek : p.sidebarCollapsed;
   const fmt = moneyFormat(plan);
   const { hideAmounts } = usePrefs();
   const money = moneyText(fmt, hideAmounts);
@@ -215,7 +220,8 @@ export function Sidebar({ plan, subtitle, today, route, planMenu, onPlanMenu, vi
           aria-expanded={!rail}
           aria-label={rail ? 'Expand sidebar' : undefined}
           onClick={() => {
-            prefs.update({ sidebarCollapsed: !rail });
+            if (tight) setPeek(rail);
+            else prefs.update({ sidebarCollapsed: !rail });
           }}
         >
           <Icon name={rail ? 'chevronRight' : 'chevronLeft'} size={20} />

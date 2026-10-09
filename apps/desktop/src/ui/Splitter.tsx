@@ -1,4 +1,6 @@
-import { useRef, type KeyboardEvent, type PointerEvent } from 'react';
+import { useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
+import type { Rect } from './position.ts';
+import { CLICK_SLOP, ResizeMenu } from './ResizeMenu.tsx';
 import { dragWidth, keyWidth, type SplitRange, type SplitSide } from './splitterModel.ts';
 import styles from './Splitter.module.css';
 
@@ -18,11 +20,13 @@ export interface SplitterProps {
 
 /**
  * A vertical resize handle (WAI-ARIA window splitter): drag with the pointer, or focus it and use
- * Left/Right (one step), Home/End (min/max), Enter or double-click (reset). It only reports widths;
- * the owner stores them and applies them (e.g. as a CSS custom property).
+ * Left/Right (one step), Home/End (min/max), Enter or double-click (reset). A click without
+ * dragging offers Narrower / Wider / Reset width (WCAG 2.5.7). It only reports widths; the owner
+ * stores them and applies them (e.g. as a CSS custom property).
  */
 export function Splitter({ value, onChange, range, side = 'end', label, controls, className }: SplitterProps) {
-  const drag = useRef<{ x: number; width: number } | null>(null);
+  const drag = useRef<{ x: number; width: number; moved: boolean } | null>(null);
+  const [menu, setMenu] = useState<Rect | null>(null);
 
   const onPointerDown = (e: PointerEvent<HTMLDivElement>): void => {
     if (e.button !== 0) return;
@@ -31,15 +35,18 @@ export function Splitter({ value, onChange, range, side = 'end', label, controls
     e.preventDefault();
     e.currentTarget.focus();
     e.currentTarget.setPointerCapture(e.pointerId);
-    drag.current = { x: e.clientX, width: value };
+    drag.current = { x: e.clientX, width: value, moved: false };
   };
   const onPointerMove = (e: PointerEvent<HTMLDivElement>): void => {
     const d = drag.current;
     if (!d) return;
-    onChange(dragWidth(d.width, d.x, e.clientX, range, side));
+    if (Math.abs(e.clientX - d.x) >= CLICK_SLOP) d.moved = true;
+    if (d.moved) onChange(dragWidth(d.width, d.x, e.clientX, range, side));
   };
   const onPointerUp = (e: PointerEvent<HTMLDivElement>): void => {
+    const clicked = drag.current !== null && !drag.current.moved && e.type === 'pointerup';
     drag.current = null;
+    if (clicked) setMenu({ top: e.clientY, left: e.clientX, width: 0, height: 0 });
     if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
   };
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>): void => {
@@ -50,6 +57,7 @@ export function Splitter({ value, onChange, range, side = 'end', label, controls
   };
 
   return (
+    <>
     <div
       role="separator"
       tabIndex={0}
@@ -69,5 +77,26 @@ export function Splitter({ value, onChange, range, side = 'end', label, controls
       }}
       onKeyDown={onKeyDown}
     />
+    {menu && (
+      <ResizeMenu
+        at={menu}
+        label={label}
+        onClose={() => {
+          setMenu(null);
+        }}
+        onNarrower={() => {
+          const next = keyWidth(value, side === 'end' ? 'ArrowRight' : 'ArrowLeft', range, side);
+          if (next !== null) onChange(next);
+        }}
+        onWider={() => {
+          const next = keyWidth(value, side === 'end' ? 'ArrowLeft' : 'ArrowRight', range, side);
+          if (next !== null) onChange(next);
+        }}
+        onReset={() => {
+          onChange(range.initial);
+        }}
+      />
+    )}
+    </>
   );
 }

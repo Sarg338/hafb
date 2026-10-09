@@ -238,7 +238,7 @@ A row is `done` only after Sarg validates it on hardware. Rows whose engine half
 | K-03 | `?` shortcut overlay; hints in menus and tooltips; disable toggle | — | S3.5 / S7.3 | done (`?` and F1; hints in the plan, register and context menus and on toolbar buttons; shortcuts on/off in Preferences; Windows conventions Ctrl+N, Ctrl+O, Ctrl+comma, Ctrl+= / Ctrl+- / Ctrl+0 checked in the release app) |
 | X-01 | Custom title bar with Snap Layouts; native fallback | — | Phase 0 ✅ / S3.3 | done |
 | X-02 | High-DPI 100–200%, multi-monitor | — | S7.7 | todo |
-| X-03 | Screen-reader grid semantics, focus visibility, high contrast, reduced motion (WCAG 2.2 AA) | — | S3.4 / S7.4 | todo |
+| X-03 | Screen-reader grid semantics, focus visibility, high contrast, reduced motion (WCAG 2.2 AA) | — | S3.4 / S7.4 | done (docs/accessibility.md: every A/AA criterion pass or N/A; axe-core clean in three themes on every screen, dialog and open state, rerun by `pnpm smoke`; UIA tree has no unnamed controls; keyboard-only smoke tests; forced colors; reflow at 200%) |
 | X-04 | Onboarding: resumable setup checklist; designed empty states | — | S7.5 | todo |
 | X-05 | Celebrations (target met, loan paid off) | — | S5.2 / S6.4 | done (target met, S5.2; loan paid off, S6.4) |
 

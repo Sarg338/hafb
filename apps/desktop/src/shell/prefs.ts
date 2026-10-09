@@ -58,14 +58,14 @@ export interface Prefs {
   planViews: Record<string, string>;
   /** Reflect filters per plan file path. */
   reflectFilters: Record<string, ReflectFiltersPref>;
-  /** Text size (S7.1): the whole window scales, like Windows' own text-size setting. */
+  /** Text size (S7.1): the whole window scales, up to 200% (WCAG 1.4.4). */
   textScale: TextScale;
   /** The account a new transaction starts in from All Accounts, per plan file path (S7.1). */
   defaultAccounts: Record<string, string>;
 }
 
 /** Text size choices (S7.1). */
-export const TEXT_SCALES = [0.9, 1, 1.1, 1.25, 1.5] as const;
+export const TEXT_SCALES = [0.9, 1, 1.1, 1.25, 1.5, 1.75, 2] as const;
 export type TextScale = (typeof TEXT_SCALES)[number];
 
 export const INSPECTOR_MIN = 280;

@@ -87,3 +87,11 @@
   display: flex;
   gap: 8px;
 }
+
+/* Windows contrast themes: the theme paints the filled states with Mark / MarkText; stop the
+   forced-colors override from blanking their text (S7.4). */
+@media (forced-colors: active) {
+  .rta[data-state='negative'] {
+    forced-color-adjust: none;
+  }
+}
