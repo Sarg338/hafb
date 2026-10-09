@@ -8,6 +8,7 @@ import {
   loanPlannerComparison,
   monthlyInterest,
   payoffSummary,
+  payoffTotals,
   requiredPaymentForPayoff,
   type LoanTerms,
 } from '../src/loans.ts';
@@ -85,5 +86,18 @@ describe('§10.3 payoff calculator and loan planner', () => {
       interestSaved: 422,
       monthsSaved: 1,
     });
+  });
+});
+
+describe('§10.5 the Loan Payoff Simulator totals (YNAB trial, 2026-10-08)', () => {
+  it('reproduces YNAB to the cent: $200,000 at 6%, $1,200 principal and interest', () => {
+    // YNAB: Interest Remaining $231,096.44, Remaining to Pay $431,096.43, 30 years (360 payments).
+    expect(payoffTotals(minor(20_000_000), 600, minor(120_000))).toEqual({ months: 360, remainingToPay: 43_109_643, interest: 23_109_644 });
+  });
+
+  it('a payment that never covers the interest has no totals; no interest is simple division', () => {
+    expect(payoffTotals(minor(20_000_000), 600, minor(100_000))).toBeNull();
+    expect(payoffTotals(minor(120_000), 0, minor(10_000))).toEqual({ months: 12, remainingToPay: 120_000, interest: 0 });
+    expect(payoffTotals(minor(0), 600, minor(10_000))).toEqual({ months: 0, remainingToPay: 0, interest: 0 });
   });
 });

@@ -148,6 +148,39 @@ export function requiredPaymentForPayoff(terms: LoanTerms, startMonth: Month, ta
   return minor(hi);
 }
 
+export interface PayoffTotals {
+  /** Payments left (the last one partial). */
+  months: number;
+  /** Principal plus interest still to pay; escrow and fees left out, as YNAB notes. */
+  remainingToPay: Minor;
+  interest: Minor;
+}
+
+/**
+ * The Loan Payoff Simulator's totals as YNAB computes them (verified on the trial mortgage,
+ * budget-math §10.5): the closed-form annuity with a fractional last month,
+ * n = −ln(1 − P·r ÷ A) ÷ ln(1 + r) for monthly rate r and principal-and-interest payment A.
+ * Remaining to Pay = A·n rounded to the cent; interest = A·n − P rounded up to the cent.
+ * $200,000 at 6% paying $1,200: n = 359.247, $431,096.43 to pay, $231,096.44 interest, exactly
+ * YNAB's figures (the month-by-month schedule accrues $231,096.94).
+ *
+ * This is an estimate shown to the user, never stored money, so it is the one place loan math
+ * uses floating point: the logarithm has no integer form. Cents are rounded once, at the end.
+ */
+export function payoffTotals(principal: Minor, aprBps: number, monthlyPrincipalAndInterest: Minor): PayoffTotals | null {
+  if (!Number.isSafeInteger(aprBps) || aprBps < 0) throw new RangeError(`aprBps must be a non-negative integer: ${String(aprBps)}`);
+  if (principal <= 0) return { months: 0, remainingToPay: ZERO, interest: ZERO };
+  const a = monthlyPrincipalAndInterest;
+  if (a <= 0) return null;
+  if (aprBps === 0) return { months: Math.ceil(principal / a), remainingToPay: principal, interest: ZERO };
+  const r = aprBps / 120_000;
+  if (a <= principal * r) return null;
+  const n = -Math.log(1 - (principal * r) / a) / Math.log(1 + r);
+  const paid = a * n;
+  // A tolerance keeps float noise just above a whole cent from rounding up a cent.
+  return { months: Math.ceil(n - 1e-9), remainingToPay: minor(Math.round(paid)), interest: minor(Math.ceil(paid - principal - 1e-6)) };
+}
+
 export interface LoanPlannerComparison {
   base: PayoffSummary;
   withExtra: PayoffSummary;

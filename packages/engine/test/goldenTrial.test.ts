@@ -19,6 +19,7 @@ import {
   parseYnabPlan,
   parseYnabRegister,
   payoffSummary,
+  payoffTotals,
   READY_TO_ASSIGN,
   spendingBreakdown,
   upcomingByCategory,
@@ -233,11 +234,12 @@ describe.skipIf(!present)('golden: Sarg’s YNAB trial plan (local only)', () =>
     expect(autoAssign('underfunded', input).total).toBe(f.underfunded);
   });
 
-  it('mortgage payoff: date and payment count exact; interest differs by a known $0.50', () => {
+  it('mortgage payoff: date, payment count and the simulator total interest exact', () => {
     const p = payoffSummary({ principal: minor(20_000_000), aprBps: 600, monthlyPayment: minor(150_000), escrow: minor(30_000) }, '2026-11');
     expect([p.payoffMonth, p.months]).toEqual([obs.loan.payoff, obs.loan.payments]);
-    // Unexplained (docs/budget-math.md §12): no rounding method reproduces YNAB's cents; it
-    // differs by exactly $0.50 over 360 months. Pinned so any change shows up.
+    // The month-by-month schedule accrues $0.50 more; YNAB's simulator uses the closed-form
+    // annuity (budget-math §10.5), which matches to the cent.
     expect(p.totalInterest - obs.loan.interest).toBe(50);
+    expect(payoffTotals(minor(20_000_000), 600, minor(120_000))?.interest).toBe(obs.loan.interest);
   });
 });

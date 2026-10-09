@@ -418,7 +418,7 @@ Age of Money on Jan 30 = (20+21+22+23+24+25+21.33+13+14+15) / 10 = 19.83 → **2
 
 ## 10. Loans (CLAUDE.md §5.10)
 
-**Verification status: model, not verified.**
+**Verification status:** the payoff date, payment count and the simulator's totals are verified to the cent (§10.5); the monthly posted charge is still a model until YNAB posts one (§10.4).
 - YNAB says it calculates "the monthly interest charge", that interest (and escrow or fees) "must be covered first", and that the rest goes to principal ([Loan Accounts](https://support.ynab.com/en_us/loan-accounts-in-ynab-a-guide-HkNSkPHJi)).
 - YNAB asks for the interest rate, "not the APR".
 - **ASSUMPTION:** simple monthly accrual on the opening balance. YNAB doesn't say whether it accrues daily or monthly. Compare with a real lender statement in S6.4.
@@ -483,6 +483,29 @@ YNAB "calculates the monthly interest charge and applies it automatically"; past
   - With no payment, Dec 1 posts $1,006.50, interest on $201,300.00.
   - With a $1,500 payment on Nov 15 and November's interest deleted, Dec 1 posts $994.00, interest on $198,800.00.
 - **Verification:** YNAB's first posting on the trial mortgage (after 2026-11-01; roadmap Timed follow-ups) confirms the date and the amount (predicted $1,000.00).
+
+### 10.5 The Payoff Simulator's totals (verified, YNAB trial 2026-10-09)
+
+YNAB's simulator does **not** sum the month-by-month schedule. Its totals come from the closed-form annuity, with A = the monthly payment less escrow and fees (principal and interest only), r = rate ÷ 12, P = the balance:
+
+- n = −ln(1 − P·r ÷ A) ÷ ln(1 + r), the exact (fractional) number of payments.
+- **Remaining to Pay** = A × n, rounded to the cent.
+- **Interest Remaining** = A × n − P, rounded **up** to the cent (YNAB's two totals disagree by a cent because of this).
+- **Payments / payoff date** = n rounded up; the payoff date also matches the schedule (rule 2).
+- A payment that doesn't exceed P·r has no totals (rule 3). At 0% it's P ÷ A.
+
+This is the engine's one floating-point calculation (`payoffTotals` in `loans.ts`). It's an estimate shown on screen; nothing it produces is stored.
+
+| $200,000 at 6% | YNAB | HAFB | Schedule sum |
+|---|---|---|---|
+| $1,200 P&I: Interest Remaining | $231,096.44 | $231,096.44 | $231,096.94 |
+| $1,200 P&I: Remaining to Pay | $431,096.43 | $431,096.43 | |
+| $1,200 P&I: payments, payoff | 360, Oct 2056 | 360, Oct 2056 | |
+| $1,700 P&I (+$500 extra): interest | $102,436.67 | $102,436.67 | |
+| +$500 extra: Interest Savings, Time Savings | $128,659.77, 15 yrs 2 mos | $128,659.77, 15 yrs 2 mos | |
+| +$500 extra: payoff | Aug 2041 | Aug 2041 | |
+
+With more than the minimum, YNAB's summary reads "Paying +$500.00 extra every month" with **Interest Savings** and **Time Savings**, says "Your original payoff date is Oct 2056", and offers *Reset all changes*. HAFB shows the same.
 
 ## 11. Reflect reports
 
@@ -623,7 +646,7 @@ Only its August Ready to Assign ($10,000 in − $1,000 assigned = $9,000) is usa
 | Income v Expense $4,500 / −$1,410; Net Worth (change $0 in month one) | ❌ | ✅ |
 | Age of Money empty before 10 transactions (a split is one) | ❌ importer | ✅ |
 | Mortgage payoff Oct 2056, 360 payments | ✅ | ✅ |
-| Mortgage total interest | $0.50 off | $0.50 off (pinned) |
+| Mortgage total interest $231,096.44 and the +$500 simulator (§10.5) | $0.50 off | ✅ exact |
 
 **Also confirmed:**
 - **Credit card funding and payments** (Visa $10, Amex $40), including the most-recent-spending-unfunded-first rule.
@@ -642,7 +665,7 @@ Each item needs real YNAB behavior to confirm. The optional YNAB free-trial scen
 | Q4 | Target formulas | ✅ **Verified** on 19 cards across 8 behaviors, plus the weekly creation-date rule: Groceries at $350 shows "Assign $50.00 more", as predicted (the "spending counts" alternative would have shown it met) |
 | Q5 | Average Assigned/Spent window | ✅ **Verified:** months the plan has |
 | Q6 | Underfunded with scheduled transactions | ✅ **Verified:** funded to the bill's total, current month only |
-| Q7 | Loan interest accrual | ⚠️ **Near-match, being chased to the cent** (Sarg: estimators must be as accurate as possible). Payoff date and 360 payments are exact; total interest differs by $0.50 over 30 years, and no rounding method tried yet reproduces YNAB's cents (YNAB's own totals disagree by $0.01). Next: YNAB's first posted monthly interest after 2026-11-01 (roadmap Timed follow-ups) |
+| Q7 | Loan interest accrual | ✅ **Simulator totals verified to the cent** (2026-10-09, §10.5): YNAB uses the closed-form annuity, not a schedule sum, which explains the old $0.50 gap and YNAB's own $0.01 disagreement. Checked at two payments. Still open: YNAB's first posted monthly interest after 2026-11-01 (§10.4; roadmap Timed follow-ups) |
 | Q8 | Converted-account card behavior (public export, 95 values) | ❓ Unexplained; optional trial extra |
 | Q9 | Split rows in the export | ✅ **Verified:** `Split (k/n)` rows, recombined on import |
 | Q10 | YNAB "Credit Card Interest" categorization | ⏳ Rolling out; not modeled |
