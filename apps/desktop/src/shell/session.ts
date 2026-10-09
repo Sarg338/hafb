@@ -7,6 +7,7 @@ import {
   decodePlan,
   emptyHistory,
   encodePlan,
+  enterDueScheduled,
   exportDateFromName,
   findExportFiles,
   historyDo,
@@ -103,6 +104,8 @@ class PlanSession {
   /** Writes go to disk one at a time, in order. */
   private writes: Promise<void> = Promise.resolve();
   private toastId = 0;
+  /** The day due schedules were last entered (§5.11); a new day enters the next ones. */
+  private dueCheckedOn: ISODate | null = null;
 
   subscribe = (listener: () => void): (() => void) => {
     this.listeners.add(listener);
@@ -182,6 +185,7 @@ class PlanSession {
       },
     });
     if (info.migratedFrom !== null) this.notify(`Updated the file from version ${String(info.migratedFrom)}. A copy of the old file was kept.`);
+    this.enterDue();
   }
 
   openPath(path: string): Promise<void> {
@@ -242,6 +246,7 @@ class PlanSession {
         inMemory: true,
       },
     });
+    this.enterDue();
   }
 
   close(): Promise<void> {
@@ -288,6 +293,30 @@ class PlanSession {
   }
 
   // ---- commands and undo -------------------------------------------------------------------------
+
+  /**
+   * Scheduled transactions whose date has come become real ones, unapproved, with no prompt
+   * (§5.11). Runs when a plan opens and when the date changes while it is open; one undo step.
+   */
+  enterDue(): void {
+    const open = this.state.open;
+    if (!open) return;
+    const ctx = context();
+    this.dueCheckedOn = ctx.today;
+    let command: Command | null;
+    try {
+      command = enterDueScheduled(open.plan, ctx);
+    } catch (e) {
+      this.notify(`Couldn't enter scheduled transactions: ${errorMessage(e)}`, 'error');
+      return;
+    }
+    if (command) this.commit(historyDo(open.history, open.plan, command.changes, command.label));
+  }
+
+  /** Enter due schedules if the calendar day has changed since the last check. */
+  checkDay(): void {
+    if (this.state.open && this.dueCheckedOn !== todayLocal()) this.enterDue();
+  }
 
   setMonth(month: Month): void {
     this.setOpen({ month });

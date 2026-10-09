@@ -7,11 +7,14 @@ import {
   createGroup,
   deleteScheduled,
   editScheduled,
+  editScheduledMany,
   enterDueScheduled,
   enterScheduledNow,
   makeRepeating,
+  scheduledInput,
   skipScheduled,
 } from '../src/commands/index.ts';
+import { applyChanges } from '../src/changes.ts';
 import { Bench, blankPlan, makeCtx, usd } from './helpers/harness.ts';
 
 describe('scheduled transactions (§5.11)', () => {
@@ -92,6 +95,24 @@ describe('scheduled transactions (§5.11)', () => {
     b.run(editScheduled(b.plan, ctx, { scheduledId, input: { accountId: checking, date: '2026-11-17', frequency: 'never', amount: usd(-80), categoryId: power } }));
     b.run(skipScheduled(b.plan, ctx, { scheduledIds: [scheduledId] }));
     expect(live(b)).toHaveLength(0);
+  });
+
+  it('Categorize, Flag and Memo on several schedules; editing from scheduledInput changes nothing', () => {
+    const { ctx, b, checking, rent, power } = setup();
+    const a = b.run(addScheduled(b.plan, ctx, { accountId: checking, date: '2026-11-01', frequency: 'monthly', amount: usd(-10), payeeName: 'A', categoryId: rent, memo: 'old' })).scheduledId;
+    const s = b.run(addScheduled(b.plan, ctx, { accountId: checking, date: '2026-11-02', frequency: 'monthly', amount: usd(-30), payeeName: 'B', subtransactions: [{ amount: usd(-10), categoryId: rent }, { amount: usd(-20), categoryId: power }] })).scheduledId;
+    const before = b.plan;
+    const record = live(b).find((x) => x.id === s);
+    if (!record) throw new Error('missing schedule');
+    const same = editScheduled(b.plan, ctx, { scheduledId: s, input: scheduledInput(record) });
+    expect(applyChanges(before, same.changes).plan).toEqual(before);
+    b.run(editScheduledMany(b.plan, ctx, { scheduledIds: [a, s], patch: { categoryId: power, flag: 'red', memo: 'bills' } }));
+    expect(live(b).find((x) => x.id === a)).toMatchObject({ categoryId: power, flag: 'red', memo: 'bills' });
+    expect(live(b).find((x) => x.id === s)).toMatchObject({ categoryId: null, flag: 'red', memo: 'bills' });
+    expect(live(b).find((x) => x.id === s)?.subtransactions?.map((l) => l.categoryId)).toEqual([rent, power]);
+    b.run(editScheduledMany(b.plan, ctx, { scheduledIds: [a], patch: { flag: null, memo: null } }));
+    expect(live(b).find((x) => x.id === a)?.flag).toBeUndefined();
+    expect(live(b).find((x) => x.id === a)?.memo).toBeUndefined();
   });
 
   it('Make Repeating schedules a copy one period later, keeping the day; delete removes it', () => {

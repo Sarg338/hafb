@@ -16,13 +16,14 @@ import {
   type ClearedState,
   type DateOrder,
   type FlagColor,
+  type Frequency,
   type Id,
   type SearchableTransaction,
   type SearchContext,
   type SearchQuery,
 } from '@hafb/engine';
 import { addMonths, minor, monthOf, neg, ZERO, type ISODate, type Minor, type Month } from '@hafb/shared';
-import type { AccountRecord, PlanData, SplitLineInput, SubtransactionRecord, TransactionInput, TransactionPatch, TransactionRecord } from '@hafb/store';
+import type { AccountRecord, PlanData, ScheduledInput, ScheduledTransactionRecord, SplitLineInput, SubtransactionRecord, TransactionInput, TransactionPatch, TransactionRecord } from '@hafb/store';
 
 export interface CategoryLabel {
   text: string;
@@ -369,9 +370,11 @@ export interface TxDraft {
   flag: FlagColor | null;
   /** Split lines, or null when the transaction is not split. */
   splits: SplitLineDraft[] | null;
+  /** The repeat choice: new rows and scheduled rows only. */
+  frequency?: Frequency;
 }
 
-const lineDraft = (s: SubtransactionRecord): SplitLineDraft => ({
+const lineDraft = (s: Pick<SubtransactionRecord, 'id' | 'amount' | 'categoryId' | 'memo' | 'payeeId' | 'transferAccountId'>): SplitLineDraft => ({
   key: s.id,
   id: s.id,
   payeeId: s.transferAccountId === undefined ? (s.payeeId ?? null) : null,
@@ -487,6 +490,105 @@ export function toInput(plan: PlanData, d: TxDraft): TransactionInput {
     cleared: d.cleared,
     ...(d.splits === null ? {} : { subtransactions: d.splits.map((l) => lineInput(plan, d.accountId, l)) }),
   };
+}
+
+// ---- scheduled transactions (S5.4; YNAB, observed 2026-10-08) ------------------------------------
+// The register's collapsible "Scheduled Transactions" section lists each schedule's next occurrence,
+// earliest first. A schedule is edited in the same row editor; its repeat is chosen under the date
+// picker's calendar ("Repeat: Never"). A new transaction dated after today becomes a schedule.
+
+/** YNAB's repeat options, in its order. */
+export const FREQUENCIES: readonly { id: Frequency; label: string }[] = [
+  { id: 'never', label: 'Never' },
+  { id: 'daily', label: 'Daily' },
+  { id: 'weekly', label: 'Weekly' },
+  { id: 'everyOtherWeek', label: 'Every other week' },
+  { id: 'twiceAMonth', label: 'Twice a month' },
+  { id: 'every4Weeks', label: 'Every 4 weeks' },
+  { id: 'monthly', label: 'Monthly' },
+  { id: 'everyOtherMonth', label: 'Every other month' },
+  { id: 'every3Months', label: 'Every 3 months' },
+  { id: 'every4Months', label: 'Every 4 months' },
+  { id: 'twiceAYear', label: 'Twice a year' },
+  { id: 'yearly', label: 'Yearly' },
+  { id: 'everyOtherYear', label: 'Every other year' },
+];
+export const frequencyLabel = (f: Frequency): string => FREQUENCIES.find((x) => x.id === f)?.label ?? f;
+
+/** Scheduled rows are keyed apart from transactions. */
+export const SCHEDULED_PREFIX = 'sched:';
+export const scheduledRowId = (id: Id): string => `${SCHEDULED_PREFIX}${id}`;
+export const scheduledIdOf = (rowId: string): Id | null => (rowId.startsWith(SCHEDULED_PREFIX) ? rowId.slice(SCHEDULED_PREFIX.length) : null);
+
+export interface ScheduledRow extends RegisterRow {
+  scheduledId: Id;
+  frequency: Frequency;
+}
+
+/** The register's scheduled rows: each schedule's next occurrence, earliest first. */
+export function scheduledRows(plan: PlanData, accountId: Id | null): ScheduledRow[] {
+  const look = lookups(plan);
+  const out: ScheduledRow[] = [];
+  for (const s of plan.scheduled) {
+    if (s.deletedAt !== undefined || (accountId !== null && s.accountId !== accountId)) continue;
+    const account = look.accounts.get(s.accountId);
+    if (!account || account.deletedAt !== undefined) continue;
+    const other = s.transferAccountId === undefined ? undefined : look.accounts.get(s.transferAccountId);
+    const lines = splitLines(s.subtransactions, account, look);
+    out.push({
+      id: scheduledRowId(s.id),
+      scheduledId: s.id,
+      frequency: s.frequency,
+      accountId: s.accountId,
+      accountName: account.name,
+      date: s.date,
+      payee: s.transferAccountId !== undefined ? transferLabel(account, other) : s.payeeId === undefined ? '' : (look.payees.get(s.payeeId) ?? ''),
+      transfer: s.transferAccountId !== undefined,
+      category: lines.length > 0 ? { text: `Split (${String(lines.length)})`, tone: 'plain' } : categoryLabel(s, account, look),
+      memo: s.memo ?? '',
+      amount: s.amount,
+      cleared: 'uncleared',
+      ...(s.flag === undefined ? {} : { flag: s.flag }),
+      approved: true,
+      splits: lines,
+      locks: { category: lines.length > 0 || !account.onBudget, amount: lines.length > 0, payee: false },
+    });
+  }
+  return out.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+}
+
+export function draftForScheduled(s: ScheduledTransactionRecord): TxDraft {
+  return {
+    accountId: s.accountId,
+    date: s.date,
+    payeeId: s.transferAccountId === undefined ? (s.payeeId ?? null) : null,
+    payeeName: '',
+    transferAccountId: s.transferAccountId ?? null,
+    categoryId: s.categoryId,
+    memo: s.memo ?? '',
+    outflow: s.amount < 0 ? neg(s.amount) : ZERO,
+    inflow: s.amount > 0 ? s.amount : ZERO,
+    cleared: 'uncleared',
+    flag: s.flag ?? null,
+    splits: s.subtransactions?.length ? s.subtransactions.map(lineDraft) : null,
+    frequency: s.frequency,
+  };
+}
+
+/** The draft as a schedule (the cleared state belongs to the entered transaction, not the schedule). */
+export function toScheduledInput(plan: PlanData, d: TxDraft): ScheduledInput {
+  const input: Omit<TransactionInput, 'cleared'> & { cleared?: unknown } = toInput(plan, d);
+  delete input.cleared;
+  return { ...input, frequency: d.frequency ?? 'never' };
+}
+
+/**
+ * What saving a new row does (YNAB): a date after today schedules it; today or earlier with a
+ * repeat enters it and schedules the next one; otherwise it is an ordinary transaction.
+ */
+export function newRowKind(d: TxDraft, today: ISODate): 'transaction' | 'scheduled' | 'transactionAndRepeat' {
+  if (d.date > today) return 'scheduled';
+  return d.frequency !== undefined && d.frequency !== 'never' ? 'transactionAndRepeat' : 'transaction';
 }
 
 /** New transactions in a cash account start cleared (YNAB, CLAUDE.md §4). */

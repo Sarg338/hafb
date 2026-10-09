@@ -130,6 +130,19 @@ function PlanFrame({ open, system }: { open: OpenPlan; /** A Windows-colour (con
     appIpc.getTitlebarMode().then(setTitlebarMode, () => undefined);
   }, []);
 
+  // A plan left open past midnight enters the new day's scheduled transactions (§5.11).
+  useEffect(() => {
+    const check = (): void => {
+      session.checkDay();
+    };
+    const timer = window.setInterval(check, 60_000);
+    window.addEventListener('focus', check);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener('focus', check);
+    };
+  }, []);
+
   // The inspector width is a token the S3.1 screens read (--d-inspector-width).
   useEffect(() => {
     content.current?.style.setProperty('--d-inspector-width', `${String(p.inspectorWidth)}px`);

@@ -8,6 +8,7 @@ import {
   createAccount,
   createCategory,
   createGroup,
+  addScheduled,
   addTransaction,
   editAccount,
   newPlan,
@@ -190,6 +191,12 @@ export function buildSamplePlan(): SamplePlan {
   });
   spend('checking', '2026-10-13', 'AutoCare Plus', 'Car Maintenance', 249.99, { flag: 'orange', memo: 'Brakes' });
   spend('visa', '2026-10-14', 'Book Nook', 'Hobbies', 32.5, { approved: false, cleared: 'uncleared' });
+
+  // Scheduled: the rest of October's bills and paychecks, and next month's loan payment (S5.4).
+  run((p) => addScheduled(p, ctx, { accountId: id('checking'), date: '2026-10-15', frequency: 'twiceAMonth', payeeName: 'Acme Logistics', categoryId: 'ready-to-assign', amount: $(2640), memo: 'Paycheck' }));
+  run((p) => addScheduled(p, ctx, { accountId: id('checking'), date: '2026-10-20', frequency: 'monthly', payeeName: 'City Power', categoryId: c('Electric'), amount: $(-135) }));
+  run((p) => addScheduled(p, ctx, { accountId: id('visa'), date: '2026-10-22', frequency: 'monthly', payeeName: 'Northwind Mobile', categoryId: c('Phone'), amount: $(-85) }));
+  run((p) => addScheduled(p, ctx, { accountId: id('checking'), date: '2026-11-01', frequency: 'monthly', transferAccountId: id('mortgage'), categoryId: c('Mortgage'), amount: $(-1780) }));
 
   // Bank-side legs of transfers arrive uncleared; clear them, and reconcile August (shows the lock).
   const keepUncleared = new Set(plan.transactions.filter((t) => t.date >= '2026-10-12' && t.cleared === 'uncleared').map((t) => t.id));

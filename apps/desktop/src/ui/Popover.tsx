@@ -93,16 +93,26 @@ export function Popover({
 
   useEffect(() => {
     if (!open) return;
+    // A popover opened from inside this one (a combobox in a calendar) comes later in the overlay
+    // layer: clicks in it are inside, and Escape closes it first.
+    const nestedAfter = (node: Node | null): boolean => {
+      const self = ref.current;
+      if (!self) return false;
+      const other = node instanceof Element ? node.closest('[data-popover]') : null;
+      if (node === null) return [...document.querySelectorAll('[data-popover]')].some((el) => el !== self && (self.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0);
+      return other !== null && other !== self && (self.compareDocumentPosition(other) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0;
+    };
     const onPointer = (e: PointerEvent): void => {
       if (!dismissOnOutside) return;
       const target = e.target;
       if (!(target instanceof Node)) return;
       if (ref.current?.contains(target)) return;
       if ('current' in anchor && anchor.current?.contains(target)) return;
+      if (nestedAfter(target)) return;
       closeRef.current();
     };
     const onKey = (e: KeyboardEvent): void => {
-      if (dismissOnEscape && e.key === 'Escape') {
+      if (dismissOnEscape && e.key === 'Escape' && !nestedAfter(null)) {
         e.stopPropagation();
         closeRef.current();
       }
@@ -121,6 +131,7 @@ export function Popover({
       <div
         ref={ref}
         id={id}
+        data-popover={role === 'tooltip' ? undefined : ''}
         role={role === 'presentation' ? undefined : role}
         aria-label={label}
         className={cx(styles.popover, pos === null && styles.measuring, className)}

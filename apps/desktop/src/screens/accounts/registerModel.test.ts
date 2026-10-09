@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { READY_TO_ASSIGN } from '@hafb/engine';
 import { minor } from '@hafb/shared';
-import { addTransaction, applyChanges, editTransaction, planBudget, type CommandContext, type PlanData } from '@hafb/store';
+import { addScheduled, addTransaction, applyChanges, editScheduled, editTransaction, planBudget, type CommandContext, type PlanData } from '@hafb/store';
 import { buildSamplePlan, SAMPLE_TODAY } from '../../design/sample.ts';
-import { addSplitLine, dateOrderOf, draftFor, nextSort, parseRegisterSearch, patchSplitLine, presetRange, registerCounts, registerRows, removeSplitLine, selectedTotal, splitRemaining, startSplit, toInput, toPatch, transferLabel, transferNeedsCategory } from './registerModel.ts';
+import { addSplitLine, dateOrderOf, draftFor, draftForScheduled, frequencyLabel, FREQUENCIES, newRowKind, scheduledIdOf, scheduledRows, toScheduledInput, nextSort, parseRegisterSearch, patchSplitLine, presetRange, registerCounts, registerRows, removeSplitLine, selectedTotal, splitRemaining, startSplit, toInput, toPatch, transferLabel, transferNeedsCategory } from './registerModel.ts';
 
 let n = 0;
 const ctx: CommandContext = { now: '2026-10-14T16:00:00.000Z', today: SAMPLE_TODAY, newId: () => `reg-${String((n += 1))}` };
@@ -209,5 +209,38 @@ describe('drafts', () => {
     if (!t) throw new Error('sample has income');
     const d = draftFor(t, { accountId: t.accountId, date: t.date });
     expect(toPatch(sample, t, { ...d, inflow: minor(d.inflow + 100) })).toEqual({ amount: t.amount + 100 });
+  });
+});
+
+describe('scheduled rows (S5.4)', () => {
+  const apply = (p: PlanData, c: { changes: Parameters<typeof applyChanges>[1] }): PlanData => applyChanges(p, c.changes).plan;
+  it('lists next occurrences earliest first, labelled like transactions', () => {
+    const rows = scheduledRows(sample, null);
+    expect(rows.map((r) => r.payee)).toEqual(['Acme Logistics', 'City Power', 'Northwind Mobile', 'Transfer : Home Mortgage']);
+    expect(rows[0]).toMatchObject({ frequency: 'twiceAMonth', category: { text: 'Inflow: Ready to Assign' }, amount: 264_000, date: '2026-10-15' });
+    expect(rows[3]?.category.text).toBe('Mortgage');
+    expect(scheduledIdOf(rows[1]?.id ?? '')).toBe(rows[1]?.scheduledId);
+    expect(scheduledIdOf('not-scheduled')).toBeNull();
+    expect(scheduledRows(sample, acct('Visa Rewards')).map((r) => r.payee)).toEqual(['Northwind Mobile']);
+    expect(FREQUENCIES).toHaveLength(13);
+    expect(frequencyLabel('every4Weeks')).toBe('Every 4 weeks');
+  });
+
+  it('a schedule round-trips through the row editor unchanged', () => {
+    for (const s of sample.scheduled) {
+      const input = toScheduledInput(sample, draftForScheduled(s));
+      const after = apply(sample, editScheduled(sample, ctx, { scheduledId: s.id, input }));
+      expect(after.scheduled.find((x) => x.id === s.id)).toEqual(s);
+    }
+  });
+
+  it('a new row dated after today is scheduled; today with a repeat enters it and repeats', () => {
+    const d = draftFor(null, { accountId: acct('Everyday Checking'), date: SAMPLE_TODAY });
+    expect(newRowKind(d, SAMPLE_TODAY)).toBe('transaction');
+    expect(newRowKind({ ...d, frequency: 'never' }, SAMPLE_TODAY)).toBe('transaction');
+    expect(newRowKind({ ...d, frequency: 'monthly' }, SAMPLE_TODAY)).toBe('transactionAndRepeat');
+    expect(newRowKind({ ...d, date: '2026-10-15' }, SAMPLE_TODAY)).toBe('scheduled');
+    const p = apply(sample, addScheduled(sample, ctx, toScheduledInput(sample, { ...d, date: '2026-10-30', outflow: minor(1000), payeeName: 'Gym', categoryId: cat('Hobbies'), frequency: 'monthly' })));
+    expect(p.scheduled.at(-1)).toMatchObject({ date: '2026-10-30', frequency: 'monthly', amount: -1000, categoryId: cat('Hobbies') });
   });
 });

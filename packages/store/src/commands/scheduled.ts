@@ -88,6 +88,61 @@ export function editScheduled(plan: PlanData, ctx: CommandContext, args: { sched
   return { label: 'Edit scheduled transaction', changes: d.build() };
 }
 
+/** A schedule as editable input (the register's editor starts from it). */
+export function scheduledInput(s: ScheduledTransactionRecord): ScheduledInput {
+  return {
+    accountId: s.accountId,
+    date: s.date,
+    frequency: s.frequency,
+    amount: s.amount,
+    ...(s.transferAccountId !== undefined ? { transferAccountId: s.transferAccountId } : s.payeeId !== undefined ? { payeeId: s.payeeId } : {}),
+    categoryId: s.categoryId,
+    ...(s.memo === undefined ? {} : { memo: s.memo }),
+    ...(s.flag === undefined ? {} : { flag: s.flag }),
+    ...(s.subtransactions?.length
+      ? {
+          subtransactions: s.subtransactions.map((l) => ({
+            id: l.id,
+            amount: l.amount,
+            categoryId: l.categoryId,
+            ...(l.memo === undefined ? {} : { memo: l.memo }),
+            ...(l.transferAccountId === undefined ? {} : { transferAccountId: l.transferAccountId }),
+            ...(l.payeeId === undefined ? {} : { payeeId: l.payeeId }),
+          })),
+        }
+      : {}),
+  };
+}
+
+/** What the selection's Categorize / Flag / Memo set on several schedules; null clears. */
+export interface ScheduledBulkPatch {
+  categoryId?: CategoryRef;
+  flag?: FlagColor | null;
+  memo?: string | null;
+}
+
+export function editScheduledMany(plan: PlanData, ctx: CommandContext, args: { scheduledIds: readonly Id[]; patch: ScheduledBulkPatch }): Command {
+  const d = new Draft(plan);
+  const { patch } = args;
+  for (const id of args.scheduledIds) {
+    const s = liveScheduled(d, id);
+    const input = scheduledInput(s);
+    // A split keeps its lines' categories (as for transactions, Categorize skips splits).
+    if (patch.categoryId !== undefined && input.subtransactions === undefined) input.categoryId = patch.categoryId;
+    if (patch.flag !== undefined) {
+      if (patch.flag === null) delete input.flag;
+      else input.flag = patch.flag;
+    }
+    if (patch.memo !== undefined) {
+      if (patch.memo === null || patch.memo.trim() === '') delete input.memo;
+      else input.memo = patch.memo;
+    }
+    writeScheduled(d, ctx, s.id, s, input);
+  }
+  const n = args.scheduledIds.length;
+  return { label: n === 1 ? 'Edit scheduled transaction' : `Edit ${String(n)} scheduled transactions`, changes: d.build() };
+}
+
 export function deleteScheduled(plan: PlanData, ctx: CommandContext, args: { scheduledIds: readonly Id[] }): Command {
   const d = new Draft(plan);
   for (const id of args.scheduledIds) d.put('scheduled', { ...liveScheduled(d, id), deletedAt: ctx.now });

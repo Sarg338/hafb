@@ -7,24 +7,37 @@
 // floating action bar (Categorize, Flag, Clear, More) and a right-click menu; A approves, Shift+L
 // approves all, K categorizes, S splits, Shift+D duplicates; criteria search; header sort; View
 // Options (date presets, Show Reconciled, Show Flags, running balance) kept per register.
+// S5.4 (YNAB, observed 2026-10-08): the "Scheduled Transactions" section lists each schedule's next
+// occurrence on the section's tint; a schedule edits in the same row editor, with its repeat under
+// the date picker's calendar. A new row dated after today becomes a schedule. A scheduled selection
+// gets Enter Now (E), Categorize, Flag and More; Shift+T makes a transaction repeat.
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
-import { CASH_ACCOUNT_TYPES, type ClearedState, type FlagColor, type Id } from '@hafb/engine';
+import { CASH_ACCOUNT_TYPES, type ClearedState, type FlagColor, type Frequency, type Id } from '@hafb/engine';
 import { formatDate, minor, monthOf, neg, ZERO, type ISODate, type Minor } from '@hafb/shared';
 import {
+  addScheduled,
   addTransaction,
   applyChanges,
   approveTransactions,
+  deleteScheduled,
   deleteTransactions,
   duplicateTransactions,
+  editScheduled,
+  editScheduledMany,
   editTransaction,
   editTransactions,
+  enterDueScheduled,
+  enterScheduledNow,
+  makeRepeating,
   mergeChangeSets,
   planBudget,
   setCleared,
   setFlag,
   setFlagName,
+  skipScheduled,
   type BulkPatch,
   type ChangeSet,
+  type Command,
   type PlanData,
 } from '@hafb/store';
 import type { Actions } from '../../design/DesignApp.tsx';
@@ -60,6 +73,10 @@ import {
   DEFAULT_SORT,
   defaultCleared,
   draftFor,
+  draftForScheduled,
+  FREQUENCIES,
+  frequencyLabel,
+  newRowKind,
   nextSort,
   parseRegisterSearch,
   patchSplitLine,
@@ -67,15 +84,19 @@ import {
   registerCounts,
   registerRows,
   removeSplitLine,
+  scheduledIdOf,
+  scheduledRows,
   selectedTotal,
   splitRemaining,
   startSplit,
   toInput,
   toPatch,
+  toScheduledInput,
   transferNeedsCategory,
   type MonthRange,
   type RegisterRow,
   type RegisterSort,
+  type ScheduledRow,
   type SortColumn,
   type SplitLineDraft,
   type TxDraft,
@@ -106,7 +127,34 @@ function viewRange(view: RegisterViewPref, today: ISODate): MonthRange | null {
   return view.from !== undefined && view.to !== undefined ? { from: view.from, to: view.to } : null;
 }
 
-type Row = { kind: 'tx'; tx: RegisterRow } | { kind: 'new' } | { kind: 'scheduled'; count: number };
+type Row = { kind: 'tx'; tx: RegisterRow; scheduled?: ScheduledRow } | { kind: 'new' } | { kind: 'scheduled'; count: number };
+
+/** A selection split into transactions and schedules (their row ids carry a prefix). */
+function splitIds(ids: readonly string[]): { tx: string[]; sched: string[] } {
+  const tx: string[] = [];
+  const sched: string[] = [];
+  for (const id of ids) {
+    const s = scheduledIdOf(id);
+    if (s === null) tx.push(id);
+    else sched.push(s);
+  }
+  return { tx, sched };
+}
+
+/** Commands on the evolving plan, as one change set (one undo step). */
+function chained(plan: PlanData, label: string, steps: readonly ((p: PlanData) => Command | null)[]): Command {
+  let current = plan;
+  const sets: ChangeSet[] = [];
+  let last = label;
+  for (const step of steps) {
+    const cmd = step(current);
+    if (!cmd) continue;
+    current = applyChanges(current, cmd.changes).plan;
+    sets.push(cmd.changes);
+    last = cmd.label;
+  }
+  return { label: sets.length === 1 ? last : label, changes: mergeChangeSets(...sets) };
+}
 
 const NEXT_CLEARED: Record<ClearedState, ClearedState> = { uncleared: 'cleared', cleared: 'uncleared', reconciled: 'reconciled' };
 
@@ -145,6 +193,7 @@ export function RegisterScreen({ plan, today, accountId, actions, history }: Reg
   const [flagMenu, setFlagMenu] = useState<{ ids: string[]; at: Rect } | null>(null);
   const [rowMenu, setRowMenu] = useState<{ ids: string[]; at: Rect } | null>(null);
   const [renamingFlags, setRenamingFlags] = useState(false);
+  const [repeatFor, setRepeatFor] = useState<{ id: string; at: Rect } | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const viewKey = accountId ?? 'all';
   const view = p.registerViews[viewKey] ?? DEFAULT_REGISTER_VIEW;
@@ -177,22 +226,25 @@ export function RegisterScreen({ plan, today, accountId, actions, history }: Reg
   const unapproved = useMemo(() => plan.transactions.filter((t) => t.deletedAt === undefined && t.approved === false && (accountId === null || t.accountId === accountId)), [plan.transactions, accountId]);
   const counts = useMemo(() => registerCounts(plan, accountId), [plan, accountId]);
   // The selection, limited to rows still shown (a filter or a delete can hide selected rows).
-  const shown = useMemo(() => new Set(txRows.map((r) => r.id)), [txRows]);
+  const schedRows = useMemo(() => (searching ? [] : scheduledRows(plan, accountId)), [plan, accountId, searching]);
+  const schedById = useMemo(() => new Map(plan.scheduled.map((x) => [x.id, x])), [plan.scheduled]);
+  const shown = useMemo(() => new Set([...schedRows.map((r) => r.id), ...txRows.map((r) => r.id)]), [schedRows, txRows]);
   const picked = useMemo(() => [...selected].filter((id) => shown.has(id)), [selected, shown]);
   const firstMonth = useMemo(() => {
     let min = monthOf(today);
     for (const t of plan.transactions) if (t.deletedAt === undefined && monthOf(t.date) < min) min = monthOf(t.date);
     return min;
   }, [plan.transactions, today]);
-  const scheduledCount = plan.scheduled.filter((s) => s.deletedAt === undefined && (accountId === null || s.accountId === accountId)).length;
+  const scheduledCount = schedRows.length;
 
   const rows = useMemo((): GridRow<Row>[] => {
     // A search hides the Scheduled section (YNAB).
     const out: GridRow<Row>[] = searching ? [] : [{ kind: 'group', id: SCHEDULED, data: { kind: 'scheduled', count: scheduledCount } }];
+    for (const sr of schedRows) out.push({ kind: 'item', id: sr.id, groupId: SCHEDULED, data: { kind: 'tx', tx: sr, scheduled: sr } });
     if (edit?.id === NEW) out.push({ kind: 'item', id: NEW, data: { kind: 'new' } });
     for (const tx of txRows) out.push({ kind: 'item', id: tx.id, data: { kind: 'tx', tx } });
     return out;
-  }, [txRows, edit?.id, scheduledCount, searching]);
+  }, [txRows, schedRows, edit?.id, scheduledCount, searching]);
 
   // ---- editing ---------------------------------------------------------------------------------
   const openAccounts = useMemo(() => plan.accounts.filter((a) => a.deletedAt === undefined && a.closed !== true).toSorted((a, b) => a.sortOrder - b.sortOrder), [plan.accounts]);
@@ -214,6 +266,15 @@ export function RegisterScreen({ plan, today, accountId, actions, history }: Reg
 
   const startEdit = useCallback(
     (id: string, focus = 'payee', split = false) => {
+      const sid = scheduledIdOf(id);
+      const s = sid === null ? undefined : schedById.get(sid);
+      if (s) {
+        const d = draftForScheduled(s);
+        setSelected(new Set([id]));
+        setDraft(split ? startSplit(d) : d);
+        setEdit({ id, focus: split && d.splits === null ? 'line-1:payee' : focus });
+        return;
+      }
       const t = byId.get(id);
       if (!t) return;
       if (t.cleared === 'reconciled') actions.notify('This transaction is reconciled. Changing it can make the account disagree with your bank.');
@@ -226,7 +287,7 @@ export function RegisterScreen({ plan, today, accountId, actions, history }: Reg
       setDraft(split ? startSplit(d) : d);
       setEdit({ id, focus: split && d.splits === null ? 'line-1:payee' : focus });
     },
-    [byId, actions, setDraft],
+    [byId, schedById, actions, setDraft],
   );
 
   const cancel = useCallback(() => {
@@ -250,7 +311,25 @@ export function RegisterScreen({ plan, today, accountId, actions, history }: Reg
           cancel();
           return;
         }
-        actions.run((pl, ctx) => addTransaction(pl, ctx, toInput(pl, d)));
+        const kind = newRowKind(d, today);
+        if (kind === 'scheduled') actions.run((pl, ctx) => addScheduled(pl, ctx, toScheduledInput(pl, d)));
+        else if (kind === 'transactionAndRepeat') {
+          actions.run((pl, ctx) => {
+            const add = addTransaction(pl, ctx, toInput(pl, d));
+            const next = applyChanges(pl, add.changes).plan;
+            const repeat = makeRepeating(next, ctx, { transactionId: add.transactionId, frequency: d.frequency ?? 'monthly' });
+            return { label: add.label, changes: mergeChangeSets(add.changes, repeat.changes) };
+          });
+        } else actions.run((pl, ctx) => addTransaction(pl, ctx, toInput(pl, d)));
+      } else if (scheduledIdOf(edit.id) !== null) {
+        const sid = scheduledIdOf(edit.id) ?? '';
+        // A schedule moved to today or earlier is entered now, as on its date (§5.11).
+        actions.run((pl, ctx) =>
+          chained(pl, 'Edit scheduled transaction', [
+            (p) => editScheduled(p, ctx, { scheduledId: sid, input: toScheduledInput(p, d) }),
+            (p) => (d.date <= ctx.today ? enterDueScheduled(p, ctx) : null),
+          ]),
+        );
       } else {
         const t = byId.get(edit.id);
         if (t) {
@@ -267,7 +346,7 @@ export function RegisterScreen({ plan, today, accountId, actions, history }: Reg
         if (id !== NEW) setRequest((r) => ({ cell: { rowId: id, columnId: 'payee' }, edit: false, key: (r?.key ?? 0) + 1 }));
       }
     },
-    [edit, byId, plan, actions, startNew, cancel, setDraft, money],
+    [edit, byId, plan, actions, startNew, cancel, setDraft, money, today],
   );
 
   // Keys inside the row being edited: Enter saves (unless a picker's list is open or a field is
@@ -327,7 +406,14 @@ export function RegisterScreen({ plan, today, accountId, actions, history }: Reg
   );
   const applyFlag = useCallback(
     (ids: string[], flag: FlagColor | null) => {
-      if (ids.length > 0) actions.run((pl, ctx) => setFlag(pl, ctx, { transactionIds: ids, flag }));
+      const { tx, sched } = splitIds(ids);
+      if (ids.length === 0) return;
+      actions.run((pl, ctx) =>
+        chained(pl, flag === null ? 'Clear flags' : 'Flag', [
+          (p) => (tx.length > 0 ? setFlag(p, ctx, { transactionIds: tx, flag }) : null),
+          (p) => (sched.length > 0 ? editScheduledMany(p, ctx, { scheduledIds: sched, patch: { flag } }) : null),
+        ]),
+      );
     },
     [actions],
   );
@@ -347,13 +433,47 @@ export function RegisterScreen({ plan, today, accountId, actions, history }: Reg
   );
   const bulk = useCallback(
     (ids: string[], patch: BulkPatch, announce?: string) => {
-      if (ids.length === 0) return;
-      actions.run((pl, ctx) => editTransactions(pl, ctx, { transactionIds: ids, patch }), announce === undefined ? {} : { announce });
+      const { tx, sched } = splitIds(ids);
+      // Schedules take Categorize and Memo; moving accounts is for transactions.
+      const schedPatch = { ...(patch.categoryId === undefined ? {} : { categoryId: patch.categoryId }), ...(patch.memo === undefined ? {} : { memo: patch.memo }) };
+      const forSched = patch.accountId === undefined && Object.keys(schedPatch).length > 0 ? sched : [];
+      if (tx.length === 0 && forSched.length === 0) return;
+      actions.run(
+        (pl, ctx) =>
+          chained(pl, `Edit ${plural(tx.length + forSched.length).toLowerCase()}`, [
+            (p) => (tx.length > 0 ? editTransactions(p, ctx, { transactionIds: tx, patch }) : null),
+            (p) => (forSched.length > 0 ? editScheduledMany(p, ctx, { scheduledIds: forSched, patch: schedPatch }) : null),
+          ]),
+        announce === undefined ? {} : { announce },
+      );
+    },
+    [actions],
+  );
+  const enterNow = useCallback(
+    (ids: string[]) => {
+      const { sched } = splitIds(ids);
+      if (sched.length === 0) return;
+      actions.run((pl, ctx) => enterScheduledNow(pl, ctx, { scheduledIds: sched }), { announce: sched.length === 1 ? 'Entered the scheduled transaction.' : `Entered ${String(sched.length)} scheduled transactions.` });
+      setSelected(new Set());
+    },
+    [actions],
+  );
+  const skip = useCallback(
+    (ids: string[]) => {
+      const { sched } = splitIds(ids);
+      if (sched.length > 0) actions.run((pl, ctx) => skipScheduled(pl, ctx, { scheduledIds: sched }), { announce: sched.length === 1 ? 'Skipped the next occurrence.' : `Skipped ${String(sched.length)} occurrences.` });
+    },
+    [actions],
+  );
+  const repeat = useCallback(
+    (id: string, frequency: Frequency) => {
+      actions.run((pl, ctx) => makeRepeating(pl, ctx, { transactionId: id, frequency }), { announce: `Repeats ${frequencyLabel(frequency).toLowerCase()}; it’s in Scheduled Transactions.` });
     },
     [actions],
   );
   const duplicate = useCallback(
-    (ids: string[]) => {
+    (all: string[]) => {
+      const ids = splitIds(all).tx;
       if (ids.length === 0) return;
       let created: string[] = [];
       actions.run((pl, ctx) => {
@@ -376,7 +496,16 @@ export function RegisterScreen({ plan, today, accountId, actions, history }: Reg
   const remove = useCallback(
     (ids: string[]) => {
       if (ids.length === 0) return;
-      actions.run((pl, ctx) => deleteTransactions(pl, ctx, { transactionIds: ids }), { announce: ids.length === 1 ? 'Deleted the transaction.' : `Deleted ${String(ids.length)} transactions.` });
+      const { tx, sched } = splitIds(ids);
+      const what = tx.length === 0 ? (sched.length === 1 ? 'the scheduled transaction' : `${String(sched.length)} scheduled transactions`) : ids.length === 1 ? 'the transaction' : `${String(ids.length)} transactions`;
+      actions.run(
+        (pl, ctx) =>
+          chained(pl, `Delete ${plural(ids.length).toLowerCase()}`, [
+            (p) => (tx.length > 0 ? deleteTransactions(p, ctx, { transactionIds: tx }) : null),
+            (p) => (sched.length > 0 ? deleteScheduled(p, ctx, { scheduledIds: sched }) : null),
+          ]),
+        { announce: `Deleted ${what}.` },
+      );
       setSelected(new Set());
     },
     [actions],
@@ -414,6 +543,20 @@ export function RegisterScreen({ plan, today, accountId, actions, history }: Reg
     run: () => {
       const ids = targetIds(activeRowId());
       if (ids.length === 1 && ids[0] !== undefined) startEdit(ids[0], 'payee', true);
+    },
+  });
+  useShortcut({ id: 'register.enterNow', keys: 'E', description: 'Enter a scheduled transaction now', group: 'Register', scope: 'screen', enabled: edit === null, run: () => { enterNow(targetIds(activeRowId())); } });
+  useShortcut({
+    id: 'register.repeat',
+    keys: 'Shift+T',
+    description: 'Make repeating',
+    group: 'Register',
+    scope: 'screen',
+    enabled: edit === null,
+    run: () => {
+      const row = activeRowId();
+      const ids = splitIds(targetIds(row)).tx;
+      if (ids.length === 1 && ids[0] !== undefined) setRepeatFor({ id: ids[0], at: anchorFor(ids[0]) });
     },
   });
   useShortcut({ id: 'register.duplicate', keys: 'Shift+D', description: 'Duplicate', group: 'Register', scope: 'screen', enabled: edit === null, run: () => { duplicate(targetIds(activeRowId())); } });
@@ -480,7 +623,7 @@ export function RegisterScreen({ plan, today, accountId, actions, history }: Reg
           if (r.data.kind === 'scheduled') {
             return (
               <span className={styles.schedLabel}>
-                <Icon name="calendarClock" /> Scheduled <span className={styles.muted}>({r.data.count})</span>
+                <Icon name="calendarClock" /> Scheduled Transactions <span className={styles.muted}>({r.data.count})</span>
               </span>
             );
           }
@@ -538,7 +681,36 @@ export function RegisterScreen({ plan, today, accountId, actions, history }: Reg
         width: 116,
         render: (r) =>
           isEditing(r) && draft
-            ? editor('date', <DateInput label="Date" hideLabel size="compact" value={draft.date} format={plan.settings.dateFormat} today={today} calendarTabStop={false} onCommit={(date) => { patchDraft({ date }); }} autoFocus={autoFocus('date')} />)
+            ? editor(
+                'date',
+                <DateInput
+                  label="Date"
+                  hideLabel
+                  size="compact"
+                  value={draft.date}
+                  format={plan.settings.dateFormat}
+                  today={today}
+                  calendarTabStop={false}
+                  onCommit={(date) => { patchDraft({ date }); }}
+                  autoFocus={autoFocus('date')}
+                  calendarFooter={
+                    edit?.id === NEW || scheduledIdOf(edit?.id ?? '') !== null ? (
+                      <div className={styles.repeat}>
+                        <Combobox
+                          label="Repeat"
+                          size="compact"
+                          groups={[{ id: 'repeat', label: 'Repeat', options: FREQUENCIES.map((f) => ({ id: f.id, label: f.label })) }]}
+                          value={draft.frequency ?? 'never'}
+                          onChange={(id) => {
+                            const f = FREQUENCIES.find((x) => x.id === id);
+                            if (f) patchDraft({ frequency: f.id });
+                          }}
+                        />
+                      </div>
+                    ) : undefined
+                  }
+                />,
+              )
             : r.data.kind === 'tx'
               ? <span className={styles.date}>{formatDate(r.data.tx.date, plan.settings.dateFormat)}</span>
               : '',
@@ -722,6 +894,15 @@ export function RegisterScreen({ plan, today, accountId, actions, history }: Reg
       align: 'center',
       resizable: false,
       render: (r) => {
+        const sched = r.data.kind === 'tx' ? r.data.scheduled : undefined;
+        if (sched) {
+          const f = isEditing(r) && draft?.frequency !== undefined ? draft.frequency : sched.frequency;
+          return (
+            <span className={styles.repeatIcon} title={f === 'never' ? 'Scheduled once' : `Repeats ${frequencyLabel(f).toLowerCase()}`} aria-label={f === 'never' ? 'Scheduled once' : `Repeats ${frequencyLabel(f).toLowerCase()}`}>
+              <Icon name={f === 'never' ? 'calendarClock' : 'sync'} />
+            </span>
+          );
+        }
         const state: ClearedState | undefined = isEditing(r) && draft ? draft.cleared : r.data.kind === 'tx' ? r.data.tx.cleared : undefined;
         if (state === undefined) return null;
         const label = state === 'reconciled' ? 'Reconciled' : state === 'cleared' ? 'Cleared' : 'Uncleared';
@@ -975,7 +1156,7 @@ export function RegisterScreen({ plan, today, accountId, actions, history }: Reg
         )}
         {picked.length > 1 && (
           <div className={styles.selectedTotal} aria-live="polite">
-            <strong>{money(selectedTotal(txRows, new Set(picked)))}</strong>
+            <strong>{money(selectedTotal([...schedRows, ...txRows], new Set(picked)))}</strong>
             <span>Selected Total ({picked.length})</span>
           </div>
         )}
@@ -1155,6 +1336,21 @@ export function RegisterScreen({ plan, today, accountId, actions, history }: Reg
       )}
       {rowMenuNode()}
       {moreMenuNode()}
+      {repeatFor && (
+        <Popover open onClose={() => { setRepeatFor(null); }} anchor={repeatFor.at} role="presentation">
+          <MenuList
+            label="Repeat"
+            items={FREQUENCIES.filter((f) => f.id !== 'never').map((f) => ({ id: f.id, label: f.label, icon: 'sync' as const }))}
+            onClose={() => { setRepeatFor(null); }}
+            onSelect={(id) => {
+              const f = FREQUENCIES.find((x) => x.id === id);
+              const target = repeatFor.id;
+              setRepeatFor(null);
+              if (f) repeat(target, f.id);
+            }}
+          />
+        </Popover>
+      )}
       {categorizeFor && (
         <Popover open onClose={() => { setCategorizeFor(null); }} anchor={categorizeFor.at} role="dialog" label="Categorize" className={styles.categorize}>
           <CategoryPicker
@@ -1222,6 +1418,18 @@ export function RegisterScreen({ plan, today, accountId, actions, history }: Reg
 
   // ---- selection: action bar, right-click menu, More --------------------------------------------
   function bulkItems(ids: string[], where: 'menu' | 'more'): MenuItem[] {
+    const { tx, sched } = splitIds(ids);
+    if (sched.length > 0 && tx.length === 0) {
+      // YNAB: Enter Now (E) first; Match, Unmatch and Duplicate stay, but apply to transactions only.
+      const items: MenuItem[] = [];
+      if (where === 'menu') items.push({ id: 'enterNow', label: 'Enter Now', icon: 'checkmark', shortcut: 'E' });
+      items.push({ id: 'skip', label: 'Skip Next', icon: 'calendarClock' }, { id: 'sep1', label: '', separator: true });
+      if (where === 'menu') items.push({ id: 'flag', label: 'Flag…', icon: 'flag', shortcut: 'Shift+F' });
+      items.push({ id: 'memo', label: 'Memo…', icon: 'note' });
+      if (where === 'menu') items.push({ id: 'categorize', label: 'Categorize…', icon: 'tag', shortcut: 'K' });
+      items.push({ id: 'sep2', label: '', separator: true }, { id: 'delete', label: 'Delete', icon: 'dismiss', danger: true, shortcut: 'Del' });
+      return items;
+    }
     const rows = ids.map((id) => byId.get(id)).filter((t) => t !== undefined);
     const anyUnapproved = rows.some((t) => t.approved === false);
     const n = ids.length;
@@ -1242,7 +1450,7 @@ export function RegisterScreen({ plan, today, accountId, actions, history }: Reg
       { id: 'sep3', label: '', separator: true },
       { id: 'duplicate', label: 'Duplicate', icon: 'copy', shortcut: 'Shift+D' },
     );
-    if (where === 'menu') items.push({ id: 'repeat', label: 'Make Repeating', icon: 'history', shortcut: 'Shift+T', disabled: true }, { id: 'sep4', label: '', separator: true }, { id: 'flag', label: 'Flag…', icon: 'flag', shortcut: 'Shift+F' });
+    if (where === 'menu') items.push({ id: 'repeat', label: 'Make Repeating', icon: 'history', shortcut: 'Shift+T', disabled: tx.length !== 1 }, { id: 'sep4', label: '', separator: true }, { id: 'flag', label: 'Flag…', icon: 'flag', shortcut: 'Shift+F' });
     else items.push({ id: 'sep4', label: '', separator: true });
     items.push({ id: 'memo', label: 'Memo…', icon: 'note' });
     if (where === 'menu') items.push({ id: 'categorize', label: 'Categorize…', icon: 'tag', shortcut: 'K' });
@@ -1257,7 +1465,12 @@ export function RegisterScreen({ plan, today, accountId, actions, history }: Reg
   }
 
   function onBulk(id: string, ids: string[], at: Rect): void {
-    if (id === 'approve') approve(ids);
+    if (id === 'enterNow') enterNow(ids);
+    else if (id === 'skip') skip(ids);
+    else if (id === 'repeat') {
+      const one = splitIds(ids).tx[0];
+      if (one !== undefined) setRepeatFor({ id: one, at });
+    } else if (id === 'approve') approve(ids);
     else if (id === 'markCleared') setClearedTo(ids, 'cleared');
     else if (id === 'markUncleared') setClearedTo(ids, 'uncleared');
     else if (id === 'duplicate') duplicate(ids);
@@ -1300,8 +1513,10 @@ export function RegisterScreen({ plan, today, accountId, actions, history }: Reg
       const r = e.currentTarget.getBoundingClientRect();
       return { top: r.top, left: r.left, width: r.width, height: r.height };
     };
+    const onlySched = rows.length === 0 && splitIds(ids).sched.length > 0;
     return (
       <ActionBar label={plural(ids.length)} onClear={() => { setSelected(new Set()); }}>
+        {onlySched && <ActionBarButton icon="checkmark" label="Enter Now" title="Enter now (E)" onClick={() => { enterNow(ids); }} />}
         {rows.some((t) => t.approved === false) && <ActionBarButton icon="checkmark" label="Approve" title="Approve (A)" onClick={() => { approve(ids); }} />}
         <ActionBarButton icon="tag" label="Categorize" title="Categorize (K)" aria-haspopup="dialog" onClick={(e) => { setCategorizeFor({ ids, at: { ...at(e), top: at(e).top - 8 } }); }} />
         <ActionBarButton icon="flag" label="Flag" title="Flag (Shift+F)" aria-haspopup="menu" onClick={(e) => { setFlagMenu({ ids, at: at(e) }); }} />

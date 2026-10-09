@@ -1,4 +1,4 @@
-import { forwardRef, useRef, useState, type KeyboardEvent } from 'react';
+import { forwardRef, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { dateKey, formatDate, parseDateInput, type ISODate } from '@hafb/shared';
 import { IconButton } from './Button.tsx';
 import { Calendar } from './Calendar.tsx';
@@ -23,6 +23,8 @@ export interface DateInputProps {
   autoFocus?: boolean;
   /** Leave the calendar button out of the Tab order (row editors: Tab goes field to field; Alt+Down opens it). */
   calendarTabStop?: boolean;
+  /** Under the calendar (the register's Repeat choice for scheduled transactions, as in YNAB). */
+  calendarFooter?: ReactNode;
   id?: string;
   className?: string;
 }
@@ -37,7 +39,7 @@ const LETTER_KEYS = new Set(['t', 'm', 'y']);
  * or pick from the calendar.
  */
 export const DateInput = forwardRef<HTMLInputElement, DateInputProps>(function DateInput(
-  { value, format, today, onCommit, label, hideLabel, help, size = 'medium', disabled, autoFocus, calendarTabStop = true, id, className },
+  { value, format, today, onCommit, label, hideLabel, help, size = 'medium', disabled, autoFocus, calendarTabStop = true, calendarFooter, id, className },
   ref,
 ) {
   const [draft, setDraft] = useState<string | null>(null);
@@ -183,6 +185,7 @@ export const DateInput = forwardRef<HTMLInputElement, DateInputProps>(function D
             inputRef.current?.focus();
           }}
         />
+        {calendarFooter}
       </Popover>
     </FieldFrame>
   );

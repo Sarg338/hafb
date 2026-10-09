@@ -318,6 +318,24 @@
   overflow: visible;
 }
 
+/* S5.4: scheduled rows sit on the section's tint (YNAB), muted until hovered or selected. */
+.gridWrap :global([role='row'][data-row-id^='sched:']:not([aria-selected='true']):not(:hover)) :global([role='gridcell']) {
+  background: var(--c-surface-alt);
+  color: var(--c-text-muted);
+}
+
+.repeatIcon {
+  display: inline-flex;
+  color: var(--c-text-muted);
+}
+
+/* The Repeat choice under the date picker's calendar. */
+.repeat {
+  padding: 0 10px 10px;
+  border-top: var(--s-border-width) solid var(--c-border);
+  padding-top: 8px;
+}
+
 /* ---- S4.6: selection total, search, View Options, split editor ----------------------------- */
 
 .selectedTotal {
