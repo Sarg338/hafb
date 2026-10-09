@@ -319,6 +319,24 @@ Assumptions, where the article is silent:
 - **Flags:** `Flag is:` accepts a color or the user's custom flag name.
 - **Uncategorized:** `Category: Uncategorized` (and the `uncategorized` keyword) mean no category, not a split, not a transfer.
 
+### 8.6 Bank file import (CLAUDE.md §5.12, `bankImport/`)
+
+YNAB's guides ([file import](https://support.ynab.com/en_us/file-based-import-a-guide-Bkj4Sszyo), [approve & match](https://support.ynab.com/en_us/approving-and-matching-transactions-a-guide-ByYNZaQ1i)) give these rules:
+- Transactions dated more than 3 days before the last reconciliation aren't imported.
+- Zero-amount rows are kept.
+- Rejected or deleted imports never come back.
+- An entered or scheduled transaction with exactly the same amount, dated within 10 days, matches. Matching is one to one; the bank's amount wins, the user's date, payee, memo and category stay, and the match is approved.
+
+Our rules:
+- **Duplicates:** a row whose bank id (FITID, or a synthetic `file:amount:date:n` id for CSV/QIF) was imported before is skipped.
+- **ASSUMPTION, same date and amount:** YNAB also skips "transactions with the same date and amount". Here that applies only across formats: a row without a bank id against any earlier import, or a row with one against earlier CSV/QIF imports. A new FITID is never lost to a look-alike, and two identical charges on one day both import when only one existed.
+- **Matching:** the closest date wins. A starting balance never matches.
+- **ASSUMPTION, payee cleanup:** strip processor prefixes (SQ *, TST*, PAYPAL *, POS PURCHASE, DEBIT CARD PURCHASE), store numbers (#0423 and what follows; trailing ids when two words remain), reference codes after "*" and trailing dates; title-case capitals. Examples:
+  - "POS PURCHASE GROCERY MART #0423 NASHVILLE TN" → "Grocery Mart".
+  - "TST* TACO STAND 0042" → "Taco Stand".
+  - "CHECK 1042" stays "Check 1042".
+- **Card payments:** an unapproved, uncategorized import of +X on a card and −X on a cash account within 3 days pair into a transfer.
+
 ### 8.4 Payees (CLAUDE.md §5.13, `payees.ts`)
 
 **Default category** (`nextDefaultCategory`): it changes only when 2 of the payee's 3 most recent categorized transactions agree. YNAB's source: [file-based import elevated](https://www.ynab.com/whats-new/file-based-import-elevated).

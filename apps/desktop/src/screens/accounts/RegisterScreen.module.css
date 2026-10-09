@@ -383,6 +383,39 @@
   padding: 16px;
 }
 
+/* A transaction matched with a bank import (S6.5). */
+.matched {
+  display: inline-flex;
+  flex: none;
+  color: var(--c-text-subtle);
+}
+
+/* Bank Import Details (S6.5): what the bank said. */
+.importDetails {
+  display: grid;
+  gap: 12px;
+  width: min(360px, calc(100vw - 32px));
+  padding: 16px;
+}
+
+.details {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 6px 16px;
+  margin: 0;
+}
+
+.details dt {
+  color: var(--c-text-muted);
+  font-size: var(--t-size-small);
+}
+
+.details dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+
 .viewTitle {
   margin: 0;
   font-family: var(--t-font-display);

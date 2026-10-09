@@ -17,8 +17,8 @@ const MAX_IMPORT_BYTES: u64 = 200 * 1024 * 1024;
 #[derive(Default)]
 pub struct PlanState {
     open: Mutex<Option<OpenPlan>>,
-    /// The file the user last picked in the import dialog: the only file `read_import_file` reads.
-    picked_import: Mutex<Option<PathBuf>>,
+    /// The files the user last picked in an import dialog: the only files `read_import_file` reads.
+    picked_import: Mutex<Vec<PathBuf>>,
 }
 
 impl PlanState {
@@ -192,8 +192,26 @@ pub async fn pick_import_zip(window: WebviewWindow, state: State<'_, PlanState>)
         .set_title("Import a plan export")
         .add_filter("Plan export", &["zip"])
         .pick_file();
-    *state.picked_import.lock().map_err(lock_err)? = picked.clone();
+    *state.picked_import.lock().map_err(lock_err)? = picked.iter().cloned().collect();
     Ok(picked.map(|p| path_string(&p)))
+}
+
+/// Native open dialog for bank files (S6.5): CSV, OFX/QFX or QIF, several at once. The picked
+/// files become readable by `read_import_file`; nothing else is.
+#[tauri::command]
+pub async fn pick_bank_files(window: WebviewWindow, state: State<'_, PlanState>) -> Result<Vec<String>> {
+    // The smoke suite sets HAFB_PICK_FILES (paths separated by ';') instead of clicking a dialog.
+    let picked = match std::env::var("HAFB_PICK_FILES").ok().filter(|v| !v.is_empty()) {
+        Some(list) => list.split(';').filter(|p| !p.is_empty()).map(PathBuf::from).collect(),
+        None => rfd::FileDialog::new()
+            .set_parent(&window)
+            .set_title("Import bank transactions")
+            .add_filter("Bank files", &["csv", "ofx", "qfx", "qif", "txt"])
+            .pick_files()
+            .unwrap_or_default(),
+    };
+    *state.picked_import.lock().map_err(lock_err)? = picked.clone();
+    Ok(picked.iter().map(|p| path_string(p)).collect())
 }
 
 /// The bytes of the file last picked with `pick_import_zip` (an ArrayBuffer in JS). Any other
@@ -202,7 +220,7 @@ pub async fn pick_import_zip(window: WebviewWindow, state: State<'_, PlanState>)
 pub async fn read_import_file(state: State<'_, PlanState>, path: String) -> Result<tauri::ipc::Response> {
     let allowed = state.picked_import.lock().map_err(lock_err)?.clone();
     let path = PathBuf::from(path);
-    if !allowed.is_some_and(|a| same_path(&a, &path)) {
+    if !allowed.iter().any(|a| same_path(a, &path)) {
         return Err(StoreError::invalid("Pick the file with the import dialog first."));
     }
     let size = std::fs::metadata(&path)?.len();

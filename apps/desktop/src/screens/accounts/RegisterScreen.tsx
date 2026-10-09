@@ -16,7 +16,7 @@
 // difference while transactions are cleared: Cancel, or Create Adjustment & Finish (Finish once
 // it matches).
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
-import { CASH_ACCOUNT_TYPES, type ClearedState, type FlagColor, type Frequency, type Id } from '@hafb/engine';
+import { CASH_ACCOUNT_TYPES, proposeRenameRule, ValidationError, type ClearedState, type FlagColor, type Frequency, type Id } from '@hafb/engine';
 import { formatDate, minor, monthOf, neg, ZERO, type ISODate, type Minor } from '@hafb/shared';
 import {
   addScheduled,
@@ -45,6 +45,11 @@ import {
   type ChangeSet,
   type Command,
   type PlanData,
+  addRenameRule,
+  matchTransactions,
+  rejectImports,
+  unmatchTransaction,
+  type TransactionRecord,
 } from '@hafb/store';
 import type { Actions } from '../../design/DesignApp.tsx';
 import { DEFAULT_REGISTER_VIEW, prefs, usePrefs, type RegisterViewPref } from '../../shell/prefs.ts';
@@ -73,6 +78,9 @@ import { Pill } from '../../ui/Pill.tsx';
 import { cardHeader, recordPaymentAmount } from '../shared/cardModel.ts';
 import { isLoanType, typeInfo } from './accountsModel.ts';
 import { LoanPanel, RecordLoanPaymentDialog } from './LoanPanel.tsx';
+import { ImportDialog } from './ImportDialog.tsx';
+import { pickBankFiles, type PickedFile } from '../../shell/bankFiles.ts';
+import { useToast } from '../../ui/Toast.tsx';
 import { colorLabel, FLAG_COLORS, flagForDigit, flagName } from './flags.ts';
 import {
   addSplitLine,
@@ -163,6 +171,18 @@ function chained(plan: PlanData, label: string, steps: readonly ((p: PlanData) =
   return { label: sets.length === 1 ? last : label, changes: mergeChangeSets(...sets) };
 }
 
+/** An imported transaction still waiting for approval (the only kind YNAB lets you reject). */
+const isUnapprovedImport = (t: TransactionRecord): boolean => t.importId !== undefined && t.importedDate !== undefined && t.matchedAt === undefined && t.approved === false;
+
+/** Two selected transactions that can match: one unmatched import, one entered, same account. */
+function matchPair(rows: readonly TransactionRecord[]): { importedId: string; enteredId: string } | null {
+  if (rows.length !== 2) return null;
+  const imp = rows.find((t) => t.importId !== undefined && t.importedDate !== undefined && t.matchedAt === undefined);
+  const entered = rows.find((t) => t !== imp && t.importId === undefined);
+  if (!imp || entered?.accountId !== imp.accountId) return null;
+  return { importedId: imp.id, enteredId: entered.id };
+}
+
 const NEXT_CLEARED: Record<ClearedState, ClearedState> = { uncleared: 'cleared', cleared: 'uncleared', reconciled: 'reconciled' };
 
 export interface RegisterScreenProps {
@@ -203,6 +223,9 @@ export function RegisterScreen({ plan, today, accountId, actions, history, focus
   const [rowMenu, setRowMenu] = useState<{ ids: string[]; at: Rect } | null>(null);
   const [renamingFlags, setRenamingFlags] = useState(false);
   const [loanPayment, setLoanPayment] = useState(false);
+  const [importFiles, setImportFiles] = useState<readonly PickedFile[] | null>(null);
+  const [importDetails, setImportDetails] = useState<{ id: string; at: Rect } | null>(null);
+  const { toast } = useToast();
   const [repeatFor, setRepeatFor] = useState<{ id: string; at: Rect } | null>(null);
   const [reconcile, setReconcile] = useState<null | { step: 'ask' } | { step: 'enter'; amount: Minor } | { step: 'mode'; statement: Minor }>(null);
   const reconcileButton = useRef<HTMLButtonElement>(null);
@@ -337,6 +360,30 @@ export function RegisterScreen({ plan, today, accountId, actions, history, focus
     if (id !== undefined && id !== NEW) setRequest((r) => ({ cell: { rowId: id, columnId: 'payee' }, edit: false, key: (r?.key ?? 0) + 1 }));
   }, [edit, setDraft]);
 
+  // YNAB remembers a renamed import for future imports (PY-02): offer the rule right after the edit.
+  const offerRename = useCallback((t: TransactionRecord, patch: { payeeId?: string | null; payeeName?: string }): void => {
+    if (t.importedPayee === undefined || t.importedDate === undefined) return;
+    const newName = patch.payeeName ?? (patch.payeeId ? plan.payees.find((p) => p.id === patch.payeeId)?.name : undefined);
+    if (newName === undefined || newName.trim() === '') return;
+    const proposal = proposeRenameRule(t.importedPayee, newName.trim());
+    if (!proposal) return;
+    const shown = proposal.match === 'startsWith' ? `${proposal.pattern}…` : proposal.pattern;
+    toast({
+      text: `Rename future “${shown}” imports to ${proposal.renameTo}?`,
+      durationMs: 10_000,
+      action: {
+        label: 'Rename',
+        onAction: () => {
+          actions.run((pl, ctx) => {
+            const target = pl.payees.find((p) => p.deletedAt === undefined && p.transferAccountId === undefined && p.name.toLowerCase() === proposal.renameTo.toLowerCase());
+            if (!target) throw new ValidationError(`No payee named ${proposal.renameTo}`);
+            return addRenameRule(pl, ctx, { payeeId: target.id, match: proposal.match, pattern: proposal.pattern });
+          }, { announce: `Future imports of “${shown}” will be named ${proposal.renameTo}.` });
+        },
+      },
+    });
+  }, [plan, actions, toast]);
+
   const save = useCallback(
     (andAnother: boolean) => {
       const d = draftRef.current;
@@ -375,6 +422,7 @@ export function RegisterScreen({ plan, today, accountId, actions, history, focus
         if (t) {
           const patch = toPatch(plan, t, d);
           if (Object.keys(patch).length > 0) actions.run((pl, ctx) => editTransaction(pl, ctx, { transactionId: t.id, patch }));
+          offerRename(t, patch);
         }
       }
       if (andAnother) {
@@ -386,7 +434,7 @@ export function RegisterScreen({ plan, today, accountId, actions, history, focus
         if (id !== NEW) setRequest((r) => ({ cell: { rowId: id, columnId: 'payee' }, edit: false, key: (r?.key ?? 0) + 1 }));
       }
     },
-    [edit, byId, plan, actions, startNew, cancel, setDraft, money, today],
+    [edit, byId, plan, actions, startNew, cancel, setDraft, money, today, offerRename],
   );
 
   // Keys inside the row being edited: Enter saves (unless a picker's list is open or a field is
@@ -559,6 +607,9 @@ export function RegisterScreen({ plan, today, accountId, actions, history, focus
   useShortcut({ id: 'register.flag', keys: 'Shift+F', description: 'Flag (then 1–6 for a colour, 0 to clear)', group: 'Register', scope: 'screen', enabled: edit === null, run: () => { flagPending.current = performance.now(); } });
   useShortcut({ id: 'register.delete', keys: 'Delete', description: 'Delete', group: 'Register', scope: 'screen', enabled: edit === null, run: () => { remove(targetIds(activeRowId())); } });
   useShortcut({ id: 'register.approve', keys: 'A', description: 'Approve', group: 'Register', scope: 'screen', enabled: edit === null, run: () => { approve(targetIds(activeRowId())); } });
+  useShortcut({ id: 'register.reject', keys: 'Shift+R', description: 'Reject an imported transaction', group: 'Register', scope: 'screen', enabled: edit === null, run: () => { reject(targetIds(activeRowId())); } });
+  useShortcut({ id: 'register.match', keys: 'M', description: 'Match an imported transaction with one you entered', group: 'Register', scope: 'screen', enabled: edit === null, run: () => { matchSelected(targetIds(activeRowId())); } });
+  useShortcut({ id: 'register.unmatch', keys: 'Shift+U', description: 'Unmatch', group: 'Register', scope: 'screen', enabled: edit === null, run: () => { unmatch(targetIds(activeRowId())); } });
   useShortcut({ id: 'register.approveAll', keys: 'Shift+L', description: 'Approve all transactions', group: 'Register', scope: 'screen', enabled: edit === null, run: () => { approve(unapproved.map((t) => t.id)); } });
   useShortcut({
     id: 'register.categorize',
@@ -806,6 +857,12 @@ export function RegisterScreen({ plan, today, accountId, actions, history, focus
               {!tx.approved && <span className={styles.dot} title="Needs approval" />}
               {tx.transfer && <Icon name="transfer" className={styles.muted} />}
               <span className={styles.ellipsis}>{tx.payee}</span>
+              {byId.get(tx.id)?.matchedAt !== undefined && (
+                <span className={styles.matched} title="Matched with an imported transaction">
+                  <Icon name="link" />
+                  <span className="visually-hidden"> (matched)</span>
+                </span>
+              )}
             </span>
           );
         },
@@ -1251,7 +1308,21 @@ export function RegisterScreen({ plan, today, accountId, actions, history, focus
         <Button variant="toolbar" icon="add" title="Add a transaction (Shift+N)" onClick={() => { startNew(); }}>
           Add Transaction
         </Button>
-        <Button variant="toolbar" icon="import" disabled title="Bank file import arrives in S6.5">
+        <Button
+          variant="toolbar"
+          icon="import"
+          title="Import a file from your bank: CSV, OFX/QFX or QIF"
+          onClick={() => {
+            pickBankFiles().then(
+              (files) => {
+                if (files.length > 0) setImportFiles(files);
+              },
+              (e: unknown) => {
+                actions.notify(`Couldn’t open the file: ${e instanceof Error ? e.message : String(e)}`);
+              },
+            );
+          }}
+        >
           File Import
         </Button>
         {card && account && (
@@ -1313,6 +1384,8 @@ export function RegisterScreen({ plan, today, accountId, actions, history, focus
 
       {reconcileBanner()}
       {reconcilePopover()}
+      {importFiles && <ImportDialog plan={plan} accountId={accountId} files={importFiles} today={today} actions={actions} onClose={() => { setImportFiles(null); }} />}
+      {importDetailsNode()}
       {loanPayment && account && <RecordLoanPaymentDialog plan={plan} account={account} today={today} actions={actions} onClose={() => { setLoanPayment(false); }} />}
       {unapproved.length > 0 && (
         <div className={styles.banner}>
@@ -1617,11 +1690,12 @@ export function RegisterScreen({ plan, today, accountId, actions, history, focus
     const rows = ids.map((id) => byId.get(id)).filter((t) => t !== undefined);
     const anyUnapproved = rows.some((t) => t.approved === false);
     const n = ids.length;
+    const pair = matchPair(rows);
     const items: MenuItem[] = [];
     if (where === 'menu') {
       items.push(
         { id: 'approve', label: 'Approve', icon: 'checkmark', shortcut: 'A', disabled: !anyUnapproved },
-        { id: 'reject', label: 'Reject', icon: 'dismiss', shortcut: 'Shift+R', disabled: true },
+        { id: 'reject', label: 'Reject', icon: 'dismiss', shortcut: 'Shift+R', disabled: rows.length === 0 || !rows.every(isUnapprovedImport) },
         { id: 'sep1', label: '', separator: true },
         { id: 'markCleared', label: 'Mark as Cleared', icon: 'cleared', shortcut: 'C', disabled: !rows.some((t) => t.cleared === 'uncleared') },
         { id: 'markUncleared', label: 'Mark as Uncleared', icon: 'uncleared', shortcut: 'C', disabled: !rows.some((t) => t.cleared === 'cleared') },
@@ -1629,11 +1703,12 @@ export function RegisterScreen({ plan, today, accountId, actions, history, focus
       );
     }
     items.push(
-      { id: 'match', label: 'Match', icon: 'link', shortcut: 'M', disabled: true },
-      { id: 'unmatch', label: 'Unmatch', icon: 'link', shortcut: 'Shift+U', disabled: true },
+      { id: 'match', label: 'Match', icon: 'link', shortcut: 'M', disabled: pair === null },
+      { id: 'unmatch', label: 'Unmatch', icon: 'link', shortcut: 'Shift+U', disabled: !(rows.length === 1 && rows[0]?.matchedAt !== undefined) },
       { id: 'sep3', label: '', separator: true },
       { id: 'duplicate', label: 'Duplicate', icon: 'copy', shortcut: 'Shift+D' },
     );
+    if (where === 'menu' && rows.length === 1 && rows[0]?.importedDate !== undefined) items.push({ id: 'importDetails', label: 'Bank Import Details', icon: 'info' });
     if (where === 'menu') items.push({ id: 'repeat', label: 'Make Repeating', icon: 'history', shortcut: 'Shift+T', disabled: tx.length !== 1 }, { id: 'sep4', label: '', separator: true }, { id: 'flag', label: 'Flag…', icon: 'flag', shortcut: 'Shift+F' });
     else items.push({ id: 'sep4', label: '', separator: true });
     items.push({ id: 'memo', label: 'Memo…', icon: 'note' });
@@ -1655,6 +1730,13 @@ export function RegisterScreen({ plan, today, accountId, actions, history, focus
       const one = splitIds(ids).tx[0];
       if (one !== undefined) setRepeatFor({ id: one, at });
     } else if (id === 'approve') approve(ids);
+    else if (id === 'reject') reject(ids);
+    else if (id === 'match') matchSelected(ids);
+    else if (id === 'unmatch') unmatch(ids);
+    else if (id === 'importDetails') {
+      const one = splitIds(ids).tx[0];
+      if (one !== undefined) setImportDetails({ id: one, at });
+    }
     else if (id === 'markCleared') setClearedTo(ids, 'cleared');
     else if (id === 'markUncleared') setClearedTo(ids, 'uncleared');
     else if (id === 'duplicate') duplicate(ids);
@@ -1663,6 +1745,72 @@ export function RegisterScreen({ plan, today, accountId, actions, history, focus
     else if (id === 'categorize') setCategorizeFor({ ids, at });
     else if (id === 'move') setMoveFor({ ids, at });
     else if (id === 'delete') remove(ids);
+  }
+
+  function reject(ids: string[]): void {
+    const rows = ids.map((id) => byId.get(id)).filter((t) => t !== undefined);
+    if (rows.length === 0 || !rows.every(isUnapprovedImport)) {
+      actions.notify('Only unapproved imported transactions can be rejected.');
+      return;
+    }
+    actions.run((pl, ctx) => rejectImports(pl, ctx, { transactionIds: rows.map((t) => t.id) }), { announce: rows.length === 1 ? 'Rejected the transaction. It won’t import again.' : `Rejected ${String(rows.length)} transactions. They won’t import again.` });
+    setSelected(new Set());
+  }
+
+  function matchSelected(ids: string[]): void {
+    const pair = matchPair(ids.map((id) => byId.get(id)).filter((t) => t !== undefined));
+    if (!pair) {
+      actions.notify('Select one imported transaction and one you entered, in the same account.');
+      return;
+    }
+    actions.run((pl, ctx) => matchTransactions(pl, ctx, pair));
+    setSelected(new Set([pair.enteredId]));
+  }
+
+  function unmatch(ids: string[]): void {
+    const t = ids.length === 1 ? byId.get(ids[0] ?? '') : undefined;
+    if (t?.matchedAt === undefined) return;
+    actions.run((pl, ctx) => unmatchTransaction(pl, ctx, { transactionId: t.id }));
+  }
+
+  function importDetailsNode(): ReactNode {
+    if (!importDetails) return null;
+    const t = byId.get(importDetails.id);
+    if (!t) return null;
+    const close = () => {
+      setImportDetails(null);
+    };
+    return (
+      <Popover open onClose={close} anchor={importDetails.at} role="dialog" label="Bank Import Details" className={styles.importDetails}>
+        <h2 className={styles.viewTitle}>Bank Import Details</h2>
+        <dl className={styles.details}>
+          <dt>Imported Payee</dt>
+          <dd>{t.importedPayee ?? '—'}</dd>
+          <dt>Imported Memo</dt>
+          <dd>{t.importedMemo ?? '—'}</dd>
+          <dt>Imported Date</dt>
+          <dd>{t.importedDate === undefined ? '—' : formatDate(t.importedDate, plan.settings.dateFormat)}</dd>
+          <dt>Imported Amount</dt>
+          <dd>{t.importedAmount === undefined ? '—' : money(t.importedAmount)}</dd>
+          {t.matchedAt !== undefined && (
+            <>
+              <dt>Matched</dt>
+              <dd>With the transaction you entered{t.enteredAmount !== undefined && t.enteredAmount !== t.amount ? ` for ${money(t.enteredAmount)}` : ''}</dd>
+            </>
+          )}
+        </dl>
+        <div className={styles.viewActions}>
+          {t.matchedAt !== undefined && (
+            <Button onClick={() => { close(); unmatch([t.id]); }}>
+              Unmatch
+            </Button>
+          )}
+          <Button variant="primary" onClick={close}>
+            Close
+          </Button>
+        </div>
+      </Popover>
+    );
   }
 
   function rowMenuNode(): ReactNode {

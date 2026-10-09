@@ -121,10 +121,10 @@ A row is `done` only after Sarg validates it on hardware. Rows whose engine half
 | R-16 | View options: date presets (incl. Last Month), show/hide reconciled | — | S4.6 | done |
 | R-17 | All Accounts register | — | S4.6 | done |
 | R-18 | Banners: "N new transactions to approve or categorize", uncategorized filter | S1.6 | S4.6 | done |
-| R-19 | Approve (A) / reject (Shift+R) / unapproved state | S1.6 | S6.5 | in-progress |
-| R-20 | Match (M) / unmatch (Shift+U) | S1.6 | S6.5 | in-progress |
+| R-19 | Approve (A) / reject (Shift+R) / unapproved state | S1.6 | S6.5 | done (Reject, Shift+R, only for unapproved imports; never re-imports) |
+| R-20 | Match (M) / unmatch (Shift+U) | S1.6 | S6.5 | done (auto-match on import; Match, M, for one import + one entered; Unmatch, Shift+U, restores both) |
 | R-21 | Photo attachments (thumbnail, viewer) stored in the .hafb | — | S7.6 | todo |
-| R-22 | Bank Import Details panel (original payee/memo as imported) | — | S6.5 | todo |
+| R-22 | Bank Import Details panel (original payee/memo as imported) | — | S6.5 | done (Bank Import Details: imported payee, memo, date and amount; match note) |
 | R-23 | New transaction shortcut (Shift+N) | — | S4.5 | done |
 | R-24 | Retailer order-history links | — | — | wontfix (server) |
 
@@ -151,14 +151,14 @@ A row is `done` only after Sarg validates it on hardware. Rows whose engine half
 | CC-05 | Record Payment (pre-fill = min(available, cleared balance)) | S1.3 | S4.7 | done |
 | CC-06 | Pay-in-full gap; underfunded alert (current month) | S1.3 | S4.7 | done (payoff-target variant with T-12, S5.2) |
 | CC-07 | Credit Card Interest categorization (YNAB rolling out Oct 2026; research first) | S1.3 | S7.x | todo (not in the trial plan yet; revisit when YNAB documents it) |
-| CC-08 | CC payment auto-matching across checking ↔ card on import | S1.6 | S6.5 | in-progress |
+| CC-08 | CC payment auto-matching across checking ↔ card on import | S1.6 | S6.5 | done (a card payment imported on both sides pairs into a transfer) |
 
 ## 9. Payees ([categorizing](https://support.ynab.com/en_us/categorizing-transactions-a-guide-HyRl60sks))
 
 | ID | Feature | Engine | UI | Status |
 |---|---|---|---|---|
 | PY-01 | Payee manager: rename, combine, delete | — | S5.5 | done |
-| PY-02 | Rename rules learned from edits | S1.6 | S5.5 | in-progress (renaming rules managed in Manage Payees, S5.5; the "rename future …?" offer after editing an imported payee comes with import, S6.5) |
+| PY-02 | Rename rules learned from edits | S1.6 | S5.5 | done (Manage Payees renaming rules apply on import; renaming an imported payee offers "Rename future … imports?") |
 | PY-03 | Default category: 2-of-last-3 rule | S1.6 | S5.5 | done |
 | PY-04 | Fixed default category per payee; auto-categorize off per payee | S1.6 | S5.5 | done |
 | PY-05 | Transfer payees (system-managed) | S1.2 | S4.5 | done |
@@ -204,12 +204,12 @@ A row is `done` only after Sarg validates it on hardware. Rows whose engine half
 |---|---|---|---|---|
 | IE-01 | YNAB export import (Plan.csv + Register.csv), to the cent | S1.8 | S2.4 / S7.2 | in-progress |
 | IE-02 | Target re-entry screen after YNAB import | — | S7.2 | todo |
-| IE-03 | CSV import: column mapper per account, date formats, swap inflow/outflow, semicolons | S1.6 | S6.5 | in-progress |
-| IE-04 | OFX/QFX import, several files at once; QIF import | S1.6 | S6.5 | in-progress |
-| IE-05 | Dedupe: FITID + fuzzy; skip > 3 days before last reconciliation; keep zero rows | S1.6 | S6.5 | in-progress |
-| IE-06 | Auto-match imports to entered/scheduled (same amount, ≤ 10 days) | S1.6 | S6.5 | in-progress |
-| IE-07 | Imported cash inflows default to Ready to Assign; rename rules applied | S1.6 | S6.5 | in-progress |
-| IE-08 | Rejected imports never re-import | S1.6 | S6.5 | in-progress |
+| IE-03 | CSV import: column mapper per account, date formats, swap inflow/outflow, semicolons | S1.6 | S6.5 | done (delimiter, header, date order and decimal mark detected; mapping remembered per account) |
+| IE-04 | OFX/QFX import, several files at once; QIF import | S1.6 | S6.5 | done |
+| IE-05 | Dedupe: FITID + fuzzy; skip > 3 days before last reconciliation; keep zero rows | S1.6 | S6.5 | done (bank ids; same date and amount across formats; 3-day reconciliation rule; zero rows kept; optional pre-start rows) |
+| IE-06 | Auto-match imports to entered/scheduled (same amount, ≤ 10 days) | S1.6 | S6.5 | done |
+| IE-07 | Imported cash inflows default to Ready to Assign; rename rules applied | S1.6 | S6.5 | done (YNAB-style payee cleanup too; the bank's text is kept) |
+| IE-08 | Rejected imports never re-import | S1.6 | S6.5 | done |
 | IE-09 | Export to YNAB-format CSV (round-trip verified) | S1.8 | S6.6 | in-progress |
 | IE-10 | Raw SQLite copy ("save a copy") | — | S2.5 | in-progress |
 | IE-11 | Automatic backups on open (keep N), manual backup, restore | — | S2.5 / S6.6 | in-progress |

@@ -59,6 +59,8 @@ export const planIpc = {
   removeRecent: (path: string) => invoke<null>('recent_remove', { path }),
   pickPlanPath: (mode: 'open' | 'save', defaultName?: string) => invoke<string | null>('pick_plan_path', { mode, defaultName }),
   pickImportZip: () => invoke<string | null>('pick_import_zip'),
+  /** Bank files (CSV, OFX/QFX, QIF), several at once; empty when cancelled. */
+  pickBankFiles: () => invoke<string[]>('pick_bank_files'),
   readImportFile: (path: string) => invoke<ArrayBuffer>('read_import_file', { path }),
 };
 

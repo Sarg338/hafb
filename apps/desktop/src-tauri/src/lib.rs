@@ -46,6 +46,7 @@ pub fn run() {
             commands::recent_remove,
             commands::pick_plan_path,
             commands::pick_import_zip,
+            commands::pick_bank_files,
             commands::read_import_file,
             exports::save_export,
             diagnostics::launch_timing,
