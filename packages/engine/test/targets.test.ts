@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import {
   costToBeMe,
   evaluateTarget,
+  legacyTarget,
   ValidationError,
   validateTarget,
   weekdaysInMonth,
@@ -191,5 +192,58 @@ describe('§6.4 validation and Cost to Be Me', () => {
     const d = evalT(target({ amount: minor(120_000), cadence: { kind: 'custom', due: asISODate('2026-11-01') }, behavior: 'haveBalance' }), '2026-02', cm({}));
     // 100 + 400 (4 Saturdays, leftovers don't reduce it) + 0 + ⌈1,200 / 10⌉ = 620
     expect(costToBeMe({ a, b, c, d }, minor(600_000))).toEqual({ targets: 62_000, expectedIncome: 600_000, difference: 538_000 });
+  });
+});
+
+describe('§6.10 legacy goal types (CLAUDE.md §5.4 mapping; T-10)', () => {
+  // YNAB's pre-2024 goal types, as its API still names them (goal_type, goal_cadence,
+  // goal_cadence_frequency, goal_day, goal_needs_whole_amount). Its CSV export carries none.
+  const on = asISODate('2026-10-09');
+  const map = (goal: Parameters<typeof legacyTarget>[0]) => legacyTarget(goal, 'c', on);
+  const amount = minor(50_000);
+  const due = asISODate('2027-03-31');
+
+  it('Target Balance (TB) → Have a balance of, no date', () => {
+    expect(map({ type: 'TB', amount })).toMatchObject({ cadence: { kind: 'custom' }, behavior: 'haveBalance', startMonth: '2026-10', createdOn: on });
+    expect(map({ type: 'TB', amount }).cadence).toEqual({ kind: 'custom' });
+  });
+
+  it('Target Balance by Date (TBD) → custom, Have a balance of, with the date', () => {
+    expect(map({ type: 'TBD', amount, targetDate: due })).toMatchObject({ cadence: { kind: 'custom', due }, behavior: 'haveBalance' });
+    expect(() => map({ type: 'TBD', amount })).toThrow(ValidationError);
+  });
+
+  it('Monthly Savings Builder (MF) → monthly, Set aside another', () => {
+    expect(map({ type: 'MF', amount })).toMatchObject({ cadence: { kind: 'monthly', day: 'last' }, behavior: 'setAside' });
+  });
+
+  it('Monthly Debt Payment (DEBT) → monthly, Set aside another, on its day', () => {
+    expect(map({ type: 'DEBT', amount, day: 15 })).toMatchObject({ cadence: { kind: 'monthly', day: 15 }, behavior: 'setAside' });
+  });
+
+  it('Needed for Spending (NEED) → the matching cadence; whole amount = Set aside, else Refill', () => {
+    expect(map({ type: 'NEED', amount, cadence: 1, frequency: 1, day: 5 })).toMatchObject({ cadence: { kind: 'monthly', day: 5 }, behavior: 'setAside' });
+    expect(map({ type: 'NEED', amount, cadence: 1, frequency: 1, needsWholeAmount: false })).toMatchObject({ cadence: { kind: 'monthly', day: 'last' }, behavior: 'refill' });
+    expect(map({ type: 'NEED', amount, cadence: 2, frequency: 1, day: 6 })).toMatchObject({ cadence: { kind: 'weekly', weekday: 6 } });
+    expect(map({ type: 'NEED', amount, cadence: 13, frequency: 1, targetDate: due })).toMatchObject({ cadence: { kind: 'yearly', due } });
+    // Every other month (1 × 2), every 3 months (cadence 4), every 2 years (14 or 13 × 2).
+    expect(map({ type: 'NEED', amount, cadence: 1, frequency: 2, targetDate: due }).cadence).toEqual({ kind: 'custom', due, repeatEveryMonths: 2 });
+    expect(map({ type: 'NEED', amount, cadence: 4, targetDate: due }).cadence).toEqual({ kind: 'custom', due, repeatEveryMonths: 3 });
+    expect(map({ type: 'NEED', amount, cadence: 14, targetDate: due }).cadence).toEqual({ kind: 'custom', due, repeatEveryMonths: 24 });
+    expect(map({ type: 'NEED', amount, cadence: 13, frequency: 2, targetDate: due }).cadence).toEqual({ kind: 'custom', due, repeatEveryMonths: 24 });
+    // No cadence: a one-time amount by its date.
+    expect(map({ type: 'NEED', amount, cadence: 0, targetDate: due }).cadence).toEqual({ kind: 'custom', due });
+  });
+
+  it('every mapped target is valid, and what has no YNAB equivalent is refused', () => {
+    for (const g of [
+      { type: 'TB', amount },
+      { type: 'TBD', amount, targetDate: due },
+      { type: 'MF', amount },
+      { type: 'NEED', amount, cadence: 3, targetDate: due },
+    ] as const) validateTarget(map(g));
+    expect(() => map({ type: 'NEED', amount, cadence: 2, frequency: 2 })).toThrow(/every 2 weeks/);
+    expect(() => map({ type: 'NEED', amount, cadence: 4 })).toThrow(ValidationError);
+    expect(() => map({ type: 'MF', amount: minor(0) })).toThrow(ValidationError);
   });
 });

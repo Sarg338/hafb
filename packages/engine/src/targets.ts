@@ -112,6 +112,69 @@ export function validateTarget(t: Target): void {
   }
 }
 
+/**
+ * A pre-2024 YNAB goal, in the terms YNAB's API still uses (goal_type, goal_cadence,
+ * goal_cadence_frequency, goal_day, goal_needs_whole_amount). YNAB's CSV export carries no goals,
+ * so this is for any source that does (T-10).
+ */
+export interface LegacyGoal {
+  /** TB Target Balance, TBD Target Balance by Date, MF Monthly Savings Builder, NEED Needed for Spending, DEBT Monthly Debt Payment. */
+  type: 'TB' | 'TBD' | 'MF' | 'NEED' | 'DEBT';
+  amount: Minor;
+  targetDate?: ISODate;
+  /** 0 none, 1 monthly, 2 weekly, 13 yearly (× frequency); 3–12 every 2–11 months; 14 every 2 years. */
+  cadence?: number;
+  frequency?: number;
+  /** Weekday (0 = Sunday) for weekly goals, else day of the month. */
+  day?: number;
+  /** NEED only: true asks for the whole amount each period (Set aside), false tops up (Refill). */
+  needsWholeAmount?: boolean;
+}
+
+/** The current target for a legacy goal (CLAUDE.md §5.4 "Legacy mapping"). Throws when there is none. */
+export function legacyTarget(goal: LegacyGoal, categoryId: Id, createdOn: ISODate): Target {
+  const needDate = (): ISODate => {
+    if (goal.targetDate === undefined) throw new ValidationError(`Goal for ${categoryId}: a ${goal.type} goal with this cadence needs its target date`);
+    return goal.targetDate;
+  };
+  const monthDay = (): number | 'last' => (goal.day !== undefined && goal.day >= 1 && goal.day <= 31 ? goal.day : 'last');
+  let cadence: TargetCadence;
+  let behavior: TargetBehavior = 'setAside';
+  switch (goal.type) {
+    case 'TB':
+      cadence = { kind: 'custom' };
+      behavior = 'haveBalance';
+      break;
+    case 'TBD':
+      cadence = { kind: 'custom', due: needDate() };
+      behavior = 'haveBalance';
+      break;
+    case 'MF':
+    case 'DEBT':
+      cadence = { kind: 'monthly', day: monthDay() };
+      break;
+    case 'NEED': {
+      behavior = goal.needsWholeAmount === false ? 'refill' : 'setAside';
+      const c = goal.cadence ?? 1;
+      const f = goal.frequency ?? 1;
+      if (c === 0) cadence = { kind: 'custom', due: needDate() };
+      else if (c === 1 && f === 1) cadence = { kind: 'monthly', day: monthDay() };
+      else if (c === 1) cadence = { kind: 'custom', due: needDate(), repeatEveryMonths: f };
+      else if (c === 2 && f === 1) cadence = { kind: 'weekly', weekday: goal.day ?? 0 };
+      else if (c === 2) throw new ValidationError(`Goal for ${categoryId}: every ${String(f)} weeks has no current target`);
+      else if (c >= 3 && c <= 12) cadence = { kind: 'custom', due: needDate(), repeatEveryMonths: c - 1 };
+      else if (c === 13 && f === 1) cadence = { kind: 'yearly', due: needDate() };
+      else if (c === 13) cadence = { kind: 'custom', due: needDate(), repeatEveryMonths: 12 * f };
+      else if (c === 14) cadence = { kind: 'custom', due: needDate(), repeatEveryMonths: 24 };
+      else throw new ValidationError(`Goal for ${categoryId}: unknown cadence ${String(c)}`);
+      break;
+    }
+  }
+  const target: Target = { categoryId, amount: goal.amount, cadence, behavior, startMonth: monthOf(createdOn), createdOn };
+  validateTarget(target);
+  return target;
+}
+
 /** How many times `weekday` occurs in `month` (4 or 5), optionally only on or after `fromDay`. */
 export function weekdaysInMonth(month: Month, weekday: number, fromDay = 1): number {
   const { year, month: m } = monthParts(month);
