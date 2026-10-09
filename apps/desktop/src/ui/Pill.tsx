@@ -27,6 +27,8 @@ export interface PillProps {
   children: string;
   /** Overspent on a credit card: a card icon, always visible. */
   credit?: boolean;
+  /** Upcoming scheduled transactions this month won't be covered: a calendar icon, always visible. */
+  upcoming?: boolean;
   /** Plain-language explanation (target message), shown as a tooltip. */
   title?: string;
 }
@@ -35,12 +37,13 @@ export interface PillProps {
  * The Available pill (DESIGN.md "Money-State Colour"). State is also carried by an icon and outline
  * when the user turns on Differentiate without color, and spoken for screen readers.
  */
-export function Pill({ state, children, credit = false, title }: PillProps) {
+export function Pill({ state, children, credit = false, upcoming = false, title }: PillProps) {
   const icon = STATE_ICON[state];
   return (
     <span className={styles.pill} data-state={state} title={title}>
       {credit && <Icon name="card" />}
-      {icon && <Icon name={icon} className={styles.stateIcon} />}
+      {upcoming && <Icon name="calendar" />}
+      {icon && !upcoming && <Icon name={icon} className={styles.stateIcon} />}
       <span className="visually-hidden">{STATE_LABEL[state]}: </span>
       {children}
     </span>

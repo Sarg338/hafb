@@ -23,6 +23,8 @@ export interface CategoryView {
   barState: MoneyState;
   /** Overspending happened on a credit card (the pill shows a card icon). */
   credit: boolean;
+  /** Upcoming scheduled outflows this month won't be covered (the pill shows a calendar icon). */
+  upcoming?: boolean;
   message: string;
   messageTone: 'plain' | 'warn' | 'bad';
   bar?: BarView;
@@ -122,6 +124,19 @@ export function paymentView(cm: CategoryMonth, fmt: MoneyFormat, currentMonth: b
     };
   }
   return categoryView(cm, fmt);
+}
+
+/**
+ * Upcoming scheduled transactions this month (§5.11, YNAB trial): when Available won't cover them, the
+ * pill turns yellow with a calendar icon (Utilities: $0.00 with a $15 bill due on the 20th). An
+ * overspent category stays overspent; its message notes the bill.
+ */
+export function upcomingView(view: CategoryView, cm: CategoryMonth, upcoming: Minor, fmt: MoneyFormat): CategoryView {
+  const after = cm.available + upcoming;
+  if (after >= 0) return view;
+  const short = formatMoney(minor(0 - after), fmt);
+  if (cm.available < 0) return { ...view, upcoming: true };
+  return { ...view, state: 'underfunded', barState: view.bar ? 'underfunded' : view.barState, upcoming: true, message: `${short} more needed for upcoming transactions`, messageTone: 'warn' };
 }
 
 /** "Refill up to $140.00 each month by the 20th": the inspector's one-line target summary. */

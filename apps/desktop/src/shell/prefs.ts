@@ -30,6 +30,8 @@ export interface Prefs {
   /** Explicitly expanded sections that are collapsed by default. */
   expandedSections: string[];
   inspectorWidth: number;
+  /** Inspector sections the user collapsed (summary, autoAssign, future, balance, target…). */
+  inspectorCollapsed: string[];
   /** Keyboard shortcuts on (CLAUDE.md §6.14 "shortcuts on/off"). */
   shortcutsOn: boolean;
   /** Plan Display Options: target progress bars under category names. */
@@ -57,6 +59,7 @@ export const DEFAULT_PREFS: Prefs = {
   collapsedSections: [],
   expandedSections: [],
   inspectorWidth: INSPECTOR_DEFAULT,
+  inspectorCollapsed: [],
   shortcutsOn: true,
   showProgressBars: true,
   hideAmounts: false,
@@ -108,6 +111,7 @@ export function parsePrefs(text: string | null): Prefs {
     collapsedSections: strings(raw.collapsedSections),
     expandedSections: strings(raw.expandedSections),
     inspectorWidth: Math.min(INSPECTOR_MAX, Math.max(INSPECTOR_MIN, width)),
+    inspectorCollapsed: strings(raw.inspectorCollapsed),
     shortcutsOn: raw.shortcutsOn !== false,
     showProgressBars: raw.showProgressBars !== false,
     hideAmounts: raw.hideAmounts === true,

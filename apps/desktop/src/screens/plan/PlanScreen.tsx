@@ -6,7 +6,6 @@ import type { Id } from '@hafb/engine';
 import { minor, type ISODate, type Minor, type Month } from '@hafb/shared';
 import { coverOverspending, moveMoney, setAssigned, type PlanData } from '@hafb/store';
 import type { Actions } from '../../design/DesignApp.tsx';
-import { Inspector } from '../../design/Inspector.tsx';
 import { usePrefs, prefs } from '../../shell/prefs.ts';
 import { Button, IconButton } from '../../ui/Button.tsx';
 import { Chip } from '../../ui/Chip.tsx';
@@ -23,6 +22,8 @@ import { moneyText, type MoneyText } from '../shared/money.ts';
 import { NARROW_WINDOW, useMediaQuery } from '../shared/useMediaQuery.ts';
 import { activityLines, paymentActivity } from '../shared/cardModel.ts';
 import { ActivityPopover } from './ActivityPopover.tsx';
+import { Inspector } from './Inspector.tsx';
+import { futureMonths } from './inspectorModel.ts';
 import { MovePopover, SourcePopover } from './MoneyPopovers.tsx';
 import { coverSources, futureShortfalls, laterMonths, moveTargets, parseSource } from './moneyMoves.ts';
 import { monthName, PlanHeader } from './PlanHeader.tsx';
@@ -76,10 +77,8 @@ export function PlanScreen({ plan, planPath, today, month, setMonth, actions, hi
   const rows = useMemo(() => planRows(model, filter), [model, filter]);
   // Later months with money assigned: cover sources (YNAB, Jun 2025) and future shortfall alerts.
   const later = useMemo(() => laterMonths(plan, month, today), [plan, month, today]);
-  const future = useMemo(
-    () => ({ shortfalls: futureShortfalls(later), months: later.filter((x) => x.ms.totals.assigned !== 0).map((x) => ({ month: x.month, assigned: x.ms.totals.assigned })) }),
-    [later],
-  );
+  const future = useMemo(() => futureMonths(model, later), [model, later]);
+  const shortfalls = useMemo(() => futureShortfalls(later), [later]);
   const rowInfo = useMemo(() => new Map(rows.map((r) => [r.id, { row: r.data, groupId: r.groupId }])), [rows]);
   const [request, setRequest] = useState<{ cell: { rowId: string; columnId: string }; edit: boolean; key: number } | undefined>(undefined);
   const editing = usePlanEditing({
@@ -307,7 +306,7 @@ export function PlanScreen({ plan, planPath, today, month, setMonth, actions, hi
         {editing.element}
       </section>
       {inspectorEdge !== undefined && <div className={styles.inspectorEdge}>{inspectorEdge}</div>}
-      <Inspector model={model} selected={selected} actions={actions} money={money} future={future} />
+      <Inspector model={model} selected={selected} actions={actions} money={money} future={future} shortfalls={shortfalls} onRename={nameActions.rename} />
     </div>
   );
 }
@@ -489,7 +488,7 @@ function AvailableEditor({
 function AvailablePill({ row, money }: { row: PlanCategoryRow; money: MoneyText }) {
   const shown = useTweened(row.available);
   return (
-    <Pill state={row.view.state} credit={row.view.credit} {...(row.view.message ? { title: row.view.message } : {})}>
+    <Pill state={row.view.state} credit={row.view.credit} upcoming={row.view.upcoming === true} {...(row.view.message ? { title: row.view.message } : {})}>
       {money(minor(shown))}
     </Pill>
   );

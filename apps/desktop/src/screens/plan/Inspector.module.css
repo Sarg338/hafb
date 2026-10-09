@@ -1,0 +1,265 @@
+/* The Plan inspector (S5.1): the approved S3.1 inspector (.hd-inspector, .hd-card) rebuilt from tokens. */
+
+.inspector {
+  position: relative;
+  min-height: 0;
+  overflow: auto;
+  padding: 14px 14px 24px;
+  border-left: var(--s-border-width) solid var(--c-border);
+  background: var(--c-app);
+}
+
+.title {
+  margin: 0;
+  font-family: var(--t-font-display);
+  font-size: var(--t-size-subtitle);
+  font-weight: var(--t-weight-semibold);
+  line-height: 1.25;
+}
+
+.selectionHead,
+.categoryHead {
+  margin: 2px 2px 12px;
+}
+
+.categoryHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.names {
+  margin: 4px 0 0;
+  color: var(--c-text-muted);
+  font-size: var(--t-size-small);
+}
+
+.card {
+  margin-bottom: 12px;
+  border: var(--s-border-width) solid var(--c-border);
+  border-radius: var(--s-radius-large);
+  background: var(--c-raised);
+}
+
+.cardHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 10px 12px 10px 8px;
+  font-size: var(--t-size-body);
+  font-weight: var(--t-weight-semibold);
+}
+
+.toggle {
+  display: inline-flex;
+  flex: 1;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 2px 6px;
+  border: 0;
+  border-radius: var(--s-radius);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+
+.toggle:hover {
+  background: var(--c-hover);
+}
+
+.toggle svg {
+  color: var(--c-text-muted);
+}
+
+.cardAside {
+  flex: none;
+  font-weight: var(--t-weight-regular);
+  font-variant-numeric: tabular-nums;
+}
+
+.cardBody {
+  padding: 0 16px 14px;
+}
+
+.line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 0;
+}
+
+.line > span:first-child {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--c-text-muted);
+}
+
+.line.total {
+  margin-top: 6px;
+  padding-top: 8px;
+  border-top: var(--s-border-width) solid var(--c-border);
+  font-weight: var(--t-weight-semibold);
+}
+
+.line.total > span:first-child {
+  color: var(--c-text);
+}
+
+.num {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.group {
+  margin-top: 12px;
+}
+
+.cost {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: var(--s-border-width) solid var(--c-border);
+}
+
+.subhead {
+  margin: 0 0 4px;
+  font-size: var(--t-size-body);
+  font-weight: var(--t-weight-semibold);
+}
+
+.meter {
+  height: 6px;
+  margin: 2px 0 6px;
+  overflow: hidden;
+  border-radius: var(--s-radius);
+  background: var(--c-bar-track);
+}
+
+.meter span {
+  display: block;
+  height: 100%;
+  background: var(--c-accent);
+  transform-origin: left center;
+  transition: transform var(--m-move) var(--m-ease);
+}
+
+.meter[data-tone='short'] span {
+  background: var(--c-bar-underfunded);
+}
+
+.meter[data-tone='track'] span {
+  background: var(--c-border-strong);
+}
+
+.incomeEdit {
+  display: grid;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.note {
+  margin: 6px 0 0;
+  color: var(--c-text-muted);
+  font-size: var(--t-size-small);
+}
+
+.warnNote {
+  color: var(--c-warn-text);
+}
+
+.warn {
+  color: var(--c-warn-text);
+}
+
+.sentence {
+  margin: 0 0 8px;
+}
+
+.sep {
+  height: var(--s-border-width);
+  margin: 6px 0;
+  background: var(--c-border);
+}
+
+.auto {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: calc(100% + 16px);
+  height: var(--d-control);
+  margin: 0 -8px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--s-radius);
+  background: transparent;
+  color: var(--c-link);
+  font-weight: var(--t-weight-medium);
+}
+
+.auto .num {
+  color: var(--c-text);
+  font-weight: var(--t-weight-regular);
+}
+
+.auto:hover:not(:disabled) {
+  background: var(--c-accent-soft);
+}
+
+.auto:disabled,
+.auto:disabled .num {
+  color: var(--c-text-subtle);
+  cursor: default;
+}
+
+.futureLine {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+}
+
+.upcoming {
+  margin-top: 10px;
+  padding: 8px 12px;
+  border-radius: var(--s-radius);
+  background: var(--c-surface-alt);
+}
+
+.upcomingShort {
+  background: var(--c-underfunded-bg);
+}
+
+.upcomingShort .line > span:first-child {
+  color: var(--c-underfunded-fg);
+}
+
+/* A month's funded pie (YNAB's circle beside each future month): how much of its target need is assigned. */
+.pie {
+  width: 14px;
+  height: 14px;
+  border: var(--s-border-width) solid var(--c-accent);
+  border-radius: 50%;
+  background: conic-gradient(var(--c-accent) calc(var(--pie) * 1%), var(--c-raised) 0);
+}
+
+.pie[data-full] {
+  border-color: var(--c-bar-funded);
+  background: var(--c-bar-funded);
+}

@@ -1,8 +1,8 @@
 // Everything the Plan screen and inspector read for one month, computed once per plan object.
-import { evaluateTargets, type BudgetState, type Id, type MonthState, type Target, type TargetMonth } from '@hafb/engine';
-import { monthOf, ZERO, type ISODate, type Minor, type MoneyFormat, type Month } from '@hafb/shared';
-import { planBudget, type CategoryGroupRecord, type CategoryRecord, type PlanData } from '@hafb/store';
-import { categoryView, paymentView, type CategoryView } from './planView.ts';
+import { evaluateTargets, upcomingDetails, type BudgetState, type Id, type MonthState, type Target, type TargetMonth } from '@hafb/engine';
+import { minor, monthOf, ZERO, type ISODate, type Minor, type MoneyFormat, type Month } from '@hafb/shared';
+import { liveScheduled, planBudget, type CategoryGroupRecord, type CategoryRecord, type PlanData } from '@hafb/store';
+import { categoryView, paymentView, upcomingView, type CategoryView } from './planView.ts';
 
 export interface PlanModel {
   plan: PlanData;
@@ -17,6 +17,10 @@ export interface PlanModel {
   views: Map<Id, CategoryView>;
   paymentIds: Set<Id>;
   assignedFor: (categoryId: Id, month: Month) => Minor;
+  /** Scheduled transactions still to come this month, per category (§5.11; current month only). */
+  upcoming: Record<Id, { amount: Minor; count: number }>;
+  /** The same as positive outflows, for Auto-Assign's Underfunded (scheduled bills with no target). */
+  scheduledOutflows: Record<Id, Minor>;
 }
 
 const cache = new WeakMap<PlanData, Map<string, PlanModel>>();
@@ -56,15 +60,21 @@ export function planModel(plan: PlanData, month: Month, today: ISODate): PlanMod
   const targetList = plan.targets.filter((t) => liveCats.has(t.categoryId));
   const targets = new Map(targetList.map((t) => [t.categoryId, t]));
   const evaluated = evaluateTargets(targetList, ms, assignedFor, { today });
+  const upcoming = upcomingDetails(liveScheduled(plan), month, today);
+  const scheduledOutflows: Record<Id, Minor> = {};
+  for (const [id, u] of Object.entries(upcoming)) if (u.amount < 0) scheduledOutflows[id] = minor(0 - u.amount);
   const views = new Map<Id, CategoryView>();
   for (const { categories } of groups) {
     for (const c of categories) {
       const cm = ms.categories[c.id];
-      if (cm) views.set(c.id, c.creditCardAccountId !== undefined ? paymentView(cm, fmt, month === monthOf(today)) : categoryView(cm, fmt, targets.get(c.id), evaluated[c.id]));
+      if (!cm) continue;
+      const view = c.creditCardAccountId !== undefined ? paymentView(cm, fmt, month === monthOf(today)) : categoryView(cm, fmt, targets.get(c.id), evaluated[c.id]);
+      const u = upcoming[c.id];
+      views.set(c.id, u ? upcomingView(view, cm, u.amount, fmt) : view);
     }
   }
   const paymentIds = new Set(plan.categories.filter((c) => c.creditCardAccountId !== undefined).map((c) => c.id));
-  const model: PlanModel = { plan, month, today, fmt, state, ms, groups, targets, evaluated, views, paymentIds, assignedFor };
+  const model: PlanModel = { plan, month, today, fmt, state, ms, groups, targets, evaluated, views, paymentIds, assignedFor, upcoming, scheduledOutflows };
   byKey.set(key, model);
   return model;
 }
