@@ -40,6 +40,8 @@ export interface TransactionInput {
   approved?: boolean;
   flag?: FlagColor;
   subtransactions?: readonly SplitLineInput[];
+  /** The scheduled transaction this one was entered from (§5.11). */
+  scheduledTransactionId?: Id;
 }
 
 /** Fields an edit may change; `null` clears an optional field. */
@@ -142,6 +144,7 @@ interface Resolved {
   approved: boolean;
   flag: FlagColor | undefined;
   subtransactions: readonly SplitLineInput[] | undefined;
+  scheduledTransactionId?: Id | undefined;
 }
 
 /**
@@ -243,6 +246,7 @@ function writeTransaction(d: Draft, ctx: CommandContext, id: Id, prior: Transact
     softDelete(d, ctx, priorLeg);
   }
 
+  const scheduledFrom = input.scheduledTransactionId ?? prior?.scheduledTransactionId;
   const record: TransactionRecord = {
     id,
     accountId: self.id,
@@ -257,7 +261,7 @@ function writeTransaction(d: Draft, ctx: CommandContext, id: Id, prior: Transact
     ...(other ? { transferAccountId: other.id } : prior && isSplitLineLeg(d, prior) && prior.transferAccountId !== undefined ? { transferAccountId: prior.transferAccountId } : {}),
     ...(transferTransactionId === undefined ? {} : { transferTransactionId }),
     ...(subtransactions.length > 0 ? { subtransactions } : {}),
-    ...(prior?.scheduledTransactionId === undefined ? {} : { scheduledTransactionId: prior.scheduledTransactionId }),
+    ...(scheduledFrom === undefined ? {} : { scheduledTransactionId: scheduledFrom }),
     ...(prior?.isStartingBalance ? { isStartingBalance: true } : {}),
     ...(prior?.importId === undefined ? {} : { importId: prior.importId }),
     ...(prior?.importedPayee === undefined ? {} : { importedPayee: prior.importedPayee }),
@@ -289,6 +293,7 @@ export function addTransaction(plan: PlanData, ctx: CommandContext, input: Trans
     approved: input.approved ?? true,
     flag: input.flag,
     subtransactions: input.subtransactions,
+    scheduledTransactionId: input.scheduledTransactionId,
   });
   const added = d.get('transactions', id);
   return { label: named(input.transferAccountId === undefined ? 'Add transaction' : 'Add transfer', added ? whom(d, added) : ''), changes: d.build(), transactionId: id };
