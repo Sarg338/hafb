@@ -2,7 +2,7 @@
 // real Phase 2 commands and computed by the real engine, so every number on the mockups is one
 // the app would show. Deterministic: fixed clock, seeded ids and amounts.
 import type { Id, Target } from '@hafb/engine';
-import { makeDate, minor, monthParts, uuidv7Generator, type ISODate, type Minor, type Month } from '@hafb/shared';
+import { makeDate, minor, monthOf, monthParts, uuidv7Generator, type ISODate, type Minor, type Month } from '@hafb/shared';
 import {
   applyChanges,
   createAccount,
@@ -225,4 +225,18 @@ export function buildSamplePlan(): SamplePlan {
   });
 
   return { plan, today: SAMPLE_TODAY, ids: { accounts: acct, categories: cat } };
+}
+
+/** A brand-new, empty plan (the browser preview's `?blank`): what a first-time user starts with. */
+export function buildBlankPlan(): PlanData {
+  let clock = Date.UTC(2026, 9, 14, 15, 0, 0);
+  const newId = uuidv7Generator(
+    () => (clock += 1),
+    (n) => new Uint8Array(n).fill(7),
+  );
+  const ctx: CommandContext = { now: '2026-10-14T15:00:00.000Z', today: SAMPLE_TODAY, newId };
+  return newPlan(
+    { name: 'My Plan', currencyCode: 'USD', currencyDecimals: 2, currencySymbol: '$', symbolPlacement: 'before', numberFormat: '123,456.78', dateFormat: 'MM/DD/YYYY', firstMonth: monthOf(SAMPLE_TODAY), createdAt: ctx.now },
+    ctx,
+  );
 }

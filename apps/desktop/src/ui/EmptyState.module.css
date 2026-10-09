@@ -1,0 +1,39 @@
+/* Empty states (S7.5), the look Reflect's reports set in S6.1. Tokens only. */
+
+.empty {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  max-width: 460px;
+  margin: 60px auto;
+  padding: 32px;
+  border: var(--s-border-width) var(--s-muted-border-style) var(--c-border-strong);
+  border-radius: var(--s-radius-large);
+  font-family: var(--t-font-ui);
+  text-align: center;
+}
+
+.empty > :global(.icon) {
+  color: var(--c-accent);
+}
+
+.empty h2 {
+  margin: 6px 0 0;
+  color: var(--c-text);
+  font-size: var(--t-size-subtitle);
+  font-weight: var(--t-weight-semibold);
+}
+
+.empty p {
+  margin: 0;
+  color: var(--c-text-muted);
+  font-size: var(--t-size-body);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 10px;
+}

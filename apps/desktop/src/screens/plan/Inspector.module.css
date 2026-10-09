@@ -440,3 +440,50 @@
 .grow {
   flex: 1;
 }
+
+/* ---- Get started (S7.5) ---------------------------------------------------------------------- */
+
+.setupList {
+  display: grid;
+  gap: 10px;
+  margin: 0 0 8px;
+  padding: 0;
+  list-style: none;
+}
+
+.setupItem {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px;
+  align-items: start;
+}
+
+.setupItem svg {
+  margin-top: 2px;
+  color: var(--c-text-muted);
+}
+
+.setupItem[data-done='true'] svg {
+  color: var(--c-accent);
+}
+
+.setupItem[data-done='true'] strong {
+  color: var(--c-text-muted);
+  font-weight: var(--t-weight-regular);
+}
+
+.setupItem div {
+  display: grid;
+  justify-items: start;
+  gap: 4px;
+}
+
+.setupItem span {
+  color: var(--c-text-muted);
+  font-size: var(--t-size-small);
+}
+
+.setupDone {
+  margin: 0 0 8px;
+  color: var(--c-text);
+}

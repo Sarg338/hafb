@@ -23,7 +23,9 @@ import { COMPACT_WINDOW, NARROW_WINDOW, useMediaQuery } from '../shared/useMedia
 import { activityLines, paymentActivity } from '../shared/cardModel.ts';
 import { ActivityPopover } from './ActivityPopover.tsx';
 import { ManageViewsDialog, ViewDialog } from './FocusedViews.tsx';
+import { EmptyState } from '../../ui/EmptyState.tsx';
 import { Inspector } from './Inspector.tsx';
+import { setupChecklist, type SetupStepId } from './setupModel.ts';
 import { PlanResetDialog } from './PlanReset.tsx';
 import { CategoryMovesPopover, RecentMovesPopover } from './RecentMoves.tsx';
 import type { Rect } from '../../ui/position.ts';
@@ -383,7 +385,34 @@ export function PlanScreen({ plan, planPath, today, month, setMonth, actions, hi
             enterMoves="down"
             onRowContextMenu={editing.openMenu}
             {...(request ? { request } : {})}
-            empty={filter === 'all' ? 'No categories yet. Add a category group to start your plan.' : 'No categories in this view this month.'}
+            empty={
+              filter === 'all' ? (
+                <EmptyState
+                  icon="add"
+                  title="Your plan has no categories yet"
+                  body="Categories are the jobs your money does: rent, groceries, a holiday fund. Start from a template or add your own."
+                  actions={
+                    <>
+                      {actions.openTemplates && (
+                        <Button variant="primary" onClick={actions.openTemplates}>
+                          Use a template
+                        </Button>
+                      )}
+                      <Button
+                        icon="add"
+                        onClick={(e) => {
+                          editing.openAddGroup(rectOf(e.currentTarget));
+                        }}
+                      >
+                        Add a category group
+                      </Button>
+                    </>
+                  }
+                />
+              ) : (
+                'No categories in this view this month.'
+              )
+            }
           />
           {drag.indicator && <div className={styles.dropLine} style={{ top: drag.indicator.top }} aria-hidden="true" />}
         </div>
@@ -401,6 +430,21 @@ export function PlanScreen({ plan, planPath, today, month, setMonth, actions, hi
           shortfalls={shortfalls}
           onRename={nameActions.rename}
           {...(compact ? { className: styles.inspectorOverlay, onClose: () => { setInspectorOpen(false); } } : {})}
+          {...(p.setupHidden.includes(planPath)
+            ? {}
+            : {
+                setup: {
+                  steps: setupChecklist(plan),
+                  onHide: () => {
+                    prefs.update({ setupHidden: [...prefs.get().setupHidden, planPath] });
+                  },
+                  onStep: (id: SetupStepId) => {
+                    if (id === 'accounts') actions.addAccount?.();
+                    else if (id === 'categories') actions.openTemplates?.();
+                    else if (id === 'transaction') actions.navigate({ kind: 'register', accountId: null });
+                  },
+                },
+              })}
         />
       )}
       {viewDialog?.kind === 'new' && <ViewDialog plan={plan} actions={actions} onClose={() => { setViewDialog(null); }} onSaved={(id) => { setFilter(`view:${id}`); }} />}

@@ -28,6 +28,10 @@ export interface Actions {
   accountAction?: (accountId: Id, action: 'edit' | 'star' | 'unstar' | 'up' | 'down' | 'close' | 'reopen') => void;
   /** Open Manage Payees (S5.5; the shell's dialog). */
   managePayees?: () => void;
+  /** Open Add Account (S7.5: empty states and Get started). */
+  addAccount?: () => void;
+  /** Open Add categories from a template (S7.5). */
+  openTemplates?: () => void;
 }
 
 const newId = uuidv7Generator(

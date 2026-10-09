@@ -239,7 +239,7 @@ A row is `done` only after Sarg validates it on hardware. Rows whose engine half
 | X-01 | Custom title bar with Snap Layouts; native fallback | — | Phase 0 ✅ / S3.3 | done |
 | X-02 | High-DPI 100–200%, multi-monitor | — | S7.7 | todo |
 | X-03 | Screen-reader grid semantics, focus visibility, high contrast, reduced motion (WCAG 2.2 AA) | — | S3.4 / S7.4 | done (docs/accessibility.md: every A/AA criterion pass or N/A; axe-core clean in three themes on every screen, dialog and open state, rerun by `pnpm smoke`; UIA tree has no unnamed controls; keyboard-only smoke tests; forced colors; reflow at 200%) |
-| X-04 | Onboarding: resumable setup checklist; designed empty states | — | S7.5 | todo |
+| X-04 | Onboarding: resumable setup checklist; designed empty states | — | S7.5 | done (Get started card: five steps read from the plan itself, so it resumes after a restart, each with a way to do it; empty states with actions for a plan without categories, a register without accounts and every Reflect report; bundled Help; welcome screen leads with Import from YNAB) |
 | X-05 | Celebrations (target met, loan paid off) | — | S5.2 / S6.4 | done (target met, S5.2; loan paid off, S6.4) |
 
 ## Out of scope (wontfix, needs YNAB's servers)

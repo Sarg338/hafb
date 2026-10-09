@@ -78,6 +78,7 @@ import { Pill } from '../../ui/Pill.tsx';
 import { cardHeader, recordPaymentAmount } from '../shared/cardModel.ts';
 import { isLoanType, typeInfo } from './accountsModel.ts';
 import { LoanPanel, RecordLoanPaymentDialog } from './LoanPanel.tsx';
+import { EmptyState } from '../../ui/EmptyState.tsx';
 import { ImportDialog } from './ImportDialog.tsx';
 import { pickBankFiles, type PickedFile } from '../../shell/bankFiles.ts';
 import { useToast } from '../../ui/Toast.tsx';
@@ -1443,33 +1444,43 @@ export function RegisterScreen({ plan, today, accountId, actions, history, focus
           </Button>
         </p>
       )}
-      <div className={styles.gridWrap} onKeyDown={(e) => { onEditKeyDown(e); onGridKeyDown(e); }} onPointerDownCapture={onRowPointerDown} onClick={onRowClick}>
-        <DataGrid<Row>
-          label={account ? `${account.name} transactions` : 'All transactions'}
-          rows={rows}
-          columns={columns}
-          density="register"
-          selectable
-          selected={selected}
-          onSelectionChange={setSelected}
-          rowExtra={rowExtra}
-          enterMoves="none"
-          onSaveAndAddAnother={() => { startNew(); }}
-          onSort={(id) => {
-            if (isSortable(id)) setSort(nextSort(sort, id));
-          }}
-          onRowContextMenu={(rowId, point) => {
-            if (rowId === SCHEDULED || rowId === NEW || edit !== null) return;
-            setFlagMenu(null);
-            // Right-click on a row outside the selection selects just that row (YNAB).
-            const ids = picked.includes(rowId) ? picked : [rowId];
-            if (!picked.includes(rowId)) setSelected(new Set([rowId]));
-            setRowMenu({ ids, at: { top: point.y, left: point.x, width: 0, height: 0 } });
-          }}
-          empty={searching ? `No transactions match “${searchText.trim()}”.` : onlyUncategorized ? 'Every transaction has a category.' : range !== null ? 'No transactions in these dates. View Options can show more.' : 'No transactions yet. Add one, or import a bank file.'}
-          {...(request ? { request } : {})}
+      {accountId === null && openAccounts.length === 0 ? (
+        // No accounts yet (S7.5): a register needs one before it can hold a transaction.
+        <EmptyState
+          icon="add"
+          title="No accounts yet"
+          body="Add the accounts you use, with today’s balances. Then record transactions here or import a file from your bank."
+          {...(actions.addAccount ? { actions: <Button variant="primary" icon="add" onClick={actions.addAccount}>Add Account</Button> } : {})}
         />
-      </div>
+      ) : (
+        <div className={styles.gridWrap} onKeyDown={(e) => { onEditKeyDown(e); onGridKeyDown(e); }} onPointerDownCapture={onRowPointerDown} onClick={onRowClick}>
+          <DataGrid<Row>
+            label={account ? `${account.name} transactions` : 'All transactions'}
+            rows={rows}
+            columns={columns}
+            density="register"
+            selectable
+            selected={selected}
+            onSelectionChange={setSelected}
+            rowExtra={rowExtra}
+            enterMoves="none"
+            onSaveAndAddAnother={() => { startNew(); }}
+            onSort={(id) => {
+              if (isSortable(id)) setSort(nextSort(sort, id));
+            }}
+            onRowContextMenu={(rowId, point) => {
+              if (rowId === SCHEDULED || rowId === NEW || edit !== null) return;
+              setFlagMenu(null);
+              // Right-click on a row outside the selection selects just that row (YNAB).
+              const ids = picked.includes(rowId) ? picked : [rowId];
+              if (!picked.includes(rowId)) setSelected(new Set([rowId]));
+              setRowMenu({ ids, at: { top: point.y, left: point.x, width: 0, height: 0 } });
+            }}
+            empty={searching ? `No transactions match “${searchText.trim()}”.` : onlyUncategorized ? 'Every transaction has a category.' : range !== null ? 'No transactions in these dates. View Options can show more.' : 'No transactions yet. Add one, or import a bank file.'}
+            {...(request ? { request } : {})}
+          />
+        </div>
+      )}
       {picked.length > 0 && edit === null && actionBar()}
 
       {flagMenu && (

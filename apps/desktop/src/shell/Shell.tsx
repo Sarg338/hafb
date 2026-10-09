@@ -37,6 +37,7 @@ import { moneyFormat } from '../screens/plan/planModel.ts';
 import { shownMonth } from '../screens/plan/planMonths.ts';
 import { moneyText } from '../screens/shared/money.ts';
 import { PlanScreen } from '../screens/plan/PlanScreen.tsx';
+import { HelpDialog } from '../screens/help/HelpDialog.tsx';
 import { FreshStartDialog } from '../screens/lifecycle/FreshStartDialog.tsx';
 import { NewPlanDialog } from '../screens/lifecycle/NewPlanDialog.tsx';
 import { TargetsEntryDialog } from '../screens/lifecycle/TargetsEntryDialog.tsx';
@@ -48,7 +49,7 @@ import { draftFrom, settingsEdit } from '../screens/settings/settingsModel.ts';
 import { cx } from '../ui/cx.ts';
 import { ErrorBoundary } from '../ui/ErrorBoundary.tsx';
 import { useRouteFocus } from '../ui/focusRoute.ts';
-import { useShortcut } from '../ui/shortcuts/ShortcutProvider.tsx';
+import { useShortcut, useShortcuts } from '../ui/shortcuts/ShortcutProvider.tsx';
 import { SkipLink } from '../ui/SkipLink.tsx';
 import type { MenuItem } from '../ui/Menu.tsx';
 import { Splitter } from '../ui/Splitter.tsx';
@@ -154,7 +155,8 @@ function PlanFrame({ open, system, recent }: { open: OpenPlan; /** A Windows-col
   const route = useRoute();
   const p = usePrefs();
   const today = todayLocal();
-  const [dialog, setDialog] = useState<null | 'new' | 'backups' | 'addAccount' | 'payees' | 'planSettings' | 'display' | 'prefs' | 'template' | 'freshStart' | 'targets'>(null);
+  const [dialog, setDialog] = useState<null | 'new' | 'backups' | 'addAccount' | 'payees' | 'planSettings' | 'display' | 'prefs' | 'template' | 'freshStart' | 'targets' | 'help'>(null);
+  const { setOverlayOpen } = useShortcuts();
   const [editingAccount, setEditingAccount] = useState<string | null>(null);
   const confirm = useConfirm();
   const [showReport, setShowReport] = useState(open.importReport !== undefined);
@@ -299,6 +301,12 @@ function PlanFrame({ open, system, recent }: { open: OpenPlan; /** A Windows-col
       managePayees: () => {
         setDialog('payees');
       },
+      addAccount: () => {
+        setDialog('addAccount');
+      },
+      openTemplates: () => {
+        setDialog('template');
+      },
     }),
     [],
   );
@@ -324,6 +332,7 @@ function PlanFrame({ open, system, recent }: { open: OpenPlan; /** A Windows-col
     { id: 'backups', label: 'Backups…', icon: 'history', disabled: open.inMemory === true },
     { id: 'freshStart', label: 'Make a Fresh Start…', icon: 'history', disabled: open.inMemory === true },
     { id: 'sep2', label: '', separator: true },
+    { id: 'help', label: 'Help…', icon: 'info' },
     { id: 'prefs', label: 'Preferences…', icon: 'settings', shortcut: 'Ctrl+,' },
     { id: 'sep3', label: '', separator: true },
     { id: 'close', label: 'Close plan', icon: 'dismiss' },
@@ -332,7 +341,7 @@ function PlanFrame({ open, system, recent }: { open: OpenPlan; /** A Windows-col
     if (id === 'open') void session.openDialog();
     else if (id.startsWith('recent:')) void session.openPath(id.slice('recent:'.length));
     else if (id === 'new') setDialog('new');
-    else if (id === 'planSettings' || id === 'display' || id === 'prefs' || id === 'template' || id === 'freshStart') setDialog(id);
+    else if (id === 'planSettings' || id === 'display' || id === 'prefs' || id === 'template' || id === 'freshStart' || id === 'help') setDialog(id);
     else if (id === 'import') void session.importExport();
     else if (id === 'copy') void session.saveCopy();
     else if (id === 'exportYnab') {
@@ -529,6 +538,17 @@ function PlanFrame({ open, system, recent }: { open: OpenPlan; /** A Windows-col
           onSave={(targets) => {
             setDialog(null);
             session.run((pl, ctx) => setTargets(pl, ctx, { targets }), { announce: targets.length === 1 ? 'Added 1 target.' : `Added ${String(targets.length)} targets.` });
+          }}
+        />
+      )}
+      {dialog === 'help' && (
+        <HelpDialog
+          onClose={() => {
+            setDialog(null);
+          }}
+          onShortcuts={() => {
+            setDialog(null);
+            setOverlayOpen(true);
           }}
         />
       )}

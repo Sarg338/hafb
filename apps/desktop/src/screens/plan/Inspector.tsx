@@ -26,6 +26,7 @@ import { cardBalance } from '../shared/cardModel.ts';
 import type { MoneyText } from '../shared/money.ts';
 import { autoAssignChoices, costView, monthSummary, type AutoAssignChoice, type FutureMonth } from './inspectorModel.ts';
 import { monthName } from './PlanHeader.tsx';
+import type { SetupStep, SetupStepId } from './setupModel.ts';
 import type { PlanModel } from './planModel.ts';
 import { suggestion, targetCard } from './targetModel.ts';
 import { TargetEditor } from './TargetEditor.tsx';
@@ -49,9 +50,11 @@ export interface InspectorProps {
   edge?: ReactNode;
   /** When it opens over the plan (a small window), its close button. */
   onClose?: () => void;
+  /** The Get started list (S7.5), shown above the summary until hidden. */
+  setup?: { steps: readonly SetupStep[]; onHide: () => void; onStep: (id: SetupStepId) => void };
 }
 
-export function Inspector({ model, selected, scope = null, actions, money, future, shortfalls, onRename, className, edge, onClose }: InspectorProps) {
+export function Inspector({ model, selected, scope = null, actions, money, future, shortfalls, onRename, className, edge, onClose, setup }: InspectorProps) {
   const ids = [...selected].filter((id) => model.ms.categories[id] !== undefined);
   const first = ids[0];
   return (
@@ -75,12 +78,53 @@ export function Inspector({ model, selected, scope = null, actions, money, futur
         </>
       ) : (
         <>
+          {setup && <SetupCard steps={setup.steps} onHide={setup.onHide} onStep={setup.onStep} />}
           <SummaryCard model={model} money={money} actions={actions} withCost />
           <AutoAssign model={model} ids={scope === null ? [...model.views.keys()] : [...scope]} selection={false} actions={actions} money={money} />
           <FutureCard future={future} shortfalls={shortfalls} money={money} />
         </>
       )}
     </aside>
+  );
+}
+
+/** Get started (S7.5): five steps read from the plan, each with a way to do it. */
+const STEP_ACTION: Partial<Record<SetupStepId, string>> = { accounts: 'Add account', categories: 'Use a template', transaction: 'Go to accounts' };
+
+function SetupCard({ steps, onHide, onStep }: { steps: readonly SetupStep[]; onHide: () => void; onStep: (id: SetupStepId) => void }) {
+  const done = steps.filter((s) => s.done).length;
+  const all = done === steps.length;
+  return (
+    <Section id="setup" title="Get started" aside={`${String(done)} of ${String(steps.length)} done`}>
+      {all ? (
+        <p className={styles.setupDone}>You’re all set: your plan is up and running.</p>
+      ) : (
+        <ol className={styles.setupList}>
+          {steps.map((s) => (
+            <li key={s.id} className={styles.setupItem} data-done={s.done}>
+              <Icon name={s.done ? 'cleared' : 'uncleared'} />
+              <div>
+                <strong>{s.title}</strong>
+                {!s.done && <span>{s.detail}</span>}
+                {!s.done && STEP_ACTION[s.id] !== undefined && (
+                  <Button
+                    size="small"
+                    onClick={() => {
+                      onStep(s.id);
+                    }}
+                  >
+                    {STEP_ACTION[s.id]}
+                  </Button>
+                )}
+              </div>
+            </li>
+          ))}
+        </ol>
+      )}
+      <Button variant="toolbar" size="small" onClick={onHide}>
+        {all ? 'Hide this card' : 'Hide this list'}
+      </Button>
+    </Section>
   );
 }
 

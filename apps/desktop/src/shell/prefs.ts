@@ -62,6 +62,8 @@ export interface Prefs {
   textScale: TextScale;
   /** The account a new transaction starts in from All Accounts, per plan file path (S7.1). */
   defaultAccounts: Record<string, string>;
+  /** Plan file paths whose Get started list was hidden (S7.5). */
+  setupHidden: string[];
 }
 
 /** Text size choices (S7.1). */
@@ -92,6 +94,7 @@ export const DEFAULT_PREFS: Prefs = {
   reflectFilters: {},
   textScale: 1,
   defaultAccounts: {},
+  setupHidden: [],
 };
 
 const THEMES: readonly ThemePref[] = ['system', 'light', 'dark', 'high-contrast'];
@@ -166,6 +169,7 @@ export function parsePrefs(text: string | null): Prefs {
     reflectFilters,
     textScale,
     defaultAccounts,
+    setupHidden: strings(raw.setupHidden),
   };
 }
 

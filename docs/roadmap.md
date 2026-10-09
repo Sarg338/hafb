@@ -344,6 +344,13 @@ Progress (YNAB used as the reference throughout, 2026-10-09; it was put back as 
   - Filled elements keep their text in contrast themes.
   - Text size up to 200%.
   - Below 1024 CSS px the sidebar becomes its rail, and below 900 px the inspector opens over the plan from Display options.
+- **S7.5 done in code.**
+  - **Onboarding:** the welcome screen leads with Import YNAB export and the developer links are gone from release builds. New Plan starts blank or from a template, or imports instead.
+  - **Get started card:** at the top of the inspector, five steps (accounts, categories, assign, a target, a transaction). They're read from the plan itself, so the list resumes after a restart with nothing stored in the file. Each open step has a button that does it, and the card can be hidden.
+  - **Empty states:** a plan without categories offers Use a template or Add a category group; a register with no accounts offers Add Account; Net Worth without accounts says so. Reflect's empty states became the shared `EmptyState` component.
+  - **Help (plan menu):** ten short topics in YNAB's vocabulary, bundled with the app so they work offline, with a button to the shortcut list.
+  - **Copy review:** every store error and app notification was reviewed. Fixes: a split mismatch now says "$12.34, not $15.00" rather than minor units, apostrophes are consistent, and every message ends with a full stop.
+  - **Smoke test:** from the welcome screen, a new user makes a plan from a template, adds an account, records a transaction and assigns money, in under 10 minutes, and the card reads "You're all set". The roadmap's human check, a fresh user other than Sarg, is still to do.
 
 ## Phase 8: Release hardening → **v1.0**
 

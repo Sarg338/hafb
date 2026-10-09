@@ -86,7 +86,7 @@ export function NetWorth({ plan, filters, fmt, money, hidden }: ReportProps) {
   const rows = useMemo(() => netWorth(budgetSnapshot(plan), filters), [plan, filters]);
   const [hover, setHover] = useState<number | null>(null);
   const last = rows[rows.length - 1];
-  if (!last) return <Empty title="Nothing to chart yet" body="Add an account and your net worth shows up here." />;
+  if (!last || !plan.accounts.some((a) => a.deletedAt === undefined)) return <Empty title="Nothing to chart yet" body="Add an account and your net worth shows up here." />;
   const lastBase = previousNet(rows, rows.length - 1);
   const hovered = hover === null ? undefined : rows[hover];
   const tone = (v: number) => (v > 0 ? styles.up : v < 0 ? styles.down : '');

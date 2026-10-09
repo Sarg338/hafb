@@ -300,7 +300,7 @@ class PlanSession {
       const dest = await planIpc.pickPlanPath('save', `${open.info.name} copy.hafb`);
       if (dest === null) return;
       await planIpc.saveCopy(dest);
-      this.notify(`Saved a copy to ${dest}`);
+      this.notify(`Saved a copy to ${dest}.`);
     });
   }
 
@@ -337,7 +337,7 @@ class PlanSession {
     try {
       command = enterDueScheduled(open.plan, ctx);
     } catch (e) {
-      this.notify(`Couldn't enter scheduled transactions: ${errorMessage(e)}`, 'error');
+      this.notify(`Couldn’t enter scheduled transactions: ${errorMessage(e)}`, 'error');
       return;
     }
     if (command) this.commit(historyDo(open.history, open.plan, command.changes, command.label));
@@ -348,7 +348,7 @@ class PlanSession {
     try {
       charges = postLoanCharges(now.plan, ctx);
     } catch (e) {
-      this.notify(`Couldn't post loan interest: ${errorMessage(e)}`, 'error');
+      this.notify(`Couldn’t post loan interest: ${errorMessage(e)}`, 'error');
       return;
     }
     if (charges) this.commit(historyDo(now.history, now.plan, charges.changes, charges.label));
@@ -406,7 +406,7 @@ class PlanSession {
         await planIpc.apply(step.rows, log);
       } catch (e) {
         // The file is the truth: reload it, drop the undo stack, and say what happened.
-        this.notify(`Couldn't save that change: ${errorMessage(e)}. Reloaded the plan from the file.`, 'error');
+        this.notify(`Couldn’t save that change: ${errorMessage(e)}. Reloaded the plan from the file.`, 'error');
         const info = this.state.open?.info;
         if (info) await this.loadOpened(info);
       }

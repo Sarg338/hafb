@@ -96,11 +96,13 @@ export function Welcome({ recent, busy }: { recent: readonly RecentPlan[]; busy:
           )}
         </section>
 
+        {import.meta.env.DEV && (
         <p className={styles.devLinks}>
           <span>For development:</span>
           <a href="#/design">Design mockups</a>
           <a href="#/gallery">Component gallery</a>
         </p>
+        )}
       </div>
     </main>
   );

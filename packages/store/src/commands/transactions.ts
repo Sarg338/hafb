@@ -9,7 +9,7 @@
 // A split line can be a transfer too: its other leg is a whole transaction in the other account
 // whose transferTransactionId is the line's id. That leg is edited through the split only.
 import { READY_TO_ASSIGN, ValidationError, type CategoryRef, type ClearedState, type FlagColor, type Id } from '@hafb/engine';
-import { minor, type ISODate, type Minor } from '@hafb/shared';
+import { formatMoney, minor, type ISODate, type Minor } from '@hafb/shared';
 import type { AccountRecord, PlanData, SubtransactionRecord, TransactionRecord } from '../records.ts';
 import { Draft, liveAccount, liveCategory, type Command, type CommandContext, omit } from './context.ts';
 import { payeeByName, relearnDefault, transferPayee } from './payees.ts';
@@ -178,7 +178,12 @@ function writeTransaction(d: Draft, ctx: CommandContext, id: Id, prior: Transact
   if (lines) {
     let total = 0;
     for (const l of lines) total += l.amount;
-    if (total !== input.amount) throw new ValidationError(`Split lines add up to ${String(total)}, not ${String(input.amount)}`);
+    if (total !== input.amount) {
+      // In the plan's own money format: people never see minor units.
+      const st = d.plan.settings;
+      const fmt = { decimals: st.currencyDecimals, ...(st.displayDecimals === undefined ? {} : { displayDecimals: st.displayDecimals }), symbol: st.currencySymbol, placement: st.symbolPlacement, numberFormat: st.numberFormat };
+      throw new ValidationError(`Split lines add up to ${formatMoney(minor(Math.abs(total)), fmt)}, not ${formatMoney(minor(Math.abs(input.amount)), fmt)}`);
+    }
   } else if (other) {
     [categoryId, legCategory] = transferCategories(d, self, other, input.categoryId);
   } else {

@@ -1634,6 +1634,69 @@ void describe('settings, templates and Fresh Start (Phase 7)', () => {
     }
   });
 
+  void test('first run: from the welcome screen to a working plan, with Get started ticking off (S7.5)', { timeout: 300_000 }, async () => {
+    const started = Date.now();
+    // No plan given and a fresh data folder: the welcome screen.
+    const app = await launch(box, [], { HAFB_SAVE_DIR: box.root });
+    running.push(app);
+    const { page } = app;
+    try {
+      await page.getByRole('heading', { name: 'Welcome to HAFB' }).waitFor();
+      await page.getByRole('button', { name: 'Start a new plan…' }).click();
+      const np = page.getByRole('dialog', { name: 'New Plan' });
+      await np.getByLabel('Plan Name').fill('First Plan');
+      await np.getByRole('radio', { name: 'A template' }).click();
+      await np.getByRole('button', { name: 'Create Plan' }).click();
+      const card = page.locator('[data-section=setup]');
+      await card.getByText('2 of 5 done').waitFor();
+      // Step 1 from the card: Add account.
+      await card.getByRole('button', { name: 'Add account' }).click();
+      const dlg = page.getByRole('dialog', { name: 'Add an account' });
+      await dlg.getByRole('textbox', { name: 'Give it a nickname' }).fill('Checking');
+      await dlg.getByRole('button', { name: /What type of account/ }).click();
+      await page.getByRole('option', { name: 'Checking', exact: true }).click();
+      await dlg.getByRole('textbox', { name: 'What is your current account balance?' }).click();
+      await page.keyboard.press('Control+a');
+      await page.keyboard.type('2500');
+      await page.keyboard.press('Tab');
+      await dlg.getByRole('button', { name: 'Add Account' }).click();
+      await page.getByRole('heading', { name: 'Checking', level: 1 }).waitFor();
+      // A transaction in the new account.
+      await page.locator('#main').focus();
+      await page.keyboard.press('Shift+N');
+      const editor = page.locator('[data-row-editor]').first();
+      await editor.waitFor();
+      await page.keyboard.press('Tab');
+      await page.keyboard.type('Corner Grocery');
+      await page.waitForTimeout(150);
+      await page.keyboard.press('Enter');
+      await page.keyboard.press('Tab');
+      await page.keyboard.type('Groceries');
+      await page.waitForTimeout(150);
+      await page.keyboard.press('Enter');
+      await page.keyboard.press('Tab');
+      await page.keyboard.press('Tab');
+      await page.keyboard.type('45.20');
+      await page.keyboard.press('Enter');
+      await editor.waitFor({ state: 'detached' });
+      // Assign money on the Plan.
+      await sidebar(page).getByRole('link', { name: 'Plan', exact: true }).click();
+      const groceries = page.locator('[role=row]', { has: page.locator('[data-drag-id]', { hasText: /^Groceries$/ }) }).locator('[data-col=assigned]');
+      await groceries.click();
+      await page.keyboard.type('600');
+      await page.keyboard.press('Enter');
+      // Assigning selected Groceries; Escape deselects so the inspector shows the plan again (YNAB).
+      await page.keyboard.press('Escape');
+      await card.getByText('You’re all set: your plan is up and running.').waitFor();
+      await card.getByRole('button', { name: 'Hide this card' }).click();
+      await card.waitFor({ state: 'detached' });
+      const minutes = (Date.now() - started) / 60_000;
+      assert.ok(minutes < 10, `first run took ${minutes.toFixed(1)} min`);
+    } finally {
+      await app.close();
+    }
+  });
+
   void test('a category template adds its groups at the bottom', { timeout: 300_000 }, async () => {
     const app = await open();
     const { page } = app;

@@ -3,9 +3,8 @@
 import type { LineSelector, ReportFilters } from '@hafb/engine';
 import { formatMoney, minor, type Minor, type MoneyFormat } from '@hafb/shared';
 import type { PlanData } from '@hafb/store';
-import { Icon } from '../../ui/Icon.tsx';
 import type { Rect } from '../../ui/position.ts';
-import styles from './Reflect.module.css';
+import { EmptyState } from '../../ui/EmptyState.tsx';
 
 /** Which lines a click wants to see, and where the popover goes. */
 export interface DrillRequest {
@@ -54,12 +53,7 @@ export function changePct(change: number, base: number): string {
   return tenths > 0 ? `+${text}` : tenths < 0 ? `−${text}` : text;
 }
 
+/** A report with nothing to show yet: the shared empty state (S7.5). */
 export function Empty({ title, body }: { title: string; body: string }) {
-  return (
-    <div className={styles.empty}>
-      <Icon name="trending" size={20} />
-      <h2>{title}</h2>
-      <p>{body}</p>
-    </div>
-  );
+  return <EmptyState title={title} body={body} />;
 }

@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect } from 'react';
 import { isTauri } from '@tauri-apps/api/core';
-import { buildSamplePlan } from './design/sample.ts';
+import { buildBlankPlan, buildSamplePlan } from './design/sample.ts';
 import { appIpc, type LaunchTiming } from './shell/ipc.ts';
 import { useRoute } from './shell/router.ts';
 import { session } from './shell/session.ts';
@@ -29,7 +29,10 @@ function useStartup(): void {
   useEffect(() => {
     if (!isTauri()) {
       // Browser preview (Vite dev server): no plan files exist, so show the sample household.
-      if (!session.getState().open) session.openInMemory(buildSamplePlan().plan, 'Sample data (browser preview)');
+      // `?welcome` shows the first-run screen and `?blank` an empty new plan (S7.5 checks).
+      const query = new URLSearchParams(window.location.search);
+      if (query.has('welcome')) return;
+      if (!session.getState().open) session.openInMemory(query.has('blank') ? buildBlankPlan() : buildSamplePlan().plan, query.has('blank') ? 'Empty plan (browser preview)' : 'Sample data (browser preview)');
       return;
     }
     appIpc.getTitlebarMode().then(
