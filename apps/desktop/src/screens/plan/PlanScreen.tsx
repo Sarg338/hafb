@@ -3,7 +3,7 @@
 // engine through planModel; edits go through store commands (CLAUDE.md §10).
 import { useCallback, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react';
 import type { Id } from '@hafb/engine';
-import { minor, type ISODate, type Minor, type Month } from '@hafb/shared';
+import { formatDate, minor, type ISODate, type Minor, type Month } from '@hafb/shared';
 import { applyChanges, coverOverspending, focusedViews, mergeChangeSets, moveMoney, setAssigned, snoozeTarget, type ChangeSet, type FocusedViewRecord, type PlanData } from '@hafb/store';
 import type { Actions } from '../../design/DesignApp.tsx';
 import { usePrefs, prefs } from '../../shell/prefs.ts';
@@ -25,6 +25,9 @@ import { ActivityPopover } from './ActivityPopover.tsx';
 import { ManageViewsDialog, ViewDialog } from './FocusedViews.tsx';
 import { Inspector } from './Inspector.tsx';
 import { PlanResetDialog } from './PlanReset.tsx';
+import { CategoryMovesPopover, RecentMovesPopover } from './RecentMoves.tsx';
+import type { Rect } from '../../ui/position.ts';
+import { Icon } from '../../ui/Icon.tsx';
 import { futureMonths } from './inspectorModel.ts';
 import { MovePopover, SourcePopover } from './MoneyPopovers.tsx';
 import { coverSources, futureShortfalls, laterMonths, moveTargets, parseSource } from './moneyMoves.ts';
@@ -72,6 +75,11 @@ export function PlanScreen({ plan, planPath, today, month, setMonth, actions, hi
   );
   const [viewDialog, setViewDialog] = useState<{ kind: 'new' } | { kind: 'edit'; view: FocusedViewRecord } | { kind: 'manage' } | { kind: 'reset' } | null>(null);
   const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set());
+  // Recent Moves (toolbar) and a category's Moves (the history button by its Assigned amount), S5.7.
+  const [recentOpen, setRecentOpen] = useState(false);
+  const recentButton = useRef<HTMLButtonElement>(null);
+  const [movesFor, setMovesFor] = useState<{ categoryId: Id; at: Rect } | null>(null);
+  const onlySelected = selected.size === 1 ? [...selected][0] : undefined;
   const collapsed = useMemo(() => new Set(p.collapsedGroups[planPath] ?? DEFAULT_COLLAPSED), [p.collapsedGroups, planPath]);
   const setCollapsed = useCallback(
     (next: ReadonlySet<string>) => {
@@ -172,7 +180,28 @@ export function PlanScreen({ plan, planPath, today, month, setMonth, actions, hi
         width: moneyWidth,
         align: 'end',
         editable: (r) => r.data.kind === 'category',
-        render: (r) => money(r.data.assigned),
+        render: (r) =>
+          r.data.kind === 'category' && r.id === onlySelected ? (
+            <span className={styles.assignedHistory}>
+              {money(r.data.assigned)}
+              <button
+                type="button"
+                tabIndex={-1}
+                data-interactive=""
+                className={styles.historyButton}
+                aria-label={`Moves for ${r.data.name}`}
+                title="Moves: changes to what’s assigned"
+                onMouseDown={stopGrid}
+                onClick={(e) => {
+                  setMovesFor({ categoryId: r.id, at: rectOf(e.currentTarget) });
+                }}
+              >
+                <Icon name="history" />
+              </button>
+            </span>
+          ) : (
+            money(r.data.assigned)
+          ),
         editor: ({ row, seed, done }) =>
           row.data.kind === 'category' ? (
             <MoneyCellEditor
@@ -221,7 +250,7 @@ export function PlanScreen({ plan, planPath, today, month, setMonth, actions, hi
           ),
       },
     ],
-    [money, model, month, assign, p.showProgressBars, narrow, moneyWidth, nameActions, later, actions],
+    [money, model, month, assign, p.showProgressBars, narrow, moneyWidth, nameActions, later, actions, onlySelected],
   );
 
   // Esc deselects all (YNAB), when the grid is navigating rather than editing.
@@ -316,7 +345,16 @@ export function PlanScreen({ plan, planPath, today, month, setMonth, actions, hi
           <Button variant="toolbar" icon="redo" disabled={!history.canRedo} title={history.redoLabel ? `Redo ${history.redoLabel} (Ctrl+Shift+Z)` : 'Nothing to redo'} onClick={actions.redo}>
             Redo
           </Button>
-          <Button variant="toolbar" icon="history" disabled title="Recent Moves arrives in S5.7">
+          <Button
+            ref={recentButton}
+            variant="toolbar"
+            icon="history"
+            aria-haspopup="dialog"
+            aria-expanded={recentOpen}
+            onClick={() => {
+              setRecentOpen(!recentOpen);
+            }}
+          >
             Recent Moves
           </Button>
           <span className={styles.spacer} />
@@ -357,6 +395,30 @@ export function PlanScreen({ plan, planPath, today, month, setMonth, actions, hi
           onClose={() => { setViewDialog(null); }}
           onNew={() => { setViewDialog({ kind: 'new' }); }}
           onEdit={(view) => { setViewDialog({ kind: 'edit', view }); }}
+        />
+      )}
+      {recentOpen && (
+        <RecentMovesPopover
+          plan={model.plan}
+          today={today}
+          money={money}
+          anchor={recentButton}
+          onClose={() => {
+            setRecentOpen(false);
+          }}
+        />
+      )}
+      {movesFor && (
+        <CategoryMovesPopover
+          plan={model.plan}
+          categoryId={movesFor.categoryId}
+          month={month}
+          money={money}
+          dateFormat={(d) => formatDate(d, model.plan.settings.dateFormat)}
+          at={movesFor.at}
+          onClose={() => {
+            setMovesFor(null);
+          }}
         />
       )}
       {viewDialog?.kind === 'reset' && <PlanResetDialog model={model} money={money} actions={actions} onClose={() => { setViewDialog(null); }} />}

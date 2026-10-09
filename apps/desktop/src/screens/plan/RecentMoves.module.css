@@ -1,0 +1,138 @@
+/* Recent Moves and a category's Moves (S5.7). Tokens only (ADR 0004). */
+
+.popover {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  width: 420px;
+  max-height: min(560px, calc(100vh - 160px));
+  padding: 0;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-bottom: var(--s-border-width) solid var(--c-border);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--t-size-body);
+  font-weight: var(--t-weight-semibold);
+}
+
+.list {
+  overflow: auto;
+  padding: 4px 14px 14px;
+  background: var(--c-surface-alt);
+}
+
+.day {
+  display: flex;
+  justify-content: space-between;
+  margin: 12px 0 6px;
+  font-size: var(--t-size-small);
+  font-weight: var(--t-weight-semibold);
+}
+
+.moves {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.move {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: var(--s-border-width) solid var(--c-border);
+  border-radius: var(--s-radius);
+  background: var(--c-surface);
+}
+
+.icon {
+  flex: none;
+  margin-top: 2px;
+  color: var(--c-text-muted);
+}
+
+.text {
+  display: grid;
+  gap: 4px;
+}
+
+.text strong {
+  font-variant-numeric: tabular-nums;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 1px 8px;
+  border-radius: var(--s-radius-small);
+  background: var(--c-accent-soft);
+}
+
+.tag {
+  color: var(--c-text-muted);
+  font-size: var(--t-size-micro);
+  letter-spacing: 0.02em;
+}
+
+.empty {
+  display: grid;
+  gap: 4px;
+  justify-items: center;
+  padding: 80px 12px;
+  text-align: center;
+}
+
+.muted {
+  margin: 0;
+  color: var(--c-text-muted);
+  font-weight: var(--t-weight-regular);
+}
+
+.history {
+  display: grid;
+  gap: 6px;
+  width: 360px;
+  padding: 14px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.table th {
+  padding: 6px 0;
+  border-bottom: var(--s-border-width) solid var(--c-border);
+  color: var(--c-text-muted);
+  font-size: var(--t-size-micro);
+  font-weight: var(--t-weight-semibold);
+  text-align: start;
+  text-transform: uppercase;
+}
+
+.table td {
+  padding: 8px 0;
+  border-bottom: var(--s-border-width) solid var(--c-border);
+}
+
+.table .num {
+  text-align: end;
+}
+
+.foot {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 6px;
+}

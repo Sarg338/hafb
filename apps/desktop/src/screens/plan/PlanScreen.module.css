@@ -381,3 +381,20 @@
 .resetTotal dt {
   color: var(--c-text);
 }
+
+/* S5.7: the history button by a selected category's Assigned amount (YNAB). */
+.assignedHistory {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.historyButton {
+  display: inline-grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--c-link);
+  cursor: pointer;
+}
