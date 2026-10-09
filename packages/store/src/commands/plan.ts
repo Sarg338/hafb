@@ -5,7 +5,7 @@ import { compareMonths, minor, type Minor, type Month } from '@hafb/shared';
 import { normalizePlan } from '../changes.ts';
 import { emptyPlan, type BuiltinFocusedView, type MoneyMoveKind, type PlanData, type PlanSettings } from '../records.ts';
 import { planBudget } from '../snapshot.ts';
-import { Draft, liveCategory, type Command, type CommandContext } from './context.ts';
+import { Draft, liveCategory, omit, type Command, type CommandContext } from './context.ts';
 
 export const CREDIT_CARD_PAYMENTS_GROUP_NAME = 'Credit Card Payments';
 export const HIDDEN_CATEGORIES_GROUP_NAME = 'Hidden Categories';
@@ -143,6 +143,13 @@ export function applyPlanChange(
   const d = new Draft(plan);
   applyDeltas(d, ctx, args.change.deltas, args.kind);
   return { label: args.label, changes: d.build() };
+}
+
+/** Cost to Be Me's expected monthly income (YNAB's inspector; undoable there too). Zero or null clears it. */
+export function setExpectedIncome(plan: PlanData, _ctx: CommandContext, args: { amount: Minor | null }): Command {
+  if (args.amount !== null && (!Number.isSafeInteger(args.amount) || args.amount < 0)) throw new ValidationError('Expected income must be a positive amount');
+  const settings = args.amount === null || args.amount === 0 ? omit(plan.settings, 'expectedIncome') : { ...plan.settings, expectedIncome: args.amount };
+  return { label: args.amount === null || args.amount === 0 ? 'Clear expected income' : 'Set expected income', changes: { settings } };
 }
 
 export function setMonthNote(plan: PlanData, _ctx: CommandContext, args: { month: Month; note: string }): Command {

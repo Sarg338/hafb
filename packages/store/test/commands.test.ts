@@ -36,6 +36,7 @@ import {
   setCleared,
   setFlag,
   setFlagName,
+  setExpectedIncome,
   setMonthNote,
   setTarget,
   snoozeTarget,
@@ -216,6 +217,20 @@ describe('commands', () => {
       expect(b.plan.monthNotes).toEqual([{ month: OCT, note: 'hello' }]);
       b.run(setMonthNote(b.plan, ctx, { month: OCT, note: '  ' }));
       expect(b.plan.monthNotes).toEqual([]);
+    });
+  });
+
+  describe('expected income (Cost to Be Me)', () => {
+    it('sets, changes and clears; undo restores the old value', () => {
+      const set = setExpectedIncome(b.plan, ctx, { amount: usd(2000) });
+      expect(set.label).toBe('Set expected income');
+      const before = b.plan;
+      b.run(set);
+      expect(b.plan.settings.expectedIncome).toBe(usd(2000));
+      expect(applyChanges(b.plan, applyChanges(before, set.changes).inverse).plan.settings.expectedIncome).toBeUndefined();
+      b.run(setExpectedIncome(b.plan, ctx, { amount: minor(0) }));
+      expect(b.plan.settings.expectedIncome).toBeUndefined();
+      expect(() => setExpectedIncome(b.plan, ctx, { amount: usd(-1) })).toThrow(/positive/);
     });
   });
 
