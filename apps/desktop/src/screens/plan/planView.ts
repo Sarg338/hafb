@@ -2,7 +2,7 @@
 // here (CLAUDE.md §10): every amount comes from computeBudget / evaluateTargets; this only decides
 // which pill colour, message and bar shape YNAB would show for them.
 import type { CategoryMonth, Target, TargetMonth } from '@hafb/engine';
-import { dateParts, formatMoney, neg, type Minor, type MoneyFormat } from '@hafb/shared';
+import { dateParts, formatMoney, minor, neg, type Minor, type MoneyFormat } from '@hafb/shared';
 
 import type { MoneyState } from '../../ui/moneyState.ts';
 
@@ -100,6 +100,28 @@ export function categoryView(cm: CategoryMonth, fmt: MoneyFormat, target?: Targe
     messageTone: 'plain',
     bar,
   };
+}
+
+/**
+ * A credit card payment category (YNAB trial, 2026-10-08): in the current month, holding less than the
+ * card owes is underfunded (yellow; amex owed $50 with $40 set aside); otherwise it reads like any
+ * category. A payment category below zero (overpaid) is cash overspending.
+ */
+export function paymentView(cm: CategoryMonth, fmt: MoneyFormat, currentMonth: boolean): CategoryView {
+  if (cm.available < 0) return categoryView(cm, fmt);
+  const owed = cm.creditCard ? Math.max(0, 0 - cm.creditCard.balance) : 0;
+  const gap = owed - cm.available;
+  if (currentMonth && gap > 0) {
+    const unfunded = cm.creditCard?.unfundedSpending ?? 0;
+    return {
+      state: 'underfunded',
+      barState: 'underfunded',
+      credit: false,
+      message: unfunded > 0 ? `Cover ${formatMoney(minor(unfunded), fmt)} in overspent categories` : `${formatMoney(minor(gap), fmt)} more needed to pay off the balance`,
+      messageTone: 'warn',
+    };
+  }
+  return categoryView(cm, fmt);
 }
 
 /** "Refill up to $140.00 each month by the 20th": the inspector's one-line target summary. */

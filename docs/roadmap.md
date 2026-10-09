@@ -255,6 +255,17 @@ The 2026-10-08 research (YNAB What's New and help center) found that CLAUDE.md w
     - Only a sort header's words were clickable; the whole header cell now sorts.
     - Starting a split by keyboard could leave focus on the parent row in the release build.
   - Exit check: smoke tests in the release app cover bulk categorize with one undo, duplicate selecting the copies, a keyboard split that survives a relaunch, the search syntax table, header sort and the Last Month preset.
+- **S4.7 done in code (2026-10-08); the real-card check is part of M1.** Built from the YNAB trial plan's two cards (views only; one charge cleared and uncleared again to see Record Payment).
+  - Engine: `CreditCardMonth` gained gross `spending` and `returns` (budget-math §3.14, test 3.14).
+  - Plan:
+    - A payment category holding less than its card owes is yellow in the current month: "Cover $X in overspent categories", or "$X more needed to pay off the balance".
+    - The Credit Card Payments group's total is labelled "Payment".
+  - Activity popover: a click or Enter on any Activity amount lists that month's transactions (split lines at their own amount). A payment category adds YNAB's summary: Spending, Returns, Total Spending | Funded Spending, Payments & Returns, Total Activity.
+  - Inspector (the mockup's, until S5.1): a payment category shows Available for Payment (cash left over, assigned, funded spending, payments made) and Current Balance (prior, spending and outflows, payments and inflows).
+  - Card register: "Overspending (Oct)" and "Payment" pills; **Record Payment** opens a new row pre-filled with min(Available, cleared debt).
+  - Verified: on the trial export, amex and visa match YNAB's popovers, pills and Record Payment amount to the cent (`smoke/trialCards.check.ts`). My first reading of "Payments & Returns" was wrong; YNAB's visa numbers corrected it.
+  - Not yet: Credit Card Interest categorization (YNAB has not documented it and it isn't in the trial), and the payoff-target alert (T-12, with targets in S5.2).
+  - Exit check: a smoke test in the release app ties the payment row, the Activity popover and the card pills together, then pays the card with Record Payment and sees the payment category drop by that amount.
 
 ## Phase 5: Planning power → **M2**
 

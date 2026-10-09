@@ -207,6 +207,28 @@
   white-space: nowrap;
 }
 
+/* The Credit Card Payments group's total, labelled "Payment" above it as in YNAB. */
+.paymentTotal {
+  display: inline-grid;
+  justify-items: end;
+  line-height: 1.1;
+}
+
+.paymentLabel {
+  color: var(--c-text-muted);
+  font-family: var(--t-font-label);
+  font-size: var(--t-size-micro);
+  font-weight: var(--t-label-weight);
+  letter-spacing: var(--t-label-tracking);
+  text-transform: var(--t-label-transform);
+}
+
+/* The Activity amount while its popover is open reads as the link that opened it. */
+.activityOpen {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 .negative {
   color: var(--c-negative);
 }

@@ -50,6 +50,8 @@ import { useShortcut } from '../../ui/shortcuts/ShortcutProvider.tsx';
 import { TextInput } from '../../ui/TextInput.tsx';
 import { moneyFormat } from '../plan/planModel.ts';
 import { moneyText } from '../shared/money.ts';
+import { Pill } from '../../ui/Pill.tsx';
+import { cardHeader, recordPaymentAmount } from '../shared/cardModel.ts';
 import { typeInfo } from './accountsModel.ts';
 import { colorLabel, FLAG_COLORS, flagForDigit, flagName } from './flags.ts';
 import {
@@ -93,6 +95,8 @@ const EDIT_LINE_HEIGHT = 34;
 const SPLIT = '__split__';
 const SORTABLE: readonly SortColumn[] = ['account', 'date', 'payee', 'category', 'memo', 'outflow', 'inflow'];
 const isSortable = (id: string): id is SortColumn => SORTABLE.some((c) => c === id);
+const MONTH_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const monthShort = (m: string): string => MONTH_SHORT[Number(m.slice(5, 7)) - 1] ?? m;
 const plural = (n: number): string => `${String(n)} Transaction${n === 1 ? '' : 's'}`;
 
 /** The View Options date range: a preset's months, the custom From/To, or all dates. */
@@ -119,7 +123,10 @@ export function RegisterScreen({ plan, today, accountId, actions, history }: Reg
   const fmt = moneyFormat(plan);
   const money = useMemo(() => moneyText(fmt, p.hideAmounts), [fmt, p.hideAmounts]);
   const account = accountId === null ? undefined : plan.accounts.find((a) => a.id === accountId);
-  const balances = useMemo(() => planBudget(plan, { today }).accountBalances, [plan, today]);
+  const budget = useMemo(() => planBudget(plan, { today }), [plan, today]);
+  const balances = budget.accountBalances;
+  // A credit card's header pills and Record Payment (S4.7, YNAB trial 2026-10-08).
+  const card = useMemo(() => (accountId === null ? null : cardHeader(plan, budget, accountId)), [plan, budget, accountId]);
   const [searchText, setSearchText] = useState('');
   const [onlyUnapproved, setOnlyUnapproved] = useState(false);
   const [onlyUncategorized, setOnlyUncategorized] = useState(false);
@@ -199,7 +206,7 @@ export function RegisterScreen({ plan, today, accountId, actions, history }: Reg
         return;
       }
       setSelected(new Set());
-      setDraft({ ...draftFor(null, { accountId: acct, date: from?.date ?? today, cleared: defaultCleared(plan, acct) }) });
+      setDraft({ ...draftFor(null, { accountId: acct, date: from?.date ?? today, cleared: defaultCleared(plan, acct) }), ...(from?.inflow === undefined ? {} : { inflow: from.inflow }) });
       setEdit({ id: NEW, focus: accountId === null ? 'account' : 'date' });
     },
     [firstAccount, today, plan, accountId, actions, setDraft],
@@ -948,6 +955,24 @@ export function RegisterScreen({ plan, today, accountId, actions, history }: Reg
             <span>Working Balance</span>
           </div>
         </div>
+        {card && (
+          <div className={styles.cardPills} aria-label="Credit card">
+            {card.overspending > 0 && (
+              <div>
+                <Pill state="creditOverspent" title="Spending on this card this month that no category covered">
+                  {money(card.overspending)}
+                </Pill>
+                <span>Overspending ({monthShort(card.month)})</span>
+              </div>
+            )}
+            <div>
+              <Pill state={card.underfunded ? 'underfunded' : card.payment > 0 ? 'funded' : 'zero'} title={card.underfunded ? 'Less is set aside than this card owes' : 'Set aside to pay this card'}>
+                {money(card.payment)}
+              </Pill>
+              <span>Payment</span>
+            </div>
+          </div>
+        )}
         {picked.length > 1 && (
           <div className={styles.selectedTotal} aria-live="polite">
             <strong>{money(selectedTotal(txRows, new Set(picked)))}</strong>
@@ -971,6 +996,18 @@ export function RegisterScreen({ plan, today, accountId, actions, history }: Reg
         <Button variant="toolbar" icon="import" disabled title="Bank file import arrives in S6.5">
           File Import
         </Button>
+        {card && account && (
+          <Button
+            variant="toolbar"
+            icon="card"
+            title="A payment to this card, pre-filled with what is set aside, up to the cleared balance"
+            onClick={() => {
+              startNew({ accountId: account.id, inflow: recordPaymentAmount(plan, budget, account.id) });
+            }}
+          >
+            Record Payment
+          </Button>
+        )}
         <Button variant="toolbar" icon="undo" disabled={!history.canUndo} title={history.undoLabel ? `Undo ${history.undoLabel} (Ctrl+Z)` : 'Nothing to undo'} onClick={actions.undo}>
           Undo
         </Button>

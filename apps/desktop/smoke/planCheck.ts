@@ -78,7 +78,7 @@ export async function readGrid(page: Page): Promise<ShownRow[]> {
       if (!el) return '';
       const copy = el.cloneNode(true);
       if (!(copy instanceof Element)) return '';
-      for (const hidden of copy.querySelectorAll('.visually-hidden')) hidden.remove();
+      for (const hidden of copy.querySelectorAll('.visually-hidden, [data-part=label]')) hidden.remove();
       return copy.textContent.replace(/\s+/g, ' ').trim();
     };
     const read = (): void => {

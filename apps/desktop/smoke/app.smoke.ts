@@ -512,8 +512,12 @@ void describe('moving money', () => {
     await page.getByRole('button', { name: 'Today' }).click();
     await page.waitForTimeout(500);
     assert.equal(await rta(page), '$0.00');
-    // Esc deselects (the inspector then shows the month), as in YNAB.
+    // Esc deselects (the inspector then shows the month), as in YNAB. A click on Activity opens its
+    // popover (S4.7): the first Esc closes it, the second deselects.
     await cell(page, 'Groceries', 'activity').click();
+    await page.getByRole('dialog', { name: /Activity: Groceries/ }).waitFor();
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(150);
     await page.keyboard.press('Escape');
     await page.locator('section', { hasText: 'Assigned in Future Months' }).getByText(/November is .* short/).waitFor();
   });
@@ -932,6 +936,67 @@ void describe('register power', () => {
     await page.getByRole('button', { name: 'View', exact: true }).click();
     await dlg.getByRole('button', { name: 'All Dates' }).click();
     await dlg.getByRole('button', { name: 'Apply' }).click();
+    await app.close();
+  });
+});
+
+// ---- S4.7 exit: credit cards on screen tie out to the engine; Record Payment moves the money -------
+void describe('credit cards', () => {
+  let box: Sandbox;
+  const running: App[] = [];
+  before(() => {
+    box = makeSandbox();
+  });
+  after(async () => {
+    for (const a of running) await a.close().catch(() => undefined);
+    box.cleanup();
+  });
+  const cents = (s: string): number => {
+    const m = /([-+]?)\$([\d,]+)\.(\d\d)/.exec(s);
+    return m ? (m[1] === '-' ? -1 : 1) * (Number((m[2] ?? '0').replace(/,/g, '')) * 100 + Number(m[3])) : 0;
+  };
+
+  void test('payment row, Activity popover, card header pills and Record Payment', { timeout: 300_000 }, async () => {
+    const app = await launch(box, ['--open', box.planPath]);
+    running.push(app);
+    const { page } = app;
+    const plan = page.getByRole('treegrid', { name: 'Categories' });
+    await plan.waitFor();
+    const group = plan.locator('[role=row]', { hasText: 'Credit Card Payments' }).first();
+    assert.match(norm(await group.innerText()), /PAYMENT/i);
+    const visaRow = plan.locator('[role=row]', { has: page.locator('[data-col=category]', { hasText: /^Visa Rewards/ }) });
+    const available = cents(await visaRow.locator('[data-col=available]').innerText());
+    const activity = cents(await visaRow.locator('[data-col=activity]').innerText());
+
+    // The payment category's Activity popover: Funded Spending + Payments & Returns = Total Activity.
+    await visaRow.locator('[data-col=activity]').click();
+    const pop = page.getByRole('dialog', { name: /Activity: Visa Rewards/ });
+    const text = norm(await pop.innerText());
+    const pick = (label: string): number => cents(new RegExp(`${label} ([-+]\\$[\\d,]+\\.\\d\\d)`).exec(text)?.[1] ?? '');
+    assert.equal(pick('Total Activity'), activity, 'the popover total is the Activity column');
+    assert.equal(pick('Funded Spending') + pick('Payments & Returns'), activity);
+    assert.equal(pick('Spending') + pick('Returns'), pick('Total Spending'));
+    await pop.getByRole('button', { name: 'Close' }).click();
+
+    // The card register: the Payment pill is the payment category's Available.
+    await page.getByRole('navigation', { name: 'Plan navigation' }).locator('[data-section=credit]', { hasText: 'Visa Rewards' }).click();
+    await page.getByRole('treegrid', { name: /Visa Rewards transactions/ }).waitFor();
+    const pills = norm(await page.getByLabel('Credit card').innerText());
+    assert.equal(cents(/([-+]?\$[\d,]+\.\d\d) Payment/.exec(pills)?.[1] ?? ''), available);
+    const cleared = cents(norm(await page.getByLabel('Balances').innerText()));
+
+    // Record Payment pre-fills min(Available, cleared debt); pay it from checking.
+    await page.getByRole('button', { name: 'Record Payment' }).click();
+    const inflow = page.getByRole('textbox', { name: 'Inflow' });
+    const amount = cents(await inflow.inputValue());
+    assert.equal(amount, Math.max(0, Math.min(available, 0 - cleared)));
+    await page.getByRole('combobox', { name: 'Payee' }).click();
+    await page.keyboard.type('Everyday Checking');
+    await page.waitForTimeout(150);
+    await page.keyboard.press('Enter');
+    await page.getByRole('button', { name: 'Save', exact: true }).click();
+    await page.waitForTimeout(400);
+    assert.equal(cents(/([-+]?\$[\d,]+\.\d\d) Payment/.exec(norm(await page.getByLabel('Credit card').innerText()))?.[1] ?? ''), available - amount, 'a payment takes its amount out of the payment category');
     await app.close();
   });
 });

@@ -67,7 +67,7 @@ A row is `done` only after Sarg validates it on hardware. Rows whose engine half
 | T-09 | Expected income (for Cost to Be Me) | S1.4 | S5.1 | in-progress |
 | T-10 | Legacy target types mapped on import | S1.4 | S2.4 | in-progress |
 | T-11 | Monthly Debt Payment target for paired loan categories | S1.7 | S6.4 | in-progress |
-| T-12 | CC payoff target drives the CC underfunded alert | S1.3 | S4.7 | in-progress |
+| T-12 | CC payoff target drives the CC underfunded alert | S1.3 | S5.2 | in-progress |
 
 ## 4. Auto-Assign ([auto-assign](https://support.ynab.com/en_us/auto-assign-a-guide-r1gBNbBJo))
 
@@ -144,13 +144,13 @@ A row is `done` only after Sarg validates it on hardware. Rows whose engine half
 
 | ID | Feature | Engine | UI | Status |
 |---|---|---|---|---|
-| CC-01 | Payment category auto-created per card | S1.3 | S4.7 | in-progress |
-| CC-02 | Spending moves funded amount to the payment category | S1.3 | S4.7 | in-progress |
-| CC-03 | Payments, refunds, interest and fees as categorized outflows | S1.3 | S4.7 | in-progress |
-| CC-04 | Activity popover: spending, returns, funded spending, payments | S1.3 | S4.7 | in-progress |
-| CC-05 | Record Payment (pre-fill = min(available, cleared balance)) | S1.3 | S4.7 | in-progress |
-| CC-06 | Pay-in-full gap; underfunded alert (current month) | S1.3 | S4.7 | in-progress |
-| CC-07 | Credit Card Interest categorization (YNAB rolling out Oct 2026; research first) | S1.3 | S4.7 | in-progress |
+| CC-01 | Payment category auto-created per card | S1.3 | S4.7 | done |
+| CC-02 | Spending moves funded amount to the payment category | S1.3 | S4.7 | done |
+| CC-03 | Payments, refunds, interest and fees as categorized outflows | S1.3 | S4.7 | done |
+| CC-04 | Activity popover: spending, returns, funded spending, payments | S1.3 | S4.7 | done (matches the trial plan to the cent) |
+| CC-05 | Record Payment (pre-fill = min(available, cleared balance)) | S1.3 | S4.7 | done |
+| CC-06 | Pay-in-full gap; underfunded alert (current month) | S1.3 | S4.7 | done (payoff-target variant with T-12, S5.2) |
+| CC-07 | Credit Card Interest categorization (YNAB rolling out Oct 2026; research first) | S1.3 | S7.x | todo (not in the trial plan yet; revisit when YNAB documents it) |
 | CC-08 | CC payment auto-matching across checking ↔ card on import | S1.6 | S6.5 | in-progress |
 
 ## 9. Payees ([categorizing](https://support.ynab.com/en_us/categorizing-transactions-a-guide-HyRl60sks))

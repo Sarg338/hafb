@@ -21,6 +21,8 @@ import { useShortcut } from '../../ui/shortcuts/ShortcutProvider.tsx';
 import { useTweened } from '../../ui/useTweened.ts';
 import { moneyText, type MoneyText } from '../shared/money.ts';
 import { NARROW_WINDOW, useMediaQuery } from '../shared/useMediaQuery.ts';
+import { activityLines, paymentActivity } from '../shared/cardModel.ts';
+import { ActivityPopover } from './ActivityPopover.tsx';
 import { MovePopover, SourcePopover } from './MoneyPopovers.tsx';
 import { coverSources, futureShortfalls, laterMonths, moveTargets, parseSource } from './moneyMoves.ts';
 import { monthName, PlanHeader } from './PlanHeader.tsx';
@@ -159,7 +161,16 @@ export function PlanScreen({ plan, planPath, today, month, setMonth, actions, hi
             />
           ) : null,
       },
-      { id: 'activity', header: 'Activity', width: moneyWidth, align: 'end', render: (r) => money(r.data.activity) },
+      {
+        id: 'activity',
+        header: 'Activity',
+        width: moneyWidth,
+        align: 'end',
+        // A click (or Enter) on a category's Activity lists its transactions (YNAB's Activity popover).
+        editable: (r) => r.data.kind === 'category',
+        render: (r) => money(r.data.activity),
+        editor: ({ row, done }) => (row.data.kind === 'category' ? <ActivityEditor row={row.data} model={model} money={money} done={done} /> : null),
+      },
       {
         id: 'available',
         header: 'Available',
@@ -170,7 +181,15 @@ export function PlanScreen({ plan, planPath, today, month, setMonth, actions, hi
           row.data.kind === 'category' ? <AvailableEditor row={row.data} model={model} later={later} money={money} actions={actions} done={done} /> : null,
         render: (r) =>
           r.data.kind === 'group' ? (
-            <span className={cx(styles.groupAmount, r.data.available < 0 && styles.negative)}>{money(r.data.available)}</span>
+            r.data.system === 'creditCardPayments' ? (
+              // YNAB labels the card group's total "Payment": what is set aside to pay the cards.
+              <span className={styles.paymentTotal}>
+                <span className={styles.paymentLabel} data-part="label">Payment</span>
+                <span className={cx(styles.groupAmount, r.data.available < 0 && styles.negative)}>{money(r.data.available)}</span>
+              </span>
+            ) : (
+              <span className={cx(styles.groupAmount, r.data.available < 0 && styles.negative)}>{money(r.data.available)}</span>
+            )
           ) : (
             <AvailablePill row={r.data} money={money} />
           ),
@@ -293,7 +312,7 @@ export function PlanScreen({ plan, planPath, today, month, setMonth, actions, hi
   );
 }
 
-const EDIT_ON_CLICK = ['assigned', 'available'] as const;
+const EDIT_ON_CLICK = ['assigned', 'activity', 'available'] as const;
 
 interface NameActions {
   rename: (id: string, el: Element) => void;
@@ -370,6 +389,30 @@ function GroupName({ id, row, on }: { id: string; row: PlanGroupRow; on: NameAct
         }}
       />
     </span>
+  );
+}
+
+/** Click or Enter on Activity: the category's transactions this month (YNAB's Activity popover). */
+function ActivityEditor({ row, model, money, done }: { row: PlanCategoryRow; model: PlanModel; money: MoneyText; done: (end: EditEnd) => void }) {
+  const anchor = useRef<HTMLSpanElement>(null);
+  const cm = model.ms.categories[row.id];
+  return (
+    <>
+      <span ref={anchor} className={styles.activityOpen}>
+        {money(row.activity)}
+      </span>
+      <ActivityPopover
+        anchor={anchor}
+        category={row.name}
+        lines={activityLines(model.plan, row.id, model.month)}
+        summary={cm ? paymentActivity(cm) : null}
+        dateFormat={model.plan.settings.dateFormat}
+        money={money}
+        onClose={() => {
+          done('cancel');
+        }}
+      />
+    </>
   );
 }
 

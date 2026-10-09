@@ -1,0 +1,113 @@
+/* The Activity popover (S4.7): tokens only, the approved popover surface. */
+
+.popover {
+  display: grid;
+  gap: 10px;
+  width: min(520px, calc(100vw - 32px));
+  padding: 16px;
+}
+
+.title {
+  margin: 0;
+  font-family: var(--t-font-display);
+  font-size: var(--t-size-subtitle);
+  font-weight: var(--t-weight-semibold);
+}
+
+.subtitle {
+  margin: -8px 0 0;
+  color: var(--c-text-muted);
+  font-size: var(--t-size-small);
+}
+
+.summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: var(--s-radius);
+  background: var(--c-surface-alt);
+}
+
+.column {
+  display: grid;
+  gap: 4px;
+}
+
+.column > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.column dt {
+  color: var(--c-text-muted);
+}
+
+.column dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.column .total {
+  margin-top: 4px;
+  padding-top: 6px;
+  border-top: var(--s-border-width) solid var(--c-border);
+  font-weight: var(--t-weight-semibold);
+}
+
+.column .total dt {
+  color: var(--c-text);
+}
+
+.scroll {
+  max-height: 280px;
+  overflow: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--t-size-small);
+}
+
+.table th {
+  padding: 6px 8px;
+  border-bottom: var(--s-border-width) solid var(--c-border);
+  color: var(--c-text-muted);
+  font-family: var(--t-font-label);
+  font-size: var(--t-size-micro);
+  font-weight: var(--t-label-weight);
+  letter-spacing: var(--t-label-tracking);
+  text-align: left;
+  text-transform: var(--t-label-transform);
+}
+
+.table td {
+  padding: 6px 8px;
+  border-bottom: var(--s-border-width) solid var(--c-border);
+  white-space: nowrap;
+}
+
+.table .end {
+  text-align: right;
+}
+
+.amount {
+  font-variant-numeric: tabular-nums;
+}
+
+.muted {
+  color: var(--c-text-muted);
+}
+
+.empty {
+  margin: 0;
+  color: var(--c-text-muted);
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+}

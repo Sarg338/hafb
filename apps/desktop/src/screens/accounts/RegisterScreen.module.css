@@ -453,3 +453,22 @@
   font-weight: var(--t-weight-semibold);
   font-variant-numeric: tabular-nums;
 }
+
+/* ---- S4.7: a credit card's header pills (Overspending, Payment) ------------------------------ */
+
+.cardPills {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.cardPills > div {
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+}
+
+.cardPills > div > span:last-child {
+  color: var(--c-text-muted);
+  font-size: var(--t-size-caption);
+}

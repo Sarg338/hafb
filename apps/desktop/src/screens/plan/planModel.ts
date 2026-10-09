@@ -1,8 +1,8 @@
 // Everything the Plan screen and inspector read for one month, computed once per plan object.
 import { evaluateTargets, type BudgetState, type Id, type MonthState, type Target, type TargetMonth } from '@hafb/engine';
-import { ZERO, type ISODate, type Minor, type MoneyFormat, type Month } from '@hafb/shared';
+import { monthOf, ZERO, type ISODate, type Minor, type MoneyFormat, type Month } from '@hafb/shared';
 import { planBudget, type CategoryGroupRecord, type CategoryRecord, type PlanData } from '@hafb/store';
-import { categoryView, type CategoryView } from './planView.ts';
+import { categoryView, paymentView, type CategoryView } from './planView.ts';
 
 export interface PlanModel {
   plan: PlanData;
@@ -60,7 +60,7 @@ export function planModel(plan: PlanData, month: Month, today: ISODate): PlanMod
   for (const { categories } of groups) {
     for (const c of categories) {
       const cm = ms.categories[c.id];
-      if (cm) views.set(c.id, categoryView(cm, fmt, targets.get(c.id), evaluated[c.id]));
+      if (cm) views.set(c.id, c.creditCardAccountId !== undefined ? paymentView(cm, fmt, month === monthOf(today)) : categoryView(cm, fmt, targets.get(c.id), evaluated[c.id]));
     }
   }
   const paymentIds = new Set(plan.categories.filter((c) => c.creditCardAccountId !== undefined).map((c) => c.id));

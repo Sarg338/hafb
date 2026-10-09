@@ -5,6 +5,7 @@ import { usePrefs } from '../shell/prefs.ts';
 import { moneyText } from '../screens/shared/money.ts';
 import { applyPlanChange, setAssigned, setCategoryNote } from '@hafb/store';
 import { Icon } from '../ui/Icon.tsx';
+import { cardBalance } from '../screens/shared/cardModel.ts';
 import type { Actions } from './DesignApp.tsx';
 import { Bar, monthName, Pill } from './PlanScreen.tsx';
 import type { PlanModel } from '../screens/plan/planModel.ts';
@@ -242,6 +243,7 @@ function CategoryDetail({ model, id, actions, money }: { model: PlanModel; id: I
   const [note, setNote] = useState(category?.note ?? '');
   if (!cm || !view || !category) return null;
   const prev = monthName(addMonths(model.month, -1)).slice(0, 3);
+  const balance = cardBalance(cm);
   return (
     <>
       <section className="hd-card">
@@ -250,26 +252,76 @@ function CategoryDetail({ model, id, actions, money }: { model: PlanModel; id: I
           <span className="muted">Available</span>
           <Pill view={view} value={cm.available} money={money} />
         </div>
-        <div className="hd-line">
-          <span>Cash left over from {prev}</span>
-          <span className="num">{money(cm.carriedIn)}</span>
-        </div>
-        <div className="hd-line">
-          <span>Assigned this month</span>
-          <span className="num">{money(cm.assigned)}</span>
-        </div>
-        <div className="hd-line">
-          <span>Cash spending</span>
-          <span className="num">{money(cm.cashActivity)}</span>
-        </div>
-        <div className="hd-line">
-          <span>Credit spending</span>
-          <span className="num">{money(cm.creditActivity)}</span>
-        </div>
-        <div className="hd-line total">
-          <span>Available</span>
-          <span className="num">{money(cm.available)}</span>
-        </div>
+        {cm.creditCard ? (
+          // A payment category (YNAB trial, 2026-10-08): "Available for Payment" is Cash Left Over +
+          // Assigned + Funded Spending − Payments Made; the card's Current Balance follows.
+          <>
+            {view.state === 'underfunded' && view.message && <p className="hd-note">{view.message} in order to pay off the current balance.</p>}
+            <div className="hd-line">
+              <span>Cash left over from {prev}</span>
+              <span className="num">{money(cm.carriedIn)}</span>
+            </div>
+            <div className="hd-line">
+              <span>Assigned</span>
+              <span className="num">{money(cm.assigned)}</span>
+            </div>
+            <div className="hd-line">
+              <span>Funded spending</span>
+              <span className="num">{money(cm.creditCard.fundedSpending)}</span>
+            </div>
+            <div className="hd-line">
+              <span>Payments made</span>
+              <span className="num">{money(neg(cm.creditCard.payments))}</span>
+            </div>
+            <div className="hd-line total">
+              <span>Available for Payment</span>
+              <span className="num">{money(cm.available)}</span>
+            </div>
+            {balance && (
+              <>
+                <div className="hd-line" style={{ marginTop: 12 }}>
+                  <span>Prior balance</span>
+                  <span className="num">{money(balance.prior)}</span>
+                </div>
+                <div className="hd-line">
+                  <span>Spending and outflows</span>
+                  <span className="num">{money(balance.spending)}</span>
+                </div>
+                <div className="hd-line">
+                  <span>Payments and inflows</span>
+                  <span className="num">{money(balance.inflows)}</span>
+                </div>
+                <div className="hd-line total">
+                  <span>Current Balance</span>
+                  <span className="num">{money(balance.current)}</span>
+                </div>
+              </>
+            )}
+          </>
+        ) : (
+          <>
+            <div className="hd-line">
+              <span>Cash left over from {prev}</span>
+              <span className="num">{money(cm.carriedIn)}</span>
+            </div>
+            <div className="hd-line">
+              <span>Assigned this month</span>
+              <span className="num">{money(cm.assigned)}</span>
+            </div>
+            <div className="hd-line">
+              <span>Cash spending</span>
+              <span className="num">{money(cm.cashActivity)}</span>
+            </div>
+            <div className="hd-line">
+              <span>Credit spending</span>
+              <span className="num">{money(cm.creditActivity)}</span>
+            </div>
+            <div className="hd-line total">
+              <span>Available</span>
+              <span className="num">{money(cm.available)}</span>
+            </div>
+          </>
+        )}
         {view.state === 'overspent' && (
           <p className="hd-note">
             {view.credit
