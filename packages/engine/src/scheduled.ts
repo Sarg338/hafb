@@ -160,20 +160,21 @@ export function dueTransactions(scheduled: readonly ScheduledTransaction[], toda
 }
 
 /**
- * Net scheduled amounts per category still to come in `month`: occurrences after `today`
- * (or from the 1st, for a future month) through month end. Outflows are negative.
+ * Scheduled amounts per category still to come in `month`, with how many transactions: occurrences
+ * after `today` (or from the 1st, for a future month) through month end. Outflows are negative.
  * Split lines count toward their own categories; Ready to Assign and uncategorized lines are skipped.
  */
-export function upcomingByCategory(scheduled: readonly ScheduledTransaction[], month: Month, today: ISODate): Record<Id, Minor> {
+export function upcomingDetails(scheduled: readonly ScheduledTransaction[], month: Month, today: ISODate): Record<Id, { amount: Minor; count: number }> {
   // YNAB doesn't project scheduled transactions into future months (trial 2026-11: the monthly
   // Utilities bill flagged in October showed nothing in November).
   if (compareMonths(month, monthOf(today)) > 0) return {};
   const start = monthOf(today) === month ? addDays(today, 1) : firstDayOfMonth(month);
   const end = lastDayOfMonth(month);
-  const totals = new Map<Id, number>();
+  const totals = new Map<Id, { amount: number; count: number }>();
   const add = (categoryId: CategoryRef, amount: number, times: number) => {
     if (categoryId === null || categoryId === READY_TO_ASSIGN || times === 0) return;
-    totals.set(categoryId, (totals.get(categoryId) ?? 0) + amount * times);
+    const t = totals.get(categoryId) ?? { amount: 0, count: 0 };
+    totals.set(categoryId, { amount: t.amount + amount * times, count: t.count + times });
   };
   for (const s of scheduled) {
     if (s.deleted || compareDates(start, end) > 0) continue;
@@ -184,8 +185,15 @@ export function upcomingByCategory(scheduled: readonly ScheduledTransaction[], m
       add(s.categoryId, s.amount, times);
     }
   }
+  const out: Record<Id, { amount: Minor; count: number }> = {};
+  for (const [id, t] of totals) out[id] = { amount: minor(t.amount), count: t.count };
+  return out;
+}
+
+/** Net scheduled amounts per category still to come in `month` (see upcomingDetails). */
+export function upcomingByCategory(scheduled: readonly ScheduledTransaction[], month: Month, today: ISODate): Record<Id, Minor> {
   const out: Record<Id, Minor> = {};
-  for (const [id, total] of totals) out[id] = minor(total);
+  for (const [id, t] of Object.entries(upcomingDetails(scheduled, month, today))) out[id] = t.amount;
   return out;
 }
 

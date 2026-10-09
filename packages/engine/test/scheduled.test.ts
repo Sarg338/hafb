@@ -11,6 +11,7 @@ import {
   nextOccurrence,
   occurrencesBetween,
   upcomingByCategory,
+  upcomingDetails,
   upcomingShortfalls,
   type Frequency,
   type ScheduledTransaction,
@@ -144,6 +145,11 @@ describe('upcoming within the month (§5.11 shortfall warning)', () => {
     expect(upcomingByCategory(schedules, '2026-03', d('2026-03-15'))).toEqual({ bills: -6_000, fun: -1_000 });
     // YNAB doesn't project scheduled transactions into future months (trial 2026-11).
     expect(upcomingByCategory(schedules, '2026-04', d('2026-03-15'))).toEqual({});
+  });
+
+  it('counts the upcoming transactions too (YNAB inspector: "1 Upcoming Transaction")', () => {
+    expect(upcomingDetails(schedules, '2026-03', d('2026-03-15'))).toEqual({ bills: { amount: -6_000, count: 1 }, fun: { amount: -1_000, count: 2 } });
+    expect(upcomingDetails(schedules, '2026-04', d('2026-03-15'))).toEqual({});
   });
 
   it('available after upcoming, and the categories that would go negative', () => {
