@@ -13,8 +13,8 @@ export const HIDDEN_CATEGORIES_GROUP_NAME = 'Hidden Categories';
 const BUILTIN_VIEWS: readonly [BuiltinFocusedView, string][] = [
   ['underfunded', 'Underfunded'],
   ['overfunded', 'Overfunded'],
-  ['snoozed', 'Snoozed'],
   ['moneyAvailable', 'Money Available'],
+  ['snoozed', 'Snoozed'],
   ['overspent', 'Overspent'],
 ];
 
