@@ -11,6 +11,10 @@
 // occurrence on the section's tint; a schedule edits in the same row editor, with its repeat under
 // the date picker's calendar. A new row dated after today becomes a schedule. A scheduled selection
 // gets Enter Now (E), Categorize, Flag and More; Shift+T makes a transaction repeat.
+// S5.6 (YNAB, observed 2026-10-08): Reconcile (Shift+E) asks "Is your current balance $X?". Yes
+// locks the cleared transactions; No asks for the bank's balance, then a banner tracks the
+// difference while transactions are cleared: Cancel, or Create Adjustment & Finish (Finish once
+// it matches).
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { CASH_ACCOUNT_TYPES, type ClearedState, type FlagColor, type Frequency, type Id } from '@hafb/engine';
 import { formatDate, minor, monthOf, neg, ZERO, type ISODate, type Minor } from '@hafb/shared';
@@ -31,6 +35,8 @@ import {
   makeRepeating,
   mergeChangeSets,
   planBudget,
+  reconcileAccount,
+  reconcilePreview,
   setCleared,
   setFlag,
   setFlagName,
@@ -49,7 +55,7 @@ import { CategoryPicker } from '../../ui/CategoryPicker.tsx';
 import { Combobox } from '../../ui/Combobox.tsx';
 import { cx } from '../../ui/cx.ts';
 import { DateInput } from '../../ui/DateInput.tsx';
-import { Dialog } from '../../ui/Dialog.tsx';
+import { Dialog, useConfirm } from '../../ui/Dialog.tsx';
 import { DataGrid, type GridColumn } from '../../ui/grid/DataGrid.tsx';
 import type { GridRow } from '../../ui/grid/types.ts';
 import { Icon } from '../../ui/Icon.tsx';
@@ -194,6 +200,22 @@ export function RegisterScreen({ plan, today, accountId, actions, history }: Reg
   const [rowMenu, setRowMenu] = useState<{ ids: string[]; at: Rect } | null>(null);
   const [renamingFlags, setRenamingFlags] = useState(false);
   const [repeatFor, setRepeatFor] = useState<{ id: string; at: Rect } | null>(null);
+  const [reconcile, setReconcile] = useState<null | { step: 'ask' } | { step: 'enter'; amount: Minor } | { step: 'mode'; statement: Minor }>(null);
+  const reconcileButton = useRef<HTMLButtonElement>(null);
+  const confirm = useConfirm();
+  const reconcileAmount = useRef<Minor>(ZERO);
+  const bankField = useRef<HTMLInputElement>(null);
+  // "Current balance at your bank" starts empty and focused (YNAB).
+  const reconcileStep = reconcile?.step;
+  useEffect(() => {
+    if (reconcileStep !== 'enter') return;
+    const id = requestAnimationFrame(() => {
+      bankField.current?.focus();
+    });
+    return () => {
+      cancelAnimationFrame(id);
+    };
+  }, [reconcileStep]);
   const searchRef = useRef<HTMLInputElement>(null);
   const viewKey = accountId ?? 'all';
   const view = p.registerViews[viewKey] ?? DEFAULT_REGISTER_VIEW;
@@ -543,6 +565,17 @@ export function RegisterScreen({ plan, today, accountId, actions, history }: Reg
     run: () => {
       const ids = targetIds(activeRowId());
       if (ids.length === 1 && ids[0] !== undefined) startEdit(ids[0], 'payee', true);
+    },
+  });
+  useShortcut({
+    id: 'register.reconcile',
+    keys: 'Shift+E',
+    description: 'Reconcile the account',
+    group: 'Register',
+    scope: 'screen',
+    enabled: edit === null && account !== undefined && account.closed !== true,
+    run: () => {
+      setReconcile({ step: 'ask' });
     },
   });
   useShortcut({ id: 'register.enterNow', keys: 'E', description: 'Enter a scheduled transaction now', group: 'Register', scope: 'screen', enabled: edit === null, run: () => { enterNow(targetIds(activeRowId())); } });
@@ -914,11 +947,21 @@ export function RegisterScreen({ plan, today, accountId, actions, history }: Reg
             data-interactive=""
             data-row-editor={isEditing(r) ? '' : undefined}
             className={cx(styles.cleared, state === 'cleared' && styles.isCleared, state === 'reconciled' && styles.isReconciled)}
-            aria-label={state === 'reconciled' ? 'Reconciled' : `${label}. Toggle cleared`}
-            title={label}
-            disabled={state === 'reconciled'}
+            aria-label={state === 'reconciled' ? 'Reconciled. Unlock' : `${label}. Toggle cleared`}
+            title={state === 'reconciled' ? 'Reconciled: click to unlock' : label}
             onClick={() => {
-              if (isEditing(r)) patchDraft({ cleared: NEXT_CLEARED[state] });
+              if (state === 'reconciled') {
+                // §5.8: unlocking warns, and unlocks only this transaction (it becomes cleared).
+                if (r.data.kind !== 'tx') return;
+                const id = r.data.tx.id;
+                void confirm({
+                  title: 'Unlock this transaction?',
+                  body: 'It was reconciled with your bank. Changing it can make the account disagree with your statement. It will be marked cleared.',
+                  confirmLabel: 'Unlock',
+                }).then((ok) => {
+                  if (ok) actions.run((pl, ctx) => setCleared(pl, ctx, { transactionIds: [id], cleared: 'cleared' }));
+                });
+              } else if (isEditing(r)) patchDraft({ cleared: NEXT_CLEARED[state] });
               else if (r.data.kind === 'tx') toggleCleared([r.data.tx.id]);
             }}
           >
@@ -1105,7 +1148,7 @@ export function RegisterScreen({ plan, today, accountId, actions, history }: Reg
                 {typeInfo(account.type).label}
                 {' · '}
                 <Icon name="lock" className={styles.inline} />
-                {daysSince === null ? 'Not yet reconciled' : `Reconciled ${String(daysSince)} days ago`}
+                {daysSince === null ? 'Not yet reconciled' : daysSince === 0 ? 'Reconciled today' : `Reconciled ${String(daysSince)} day${daysSince === 1 ? '' : 's'} ago`}
                 {account.note ? ` · ${account.note}` : ''}
               </>
             ) : (
@@ -1165,7 +1208,18 @@ export function RegisterScreen({ plan, today, accountId, actions, history }: Reg
         {account && (
           <div className={styles.headActions}>
             {actions.accountAction && <IconButton icon="edit" label={`Edit ${account.name}`} onClick={() => { actions.accountAction?.(account.id, 'edit'); }} />}
-            <Button icon="lock" disabled title="Reconcile arrives in S5.6">
+            <Button
+              ref={reconcileButton}
+              icon="lock"
+              variant={reconcile?.step === 'mode' ? 'secondary' : 'primary'}
+              disabled={account.closed === true || reconcile?.step === 'mode'}
+              title="Reconcile (Shift+E)"
+              aria-haspopup="dialog"
+              aria-expanded={reconcile !== null && reconcile.step !== 'mode'}
+              onClick={() => {
+                setReconcile(reconcile === null ? { step: 'ask' } : null);
+              }}
+            >
               Reconcile
             </Button>
           </div>
@@ -1231,6 +1285,8 @@ export function RegisterScreen({ plan, today, accountId, actions, history }: Reg
       )}
       {viewOpen && <ViewOptions anchor={viewButton} view={view} firstMonth={firstMonth} today={today} singleAccount={accountId !== null} onApply={applyView} onClose={() => { setViewOpen(false); }} />}
 
+      {reconcileBanner()}
+      {reconcilePopover()}
       {unapproved.length > 0 && (
         <div className={styles.banner}>
           <Notice
@@ -1417,6 +1473,105 @@ export function RegisterScreen({ plan, today, accountId, actions, history }: Reg
       )}
     </div>
   );
+
+  // ---- reconcile (S5.6) ----------------------------------------------------------------------------
+  function finishReconcile(statement: Minor): void {
+    if (!account) return;
+    const id = account.id;
+    actions.run((pl, ctx) => reconcileAccount(pl, ctx, { accountId: id, statementBalance: statement }), { announce: `Reconciled ${account.name}.` });
+    setReconcile(null);
+  }
+
+  function reconcilePopover(): ReactNode {
+    if (!account || reconcile === null || reconcile.step === 'mode') return null;
+    const cleared = total('cleared');
+    return (
+      <Popover open onClose={() => { setReconcile(null); }} anchor={reconcileButton} placement="bottom-end" role="dialog" label="Reconcile" className={styles.reconcile}>
+        {reconcile.step === 'ask' ? (
+          <>
+            <div className={styles.reconcileAsk}>
+              <span>Is your current balance</span>
+              <strong>{money(cleared)}?</strong>
+            </div>
+            <p className={styles.reconcileHint}>Your bank’s app or statement shows it. Count only what has cleared at the bank.</p>
+            <div className={styles.reconcileButtons}>
+              <Button
+                variant="primary"
+                onClick={() => {
+                  reconcileAmount.current = ZERO;
+                  setReconcile({ step: 'enter', amount: ZERO });
+                }}
+              >
+                No
+              </Button>
+              <Button variant="primary" autoFocus onClick={() => { finishReconcile(cleared); }}>
+                Yes
+              </Button>
+            </div>
+          </>
+        ) : (
+          <>
+            <MoneyInput
+              ref={bankField}
+              defaultDraft=""
+              label="Current balance at your bank"
+              variant="field"
+              value={reconcile.amount}
+              format={fmt}
+              onCommit={(v) => {
+                reconcileAmount.current = v;
+                setReconcile({ step: 'enter', amount: v });
+              }}
+              onEnter={() => { setReconcile({ step: 'mode', statement: reconcileAmount.current }); }}
+            />
+            <div className={styles.reconcileButtons}>
+              <Button
+                variant="primary"
+                onClick={() => {
+                  // The field commits on blur, just before this click; the ref has its value.
+                  setReconcile({ step: 'mode', statement: reconcileAmount.current });
+                }}
+              >
+                Next
+              </Button>
+            </div>
+          </>
+        )}
+      </Popover>
+    );
+  }
+
+  function reconcileBanner(): ReactNode {
+    if (!account || reconcile?.step !== 'mode') return null;
+    const { difference } = reconcilePreview(plan, { accountId: account.id, statementBalance: reconcile.statement, date: today });
+    const amount = money(difference < 0 ? neg(difference) : difference);
+    const statement = reconcile.statement;
+    return (
+      <div className={styles.banner}>
+        <Notice
+          icon="lock"
+          actions={
+            <>
+              <Button size="small" onClick={() => { setReconcile(null); }}>
+                Cancel
+              </Button>
+              <Button size="small" variant="primary" onClick={() => { finishReconcile(statement); }}>
+                {difference === 0 ? 'Finish' : 'Create Adjustment & Finish'}
+              </Button>
+            </>
+          }
+        >
+          {difference === 0 ? (
+            <strong>This account’s cleared balance matches your actual account.</strong>
+          ) : (
+            <>
+              This account’s cleared balance is <strong>{amount}</strong> {difference < 0 ? 'higher' : 'lower'} than your actual account. Clear the transactions that have cleared at the bank, or finish with an adjustment.
+            </>
+          )}
+        </Notice>
+      </div>
+    );
+  }
 
   // ---- selection: action bar, right-click menu, More --------------------------------------------
   function bulkItems(ids: string[], where: 'menu' | 'more'): MenuItem[] {
