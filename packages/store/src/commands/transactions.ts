@@ -144,8 +144,11 @@ interface Resolved {
   subtransactions: readonly SplitLineInput[] | undefined;
 }
 
-/** Write transaction `id` (new when `prior` is undefined) and everything paired with it. */
-function writeTransaction(d: Draft, ctx: CommandContext, id: Id, prior: TransactionRecord | undefined, input: Resolved): void {
+/**
+ * Write transaction `id` (new when `prior` is undefined) and everything paired with it. Payee
+ * defaults are relearned now, or collected into `relearn` when a bulk command does them once.
+ */
+function writeTransaction(d: Draft, ctx: CommandContext, id: Id, prior: TransactionRecord | undefined, input: Resolved, relearn?: Set<Id>): void {
   const self = liveAccount(d, input.accountId);
   if (!Number.isSafeInteger(input.amount)) throw new ValidationError('Amount must be whole minor units');
   const other = input.transferAccountId === undefined ? undefined : liveAccount(d, input.transferAccountId);
@@ -262,8 +265,11 @@ function writeTransaction(d: Draft, ctx: CommandContext, id: Id, prior: Transact
     createdAt: prior?.createdAt ?? ctx.now,
   };
   d.put('transactions', record);
-  relearnDefault(d, prior?.payeeId);
-  if (payeeId !== prior?.payeeId) relearnDefault(d, payeeId);
+  for (const p of payeeId === prior?.payeeId ? [payeeId] : [prior?.payeeId, payeeId]) {
+    if (p === undefined) continue;
+    if (relearn) relearn.add(p);
+    else relearnDefault(d, p);
+  }
 }
 
 export function addTransaction(plan: PlanData, ctx: CommandContext, input: TransactionInput): Command & { transactionId: Id } {
@@ -295,11 +301,31 @@ function liveTransaction(d: Draft, id: Id): TransactionRecord {
 
 const pick = <T>(patch: T | null | undefined, current: T | undefined): T | undefined => (patch === undefined ? current : patch ?? undefined);
 
-export function editTransaction(plan: PlanData, ctx: CommandContext, args: { transactionId: Id; patch: TransactionPatch }): Command {
-  const d = new Draft(plan);
-  const t = liveTransaction(d, args.transactionId);
-  const p = args.patch;
-  if (isSplitLineLeg(d, t)) {
+/** The category a transfer carries: it lives on the on-budget leg, which may be the other one. */
+function transferCategory(d: Draft, t: TransactionRecord): CategoryRef {
+  if (t.transferAccountId !== undefined && !t.subtransactions?.length && t.transferTransactionId !== undefined && !isSplitLineLeg(d, t)) {
+    const leg = d.get('transactions', t.transferTransactionId);
+    if (leg && leg.categoryId !== null) return leg.categoryId;
+  }
+  return t.categoryId;
+}
+
+/** Split lines as command input; `keepIds` false makes new lines (a copy). */
+function linesOf(t: TransactionRecord, keepIds: boolean): SplitLineInput[] | undefined {
+  return t.subtransactions?.map((s) => ({
+    ...(keepIds ? { id: s.id } : {}),
+    amount: s.amount,
+    categoryId: s.categoryId,
+    ...(s.payeeId === undefined || s.transferAccountId !== undefined ? {} : { payeeId: s.payeeId }),
+    ...(s.memo === undefined ? {} : { memo: s.memo }),
+    ...(s.transferAccountId === undefined ? {} : { transferAccountId: s.transferAccountId }),
+  }));
+}
+
+/** `t` with `p` applied, ready to write. */
+function resolveEdit(d: Draft, t: TransactionRecord, p: TransactionPatch): Resolved {
+  const splitLeg = isSplitLineLeg(d, t);
+  if (splitLeg) {
     const moving =
       (p.amount !== undefined && p.amount !== t.amount) ||
       (p.date !== undefined && p.date !== t.date) ||
@@ -311,40 +337,127 @@ export function editTransaction(plan: PlanData, ctx: CommandContext, args: { tra
     if (moving) throw new ValidationError('This transfer comes from a split; edit its amount, date, payee or account in the split');
   }
   const changingPayee = p.payeeId !== undefined || p.payeeName !== undefined;
-  const subtransactions =
-    p.subtransactions === undefined
-      ? t.subtransactions?.map((s) => ({
-          id: s.id,
-          amount: s.amount,
-          categoryId: s.categoryId,
-          ...(s.payeeId === undefined || s.transferAccountId !== undefined ? {} : { payeeId: s.payeeId }),
-          ...(s.memo === undefined ? {} : { memo: s.memo }),
-          ...(s.transferAccountId === undefined ? {} : { transferAccountId: s.transferAccountId }),
-        }))
-      : p.subtransactions ?? undefined;
-  const transferAccountId = p.transferAccountId === undefined ? (isSplitLineLeg(d, t) ? undefined : t.transferAccountId) : p.transferAccountId ?? undefined;
-  // A transfer's category lives on the on-budget leg; read it from there when not given.
-  let categoryId: CategoryRef = p.categoryId === undefined ? t.categoryId : p.categoryId;
-  if (p.categoryId === undefined && t.transferAccountId !== undefined && !t.subtransactions?.length && t.transferTransactionId !== undefined && !isSplitLineLeg(d, t)) {
-    const leg = d.get('transactions', t.transferTransactionId);
-    if (leg && leg.categoryId !== null) categoryId = leg.categoryId;
-  }
+  const subtransactions = p.subtransactions === undefined ? linesOf(t, true) : p.subtransactions ?? undefined;
+  const transferAccountId = p.transferAccountId === undefined ? (splitLeg ? undefined : t.transferAccountId) : p.transferAccountId ?? undefined;
+  let categoryId: CategoryRef = p.categoryId === undefined ? transferCategory(d, t) : p.categoryId;
   if (subtransactions && subtransactions.length > 0 && p.categoryId === undefined) categoryId = null;
-  writeTransaction(d, ctx, t.id, t, {
+  return {
     accountId: p.accountId ?? t.accountId,
     date: p.date ?? t.date,
     amount: p.amount ?? t.amount,
     payeeId: changingPayee ? pick(p.payeeId, undefined) : transferAccountId === undefined && t.transferAccountId === undefined ? t.payeeId : undefined,
     payeeName: p.payeeName,
-    transferAccountId: isSplitLineLeg(d, t) ? undefined : transferAccountId,
-    categoryId: isSplitLineLeg(d, t) ? t.categoryId : categoryId,
+    transferAccountId: splitLeg ? undefined : transferAccountId,
+    categoryId: splitLeg ? t.categoryId : categoryId,
     memo: pick(p.memo, t.memo),
     cleared: p.cleared ?? t.cleared,
     approved: p.approved ?? t.approved !== false,
     flag: pick(p.flag, t.flag),
     subtransactions,
-  });
+  };
+}
+
+export function editTransaction(plan: PlanData, ctx: CommandContext, args: { transactionId: Id; patch: TransactionPatch }): Command {
+  const d = new Draft(plan);
+  const t = liveTransaction(d, args.transactionId);
+  writeTransaction(d, ctx, t.id, t, resolveEdit(d, t, args.patch));
   return { label: 'Edit transaction', changes: d.build() };
+}
+
+/** What a multi-row edit can set (YNAB's multi-select: Categorize, Memo, Flag, Move to Account; also date). */
+export type BulkPatch = Pick<TransactionPatch, 'categoryId' | 'memo' | 'flag' | 'accountId' | 'date'>;
+
+const plural = (n: number): string => `${String(n)} transaction${n === 1 ? '' : 's'}`;
+
+/** The part of `p` that applies to `t`; null when nothing does. */
+function bulkPatchFor(d: Draft, t: TransactionRecord, p: BulkPatch): TransactionPatch | null {
+  const out: TransactionPatch = {};
+  const splitLeg = isSplitLineLeg(d, t);
+  const split = (t.subtransactions?.length ?? 0) > 0;
+  const account = liveAccount(d, t.accountId);
+  const other = t.transferAccountId === undefined ? undefined : d.get('accounts', t.transferAccountId);
+  if (p.memo !== undefined) out.memo = p.memo;
+  if (p.flag !== undefined) out.flag = p.flag;
+  if (p.date !== undefined && !splitLeg) out.date = p.date;
+  // A category goes only where one belongs: a budget account's own rows, or budget <-> tracking transfers.
+  if (p.categoryId !== undefined && !splitLeg && !split && (other === undefined ? account.onBudget : account.onBudget !== other.onBudget)) {
+    out.categoryId = p.categoryId;
+  }
+  if (p.accountId !== undefined && !splitLeg && p.accountId !== t.accountId && p.accountId !== t.transferAccountId) {
+    const target = liveAccount(d, p.accountId);
+    if (!(split && !target.onBudget)) {
+      out.accountId = target.id;
+      const keeps = other === undefined ? target.onBudget && account.onBudget : target.onBudget !== other.onBudget;
+      if (!keeps && !split) out.categoryId = null;
+    }
+  }
+  return Object.keys(out).length === 0 ? null : out;
+}
+
+function bulkLabel(p: BulkPatch, n: number): string {
+  if (Object.keys(p).length === 1) {
+    if (p.categoryId !== undefined) return `Categorize ${plural(n)}`;
+    if (p.accountId !== undefined) return `Move ${plural(n)}`;
+    if (p.flag !== undefined) return p.flag === null ? `Clear flag on ${plural(n)}` : `Flag ${plural(n)}`;
+    if (p.memo !== undefined) return `Edit memo on ${plural(n)}`;
+  }
+  return `Edit ${plural(n)}`;
+}
+
+/** Edit many transactions in one command (one undo step); rows a field does not apply to keep theirs. */
+export function editTransactions(plan: PlanData, ctx: CommandContext, args: { transactionIds: readonly Id[]; patch: BulkPatch }): Command {
+  const d = new Draft(plan);
+  const relearn = new Set<Id>();
+  let n = 0;
+  for (const id of args.transactionIds) {
+    const t = liveTransaction(d, id);
+    const patch = bulkPatchFor(d, t, args.patch);
+    if (patch === null) continue;
+    n += 1;
+    writeTransaction(d, ctx, t.id, t, resolveEdit(d, t, patch), relearn);
+  }
+  for (const p of relearn) relearnDefault(d, p);
+  return { label: bulkLabel(args.patch, n), changes: d.build() };
+}
+
+/**
+ * Copy transactions as new ones (YNAB's Duplicate, Shift+D; trial 2026-10-08): same date, amount,
+ * payee, category, memo, flag and cleared state, with new split lines and transfer legs. A copy is
+ * approved, never reconciled (it becomes cleared) and never a starting balance (it has no payee).
+ */
+export function duplicateTransactions(plan: PlanData, ctx: CommandContext, args: { transactionIds: readonly Id[] }): Command & { transactionIds: Id[] } {
+  const d = new Draft(plan);
+  const relearn = new Set<Id>();
+  const ids: Id[] = [];
+  for (const id of args.transactionIds) {
+    const t = liveTransaction(d, id);
+    const split = (t.subtransactions?.length ?? 0) > 0;
+    const copy = ctx.newId();
+    writeTransaction(
+      d,
+      ctx,
+      copy,
+      undefined,
+      {
+        accountId: t.accountId,
+        date: t.date,
+        amount: t.amount,
+        payeeId: t.transferAccountId !== undefined || t.isStartingBalance === true ? undefined : t.payeeId,
+        payeeName: undefined,
+        transferAccountId: split ? undefined : t.transferAccountId,
+        categoryId: split ? null : transferCategory(d, t),
+        memo: t.memo,
+        cleared: t.cleared === 'reconciled' ? 'cleared' : t.cleared,
+        approved: true,
+        flag: t.flag,
+        subtransactions: linesOf(t, false),
+      },
+      relearn,
+    );
+    ids.push(copy);
+  }
+  for (const p of relearn) relearnDefault(d, p);
+  return { label: args.transactionIds.length === 1 ? 'Duplicate transaction' : `Duplicate ${plural(args.transactionIds.length)}`, changes: d.build(), transactionIds: ids };
 }
 
 /** Soft-delete transactions and their transfer legs (both sides, §5.9). */

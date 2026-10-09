@@ -1,7 +1,7 @@
 import { READY_TO_ASSIGN, autoAssign, monthState } from '@hafb/engine';
 import { minor, type Month } from '@hafb/shared';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { findRecord } from '../src/changes.ts';
+import { applyChanges, findRecord } from '../src/changes.ts';
 import {
   accountBalance,
   adjustBalance,
@@ -23,8 +23,10 @@ import {
   deletePayee,
   deleteTransactions,
   Draft,
+  duplicateTransactions,
   editAccount,
   editTransaction,
+  editTransactions,
   moveMoney,
   renameCategory,
   reopenAccount,
@@ -361,6 +363,109 @@ describe('commands', () => {
       expect(b.plan.flagNames).toEqual([{ color: 'red', name: 'Work' }]);
       b.run(setFlagName(b.plan, ctx, { color: 'red', name: '' }));
       expect(b.plan.flagNames).toEqual([]);
+    });
+
+    it('bulk edit is one command; a field skips the rows it does not apply to (YNAB multi-select)', () => {
+      const shop = b.run(addTransaction(b.plan, ctx, { accountId: checking, date: TODAY, amount: usd(-5), categoryId: groceries, payeeName: 'Shop' })).transactionId;
+      const xfer = b.run(addTransaction(b.plan, ctx, { accountId: checking, date: TODAY, amount: usd(-10), transferAccountId: savings })).transactionId;
+      const split = b.run(
+        addTransaction(b.plan, ctx, {
+          accountId: checking,
+          date: TODAY,
+          amount: usd(-30),
+          payeeName: 'Market',
+          subtransactions: [
+            { amount: usd(-20), categoryId: groceries },
+            { amount: usd(-10), categoryId: rent },
+          ],
+        }),
+      ).transactionId;
+      const loan = b.run(addTransaction(b.plan, ctx, { accountId: house, date: TODAY, amount: usd(-1), payeeName: 'Interest' })).transactionId;
+      const all = [shop, xfer, split, loan];
+
+      // Categorize: only rows that take a category (not splits, budget ↔ budget transfers or tracking).
+      const cat = editTransactions(b.plan, ctx, { transactionIds: all, patch: { categoryId: rent } });
+      expect(cat.label).toBe('Categorize 1 transaction');
+      b.run(cat);
+      expect(tx(b.plan, shop).categoryId).toBe(rent);
+      expect(tx(b.plan, xfer).categoryId).toBeNull();
+      expect(tx(b.plan, split).subtransactions?.map((s) => s.categoryId)).toEqual([groceries, rent]);
+      expect(tx(b.plan, loan).categoryId).toBeNull();
+
+      // Memo and flag apply to every row; a transfer's other leg keeps its own memo.
+      b.run(editTransactions(b.plan, ctx, { transactionIds: all, patch: { memo: 'Trip', flag: 'blue' } }));
+      expect(all.map((id) => [tx(b.plan, id).memo, tx(b.plan, id).flag])).toEqual(all.map(() => ['Trip', 'blue']));
+      b.run(editTransactions(b.plan, ctx, { transactionIds: all, patch: { memo: null, flag: null } }));
+      expect(all.every((id) => tx(b.plan, id).memo === undefined && tx(b.plan, id).flag === undefined)).toBe(true);
+
+      // Move to account: the transfer re-points its leg; a move to a tracking account drops the category.
+      b.run(editTransactions(b.plan, ctx, { transactionIds: [shop, xfer], patch: { accountId: visa } }));
+      expect(tx(b.plan, shop)).toMatchObject({ accountId: visa, categoryId: rent });
+      expect(tx(b.plan, tx(b.plan, xfer).transferTransactionId ?? '')).toMatchObject({ accountId: savings, transferAccountId: visa, amount: usd(10) });
+      // Moving a transfer onto its own other side is skipped.
+      const onto = editTransactions(b.plan, ctx, { transactionIds: [xfer], patch: { accountId: savings } });
+      expect(onto.changes).toEqual({});
+      b.run(editTransactions(b.plan, ctx, { transactionIds: [shop], patch: { accountId: house } }));
+      expect(tx(b.plan, shop)).toMatchObject({ accountId: house, categoryId: null });
+    });
+
+    it('bulk categorize of 1,000 rows on a 20,000-row plan stays under 200 ms (roadmap S4.6)', () => {
+      const base = b.plan;
+      const payeeId = b.run(addTransaction(b.plan, ctx, { accountId: checking, date: TODAY, amount: usd(-1), categoryId: groceries, payeeName: 'Bulk' })).transactionId;
+      const payee = tx(b.plan, payeeId).payeeId;
+      const rows: TransactionRecord[] = Array.from({ length: 20_000 }, (_, i) => ({
+        id: `bulk-${String(i).padStart(5, '0')}`,
+        accountId: checking,
+        date: TODAY,
+        amount: minor(-100),
+        ...(payee === undefined ? {} : { payeeId: payee }),
+        categoryId: groceries,
+        cleared: 'uncleared',
+        createdAt: ctx.now,
+      }));
+      const big: PlanData = { ...b.plan, transactions: [...base.transactions, ...rows] };
+      const ids = rows.slice(0, 1000).map((r) => r.id);
+      const start = performance.now();
+      const cmd = editTransactions(big, ctx, { transactionIds: ids, patch: { categoryId: rent } });
+      const after = applyChanges(big, cmd.changes).plan;
+      const ms = performance.now() - start;
+      expect(after.transactions.filter((t) => t.categoryId === rent)).toHaveLength(1000);
+      expect(ms).toBeLessThan(200);
+    });
+
+    it('duplicate copies rows, split lines and transfer legs; not a starting balance (YNAB trial)', () => {
+      const xfer = b.run(addTransaction(b.plan, ctx, { accountId: checking, date: '2026-10-02', amount: usd(-10), transferAccountId: savings, memo: 'move', flag: 'red' })).transactionId;
+      const split = b.run(
+        addTransaction(b.plan, ctx, {
+          accountId: checking,
+          date: '2026-10-03',
+          amount: usd(-30),
+          payeeName: 'Market',
+          subtransactions: [
+            { amount: usd(-20), categoryId: groceries },
+            { amount: usd(-10), transferAccountId: savings },
+          ],
+        }),
+      ).transactionId;
+      b.run(setCleared(b.plan, ctx, { transactionIds: [split], cleared: 'reconciled' }));
+      const start = live(b.plan).find((t) => t.accountId === checking && t.isStartingBalance === true)?.id ?? '';
+      const before = accountBalance(new Draft(b.plan), savings);
+      const dup = duplicateTransactions(b.plan, ctx, { transactionIds: [xfer, split, start] });
+      expect(dup.label).toBe('Duplicate 3 transactions');
+      b.run(dup);
+      const [x2, s2, b2] = dup.transactionIds.map((id) => tx(b.plan, id));
+      expect(x2).toMatchObject({ accountId: checking, date: '2026-10-02', amount: usd(-10), transferAccountId: savings, memo: 'move', flag: 'red', cleared: 'uncleared' });
+      expect(x2?.transferTransactionId).not.toBe(tx(b.plan, xfer).transferTransactionId);
+      expect(tx(b.plan, x2?.transferTransactionId ?? '')).toMatchObject({ accountId: savings, amount: usd(10) });
+      // A reconciled row's copy is only cleared; split lines get new ids and new transfer legs.
+      expect(s2?.cleared).toBe('cleared');
+      expect(s2?.subtransactions?.map((s) => s.amount)).toEqual([usd(-20), usd(-10)]);
+      expect(s2?.subtransactions?.some((s) => tx(b.plan, split).subtransactions?.some((o) => o.id === s.id))).toBe(false);
+      expect(accountBalance(new Draft(b.plan), savings)).toBe(before + usd(20));
+      // A starting balance copies as a plain inflow with no payee.
+      expect(b2).toMatchObject({ amount: usd(1000), categoryId: READY_TO_ASSIGN, cleared: 'cleared' });
+      expect(b2?.isStartingBalance).toBeUndefined();
+      expect(b2?.payeeId).toBeUndefined();
     });
 
     it('tracking accounts take no category', () => {
