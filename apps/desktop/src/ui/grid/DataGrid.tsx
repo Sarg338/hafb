@@ -229,7 +229,8 @@ export function DataGrid<T>(props: DataGridProps<T>) {
   } = props;
 
   // ---- state -----------------------------------------------------------------------------------
-  const [selection, setSelection] = useState<SelectionState>(() => ({ selected: new Set(props.defaultSelected ?? []), anchor: null }));
+  // A controlled selection present at mount (a deep link) counts from the start.
+  const [selection, setSelection] = useState<SelectionState>(() => ({ selected: new Set(props.selected ?? props.defaultSelected ?? []), anchor: null }));
   const [ownCollapsed, setCollapsed] = useState<ReadonlySet<string>>(() => new Set(props.defaultCollapsed ?? []));
   const collapsed = props.collapsed ?? ownCollapsed;
   // Controlled selection: adopt a new outside value (the anchor resets).

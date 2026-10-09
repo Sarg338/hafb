@@ -1,5 +1,5 @@
 // Hash routes for the app shell (S3.3). Pure parse/format plus a tiny subscription hook.
-//   #/plan[?month=YYYY-MM]   #/reflect[?tab=…]   #/accounts   #/accounts/<accountId>
+//   #/plan[?month=YYYY-MM]   #/reflect[?tab=…]   #/accounts[/<accountId>][?tx=<transactionId>]
 //   #/design…, #/gallery…    dev pages, rendered outside the shell (they read their own params)
 import { useSyncExternalStore } from 'react';
 import { isMonth, type Month } from '@hafb/shared';
@@ -7,7 +7,8 @@ import { isMonth, type Month } from '@hafb/shared';
 export type Route =
   | { kind: 'plan'; month?: Month }
   | { kind: 'reflect'; tab?: string }
-  | { kind: 'accounts'; accountId: string | null }
+  /** `tx`: open with that transaction selected (a Reflect drill-down). */
+  | { kind: 'accounts'; accountId: string | null; tx?: string }
   | { kind: 'dev'; page: 'design' | 'gallery' };
 
 export function parseRoute(hash: string): Route {
@@ -25,7 +26,8 @@ export function parseRoute(hash: string): Route {
     }
     case 'accounts': {
       const id = rest.join('/');
-      return { kind: 'accounts', accountId: id === '' ? null : decodeURIComponent(id) };
+      const tx = params.get('tx');
+      return { kind: 'accounts', accountId: id === '' ? null : decodeURIComponent(id), ...(tx ? { tx } : {}) };
     }
     default: {
       const month = params.get('month');
@@ -41,7 +43,7 @@ export function formatRoute(route: Route): string {
     case 'reflect':
       return route.tab === undefined ? '#/reflect' : `#/reflect?tab=${encodeURIComponent(route.tab)}`;
     case 'accounts':
-      return route.accountId === null ? '#/accounts' : `#/accounts/${encodeURIComponent(route.accountId)}`;
+      return `${route.accountId === null ? '#/accounts' : `#/accounts/${encodeURIComponent(route.accountId)}`}${route.tx === undefined ? '' : `?tx=${encodeURIComponent(route.tx)}`}`;
     case 'dev':
       return `#/${route.page}`;
   }

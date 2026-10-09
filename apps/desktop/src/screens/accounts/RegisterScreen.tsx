@@ -170,9 +170,11 @@ export interface RegisterScreenProps {
   accountId: Id | null;
   actions: Actions;
   history: { canUndo: boolean; canRedo: boolean; undoLabel: string | undefined; redoLabel: string | undefined };
+  /** Open with this transaction selected and in view (Reflect drill-down). */
+  focusTransactionId?: string;
 }
 
-export function RegisterScreen({ plan, today, accountId, actions, history }: RegisterScreenProps) {
+export function RegisterScreen({ plan, today, accountId, actions, history, focusTransactionId }: RegisterScreenProps) {
   const p = usePrefs();
   const fmt = moneyFormat(plan);
   const money = useMemo(() => moneyText(fmt, p.hideAmounts), [fmt, p.hideAmounts]);
@@ -238,11 +240,25 @@ export function RegisterScreen({ plan, today, accountId, actions, history }: Reg
 
   // A different account is a different register: the shell remounts this screen per account.
 
+  // Opened on one transaction (a Reflect drill-down): show every date until View Options change,
+  // so the transaction is there even when the saved view would hide it.
+  const [reveal, setReveal] = useState(focusTransactionId !== undefined);
+  // A new transaction to open on: select it and bring it into view (state adjusted during render,
+  // React's pattern for following a prop).
+  const [focused, setFocused] = useState<string | undefined>(undefined);
+  if (focusTransactionId !== focused) {
+    setFocused(focusTransactionId);
+    if (focusTransactionId !== undefined) {
+      setReveal(true);
+      setSelected(new Set([focusTransactionId]));
+      setRequest((r) => ({ cell: { rowId: focusTransactionId, columnId: 'payee' }, edit: false, key: (r?.key ?? 0) + 1 }));
+    }
+  }
   const txRows = useMemo(
-    () => registerRows(plan, { accountId, search: search.query, onlyUnapproved, onlyUncategorized, range, showReconciled: view.showReconciled, sort }),
+    () => registerRows(plan, { accountId, search: search.query, onlyUnapproved, onlyUncategorized, range: reveal ? null : range, showReconciled: reveal || view.showReconciled, sort }),
     // `range` is derived from view and today.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [plan, accountId, search.query, onlyUnapproved, onlyUncategorized, view, today, sort],
+    [plan, accountId, search.query, onlyUnapproved, onlyUncategorized, view, today, sort, reveal],
   );
   const byId = useMemo(() => new Map(plan.transactions.map((t) => [t.id, t])), [plan.transactions]);
   const unapproved = useMemo(() => plan.transactions.filter((t) => t.deletedAt === undefined && t.approved === false && (accountId === null || t.accountId === accountId)), [plan.transactions, accountId]);
@@ -1121,6 +1137,7 @@ export function RegisterScreen({ plan, today, accountId, actions, history }: Reg
   const overdrawn = account !== undefined && CASH_ACCOUNT_TYPES.includes(account.type) && total('working') < 0;
 
   const applyView = (v: RegisterViewPref): void => {
+    setReveal(false);
     prefs.update({ registerViews: { ...prefs.get().registerViews, [viewKey]: v } });
   };
 

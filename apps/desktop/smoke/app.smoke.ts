@@ -3,10 +3,11 @@
 import assert from 'node:assert/strict';
 import { after, before, describe, test } from 'node:test';
 import type { Page } from 'playwright-core';
-import { existsSync, readdirSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { addDays, addMonths, addMonthsToDate, compareMonths, minor, monthOf } from '@hafb/shared';
-import { addScheduled, applyChanges, type PlanData } from '@hafb/store';
+import { netWorth, spendingBreakdown } from '@hafb/engine';
+import { addDays, addMonths, addMonthsToDate, compareMonths, formatMoney, minor, monthOf } from '@hafb/shared';
+import { addScheduled, applyChanges, budgetSnapshot, readZip, type PlanData } from '@hafb/store';
 import { buildSamplePlan } from '../src/design/sample.ts';
 import { launch, makeSandbox, type App, type Sandbox } from './harness.ts';
 import { expectedReadyToAssign, expectedRows, importExport, norm, readGrid, todayLocal } from './planCheck.ts';
@@ -1178,6 +1179,103 @@ void describe('planning power (Phase 5)', () => {
     await g2.waitFor();
     assert.equal(await g2.getByRole('button', { name: 'Reconciled. Unlock' }).count(), locks);
     assert.match(norm(await again.page.getByRole('main').innerText()), /Reconciled today/);
+    await again.close();
+  });
+});
+
+void describe('reflect (Phase 6)', () => {
+  let box: Sandbox;
+  const running: App[] = [];
+  const plan: PlanData = { ...buildSamplePlan().plan, scheduled: [] };
+  const open = async (): Promise<App> => {
+    const a = await launch(box, ['--open', box.planPath]);
+    running.push(a);
+    await a.page.getByRole('navigation', { name: 'Plan navigation' }).waitFor();
+    return a;
+  };
+  before(() => {
+    box = makeSandbox(plan);
+  });
+  after(async () => {
+    for (const a of running) await a.close().catch(() => undefined);
+    box.cleanup();
+  });
+  const usd = (m: number): string => formatMoney(minor(m), { decimals: 2, symbol: '$', placement: 'before', numberFormat: '123,456.78' });
+
+  void test('reports tie to the engine; filters survive a relaunch; a drill-down opens the register; exports land as files', { timeout: 300_000 }, async () => {
+    const today = todayLocal();
+    const month = monthOf(today);
+    const from = compareMonths(addMonths(month, -2), plan.settings.firstMonth ?? month) < 0 ? (plan.settings.firstMonth ?? month) : addMonths(month, -2);
+    const snapshot = budgetSnapshot(plan);
+    const app = await open();
+    const { page } = app;
+    await page.getByRole('link', { name: 'Reflect' }).click();
+    await page.getByRole('tablist', { name: 'Reports' }).waitFor();
+    await page.getByRole('button', { name: /^Date range:/ }).click();
+    await page.getByRole('radio', { name: 'Last 3 Months' }).click();
+    const breakdown = spendingBreakdown(snapshot, { from, to: month });
+    const main = (): Promise<string> => page.getByRole('main').innerText().then(norm);
+    assert.match(await main(), new RegExp(`Total spending ${usd(breakdown.total).replace(/[$.]/g, '\\$&')}`));
+
+    // Net Worth's headline is the engine's last month end.
+    await page.getByRole('tab', { name: 'Net Worth' }).click();
+    await page.getByText('Change in Net Worth').waitFor();
+    const nw = netWorth(snapshot, { from, to: month }).at(-1);
+    assert.ok(nw);
+    assert.match(await main(), new RegExp(`Net Worth ${usd(nw.netWorth).replace(/[$.]/g, '\\$&')}`));
+
+    // Leave out one category; the filter and the range come back after a relaunch.
+    await page.getByRole('tab', { name: 'Spending Breakdown' }).click();
+    await page.getByRole('radio', { name: 'Categories' }).waitFor();
+    await page.getByRole('button', { name: /All Categories/ }).click();
+    await page.getByRole('checkbox', { name: 'Groceries' }).uncheck();
+    await page.getByRole('button', { name: 'Done' }).click();
+    const groceries = plan.categories.find((c) => c.name === 'Groceries')?.id ?? '';
+    const without = spendingBreakdown(snapshot, { from, to: month, categoryIds: plan.categories.filter((c) => c.id !== groceries).map((c) => c.id).concat('uncategorized') });
+    assert.match(await main(), new RegExp(`Total spending ${usd(without.total).replace(/[$.]/g, '\\$&')}`));
+    await app.close();
+    const again = await open();
+    await again.page.getByRole('link', { name: 'Reflect' }).click();
+    await again.page.getByRole('tablist', { name: 'Reports' }).waitFor();
+    assert.match(norm(await again.page.getByRole('toolbar', { name: 'Report filters' }).innerText()), /Selected Categories/);
+    await again.page.getByRole('button', { name: /Selected Categories/ }).click();
+    await again.page.getByRole('button', { name: 'Select All' }).click();
+    await again.page.getByRole('button', { name: 'Done' }).click();
+
+    // Exports: the Spending zip (summary + transactions), the chart PNG, Net Worth CSV, the share image.
+    await again.page.getByRole('button', { name: 'Export' }).click();
+    await again.page.getByRole('menuitem', { name: /Export data/ }).click();
+    await again.page.getByRole('button', { name: 'Export' }).click();
+    await again.page.getByRole('menuitem', { name: /Save chart/ }).click();
+    await again.page.getByRole('tab', { name: 'Net Worth' }).click();
+    await again.page.getByText('Change in Net Worth').waitFor();
+    await again.page.getByRole('button', { name: 'Export' }).click();
+    await again.page.getByRole('menuitem', { name: /Export data/ }).click();
+    await again.page.getByRole('button', { name: 'Share Your Progress' }).click();
+    await again.page.getByRole('button', { name: 'Download Image' }).click();
+    await again.page.waitForTimeout(1500);
+    const files = readdirSync(box.exportDir).toSorted();
+    const name = plan.settings.name;
+    for (const want of [`${name} - Spending Breakdown - ${today}.zip`, `${name} - Spending Breakdown - ${today}.png`, `${name} - Net Worth - ${today}.csv`, `${name} - Net Worth - ${today}.png`]) {
+      assert.ok(files.includes(want), `missing ${want}: ${files.join(', ')}`);
+    }
+    const zip = await readZip(new Uint8Array(readFileSync(join(box.exportDir, `${name} - Spending Breakdown - ${today}.zip`))));
+    assert.equal(zip.size, 2);
+    const csv = readFileSync(join(box.exportDir, `${name} - Net Worth - ${today}.csv`), 'utf8');
+    assert.ok(csv.startsWith('﻿"Account",'), csv.slice(0, 40));
+    assert.equal(readFileSync(join(box.exportDir, `${name} - Net Worth - ${today}.png`)).readUInt32BE(16), 1080);
+
+    // A drill-down row opens its transaction in the register.
+    await again.page.getByRole('tab', { name: 'Spending Breakdown' }).click();
+    await again.page.getByRole('list', { name: 'Spending by category' }).waitFor();
+    await again.page.getByRole('list', { name: 'Spending by category' }).getByRole('button').first().click();
+    const row = again.page.getByRole('dialog', { name: /transactions/ }).locator('tbody tr').first();
+    const [, date, payee] = /(\d\d\/\d\d\/\d{4}) (.+?) [-+]\$/.exec(norm(await row.innerText())) ?? [];
+    await row.click();
+    const selected = again.page.locator('[role=row][aria-selected=true]');
+    await selected.first().waitFor();
+    const picked = norm(await selected.first().innerText());
+    assert.ok(picked.includes(date ?? '?') && picked.includes(payee ?? '?'), `${picked} vs ${String(date)} ${String(payee)}`);
     await again.close();
   });
 });

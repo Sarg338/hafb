@@ -5,7 +5,7 @@
 // Isolation: every run uses its own app data folder (HAFB_DATA_DIR) and WebView2 profile
 // (WEBVIEW2_USER_DATA_FOLDER), so Sarg's recent list, backups, prefs and window state are untouched.
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { chromium, type Browser, type Page } from 'playwright-core';
@@ -20,6 +20,7 @@ export interface Sandbox {
   root: string;
   dataDir: string;
   webviewDir: string;
+  exportDir: string;
   planPath: string;
   cleanup: () => void;
 }
@@ -40,10 +41,12 @@ export function makeSandbox(plan: PlanData = { ...buildSamplePlan().plan, schedu
     maxBuffer: 64 * 1024 * 1024,
   });
   if (r.status !== 0) throw new Error(`hafb-store create failed: ${r.stderr}`);
+  mkdirSync(join(root, 'exports'));
   return {
     root,
     dataDir: join(root, 'appdata'),
     webviewDir: join(root, 'webview'),
+    exportDir: join(root, 'exports'),
     planPath,
     cleanup: () => {
       rmSync(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 300 });
@@ -68,6 +71,8 @@ export async function launch(sandbox: Sandbox, args: string[] = []): Promise<App
     env: {
       ...process.env,
       HAFB_DATA_DIR: sandbox.dataDir,
+      // Exports land here instead of behind a native Save dialog (src-tauri/src/exports.rs).
+      HAFB_EXPORT_DIR: sandbox.exportDir,
       WEBVIEW2_USER_DATA_FOLDER: sandbox.webviewDir,
       WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${String(port)}`,
     },

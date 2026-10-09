@@ -13,6 +13,7 @@ describe('parseRoute', () => {
     ['#/accounts', { kind: 'accounts', accountId: null }],
     ['#/accounts/0192a3b4-acct', { kind: 'accounts', accountId: '0192a3b4-acct' }],
     ['#/accounts/a%20b', { kind: 'accounts', accountId: 'a b' }],
+    ['#/accounts/acc1?tx=t%201', { kind: 'accounts', accountId: 'acc1', tx: 't 1' }],
     ['#/design', { kind: 'dev', page: 'design' }],
     ['#/design/register?theme=dark', { kind: 'dev', page: 'design' }],
     ['#/gallery?section=menus', { kind: 'dev', page: 'gallery' }],
@@ -31,6 +32,7 @@ describe('formatRoute', () => {
     [{ kind: 'reflect', tab: 'networth' }, '#/reflect?tab=networth'],
     [{ kind: 'accounts', accountId: null }, '#/accounts'],
     [{ kind: 'accounts', accountId: 'a b' }, '#/accounts/a%20b'],
+    [{ kind: 'accounts', accountId: 'a', tx: 't/1' }, '#/accounts/a?tx=t%2F1'],
     [{ kind: 'dev', page: 'gallery' }, '#/gallery'],
   ])('%j', (route, hash) => {
     expect(formatRoute(route)).toBe(hash);

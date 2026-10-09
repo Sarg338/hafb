@@ -60,6 +60,11 @@ describe('parsePrefs', () => {
     expect(p.collapsedGroups).toEqual({ 'C:\\a.hafb': ['g1'] });
   });
 
+  it('reads Reflect filters per plan, dropping bad months and non-string ids', () => {
+    const p = parsePrefs(JSON.stringify({ version: 1, reflectFilters: { 'C:/a.hafb': { preset: 'custom', from: '2026-01', to: 'x', excludedCategories: ['c1', 2], excludedAccounts: 'no' }, bad: { preset: 4 } } }));
+    expect(p.reflectFilters).toEqual({ 'C:/a.hafb': { preset: 'custom', from: '2026-01', excludedCategories: ['c1'], excludedAccounts: [] } });
+  });
+
   it('reads View Options per register, dropping bad months', () => {
     const p = parsePrefs(JSON.stringify({ version: 1, registerViews: { acc1: { preset: 'custom', from: '2026-01', to: 'nope', showReconciled: false, runningBalance: true }, bad: 3 } }));
     expect(p.registerViews).toEqual({ acc1: { preset: 'custom', from: '2026-01', showReconciled: false, showFlags: true, runningBalance: true } });

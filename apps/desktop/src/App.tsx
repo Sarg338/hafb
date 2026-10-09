@@ -1,8 +1,6 @@
-import { useEffect } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { isTauri } from '@tauri-apps/api/core';
-import { DesignApp } from './design/DesignApp.tsx';
 import { buildSamplePlan } from './design/sample.ts';
-import { Gallery } from './gallery/Gallery.tsx';
 import { appIpc, type LaunchTiming } from './shell/ipc.ts';
 import { useRoute } from './shell/router.ts';
 import { session } from './shell/session.ts';
@@ -14,6 +12,10 @@ import { installGlobalErrorHandlers } from './ui/errors.ts';
 import { ShortcutProvider } from './ui/shortcuts/ShortcutProvider.tsx';
 import { ToastProvider, useToast } from './ui/Toast.tsx';
 import './ui/base.css';
+
+// Dev pages (S3.1 mockups, component gallery) load on demand: their stylesheets stay out of the app.
+const DesignApp = lazy(() => import('./design/DesignApp.tsx').then((m) => ({ default: m.DesignApp })));
+const Gallery = lazy(() => import('./gallery/Gallery.tsx').then((m) => ({ default: m.Gallery })));
 
 declare global {
   interface Window {
@@ -83,7 +85,7 @@ export function App() {
             }}
           >
             <GlobalErrors />
-            {route.kind === 'dev' ? route.page === 'design' ? <DesignApp /> : <Gallery /> : <Shell />}
+            {route.kind === 'dev' ? <Suspense fallback={null}>{route.page === 'design' ? <DesignApp /> : <Gallery />}</Suspense> : <Shell />}
           </ShortcutProvider>
         </ConfirmProvider>
       </ToastProvider>

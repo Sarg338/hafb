@@ -21,8 +21,8 @@ import {
   undoLabel,
 } from '@hafb/store';
 import type { Actions, Screen } from '../design/DesignApp.tsx';
-import { ReflectScreen } from '../design/ReflectScreen.tsx';
-import '../design/design.css';
+import { ReflectScreen } from '../screens/reflect/ReflectScreen.tsx';
+import { reportTab } from '../screens/reflect/reflectModel.ts';
 import { AddAccountDialog, EditAccountDialog, type AccountEdits } from '../screens/accounts/AccountDialogs.tsx';
 import { RegisterScreen } from '../screens/accounts/RegisterScreen.tsx';
 import { ManagePayeesDialog } from '../screens/payees/ManagePayees.tsx';
@@ -322,16 +322,38 @@ function PlanFrame({ open, system }: { open: OpenPlan; /** A Windows-colour (con
         tabIndex={-1}
         role="main"
         aria-label={route.kind === 'reflect' ? 'Reflect' : route.kind === 'accounts' ? 'Accounts' : 'Plan'}
-        className={cx('hd', 'hd-embedded', styles.content)}
+        className={styles.content}
         data-nocolor={String(p.noColor || system)}
         data-theme-system={String(system)}
         key={path}
       >
         <ErrorBoundary area={route.kind === 'reflect' ? 'Reflect' : route.kind === 'accounts' ? 'This account' : 'The plan'} resetKey={routeKey}>
         {route.kind === 'reflect' ? (
-          <ReflectScreen plan={open.plan} today={today} sampleLabel={false} />
+          <ReflectScreen
+            plan={open.plan}
+            planPath={path}
+            today={today}
+            tab={reportTab(route.tab)}
+            onTab={(tab) => {
+              navigate({ kind: 'reflect', tab });
+            }}
+            onOpenTransaction={(accountId, tx) => {
+              navigate({ kind: 'accounts', accountId, tx });
+            }}
+            notify={(text) => {
+              session.notify(text);
+            }}
+          />
         ) : route.kind === 'accounts' ? (
-          <RegisterScreen key={route.accountId ?? 'all'} plan={open.plan} today={today} accountId={route.accountId} actions={actions} history={history} />
+          <RegisterScreen
+            key={route.accountId ?? 'all'}
+            plan={open.plan}
+            today={today}
+            accountId={route.accountId}
+            actions={actions}
+            history={history}
+            {...(route.tx === undefined ? {} : { focusTransactionId: route.tx })}
+          />
         ) : (
           <PlanScreen
             plan={open.plan}

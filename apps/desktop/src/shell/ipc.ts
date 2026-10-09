@@ -62,6 +62,12 @@ export const planIpc = {
   readImportFile: (path: string) => invoke<ArrayBuffer>('read_import_file', { path }),
 };
 
+/** Files the webview builds (src-tauri/src/exports.rs): the bytes go as the raw request body. */
+export const fileIpc = {
+  /** Native Save dialog, then write. Resolves to the saved path, or null if cancelled. */
+  saveExport: (fileName: string, bytes: Uint8Array) => invoke<string | null>('save_export', bytes, { headers: { 'x-file-name': encodeURIComponent(fileName) } }),
+};
+
 export type TitlebarMode = 'custom' | 'native';
 
 export interface LaunchTiming {

@@ -17,6 +17,16 @@ export interface RegisterViewPref {
   runningBalance: boolean;
 }
 
+/** Reflect's filters (S6.1), shared by every report tab and remembered per plan file. */
+export interface ReflectFiltersPref {
+  /** A range preset id, or 'custom' for From/To. */
+  preset: string;
+  from?: Month;
+  to?: Month;
+  excludedCategories: string[];
+  excludedAccounts: string[];
+}
+
 export const DEFAULT_REGISTER_VIEW: RegisterViewPref = { preset: 'all', showReconciled: true, showFlags: true, runningBalance: false };
 
 export interface Prefs {
@@ -46,6 +56,8 @@ export interface Prefs {
   lastRoute: Record<string, string>;
   /** The Plan's selected focused view per plan file path (a device preference, not in the file). */
   planViews: Record<string, string>;
+  /** Reflect filters per plan file path. */
+  reflectFilters: Record<string, ReflectFiltersPref>;
 }
 
 export const INSPECTOR_MIN = 280;
@@ -69,6 +81,7 @@ export const DEFAULT_PREFS: Prefs = {
   collapsedGroups: {},
   lastRoute: {},
   planViews: {},
+  reflectFilters: {},
 };
 
 const THEMES: readonly ThemePref[] = ['system', 'light', 'dark', 'high-contrast'];
@@ -108,6 +121,19 @@ export function parsePrefs(text: string | null): Prefs {
       };
     }
   }
+  const reflectFilters: Record<string, ReflectFiltersPref> = {};
+  if (isRecord(raw.reflectFilters)) {
+    for (const [k, v] of Object.entries(raw.reflectFilters)) {
+      if (!isRecord(v) || typeof v.preset !== 'string') continue;
+      reflectFilters[k] = {
+        preset: v.preset,
+        ...(typeof v.from === 'string' && isMonth(v.from) ? { from: v.from } : {}),
+        ...(typeof v.to === 'string' && isMonth(v.to) ? { to: v.to } : {}),
+        excludedCategories: strings(v.excludedCategories),
+        excludedAccounts: strings(v.excludedAccounts),
+      };
+    }
+  }
   return {
     version: 1,
     theme,
@@ -124,6 +150,7 @@ export function parsePrefs(text: string | null): Prefs {
     collapsedGroups,
     lastRoute,
     planViews,
+    reflectFilters,
   };
 }
 

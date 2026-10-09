@@ -1,5 +1,6 @@
 mod commands;
 mod diagnostics;
+mod exports;
 mod paths;
 mod startup;
 mod titlebar;
@@ -46,6 +47,7 @@ pub fn run() {
             commands::pick_plan_path,
             commands::pick_import_zip,
             commands::read_import_file,
+            exports::save_export,
             diagnostics::launch_timing,
             startup::startup_plan_path,
             titlebar::get_titlebar_mode,

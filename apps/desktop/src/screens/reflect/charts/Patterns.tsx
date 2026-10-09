@@ -1,6 +1,6 @@
 // Series fills for every chart. Colour by default; with "differentiate without colour" (or high
 // contrast) each series also gets its own pattern, so series stay apart without hue. The CSS in
-// reflect.css switches `--s-fill-N` between the token colour and `url(#rf-pat-N)`.
+// Reflect.module.css (and the mockup's reflect.css) switch `--s-fill-N` between the token colour and `url(#rf-pat-N)`.
 import type { ReactNode } from 'react';
 
 const SHAPES: ((n: number) => ReactNode)[] = [
@@ -23,7 +23,7 @@ export const seriesColor = (i: number): string => `var(--c-chart-${String((i % S
 /** Rendered once per Reflect screen; patterns are referenced by id from every chart. */
 export function SeriesPatterns() {
   return (
-    <svg width="0" height="0" style={{ position: 'absolute' }} aria-hidden="true" focusable="false">
+    <svg width="0" height="0" style={{ position: 'absolute' }} aria-hidden="true" focusable="false" data-series-patterns="">
       <defs>
         {SHAPES.map((shape, i) => {
           const n = i + 1;
@@ -40,9 +40,9 @@ export function SeriesPatterns() {
 }
 
 /** A legend key that matches the series fill, pattern included. */
-export function Swatch({ index }: { index: number }) {
+export function Swatch({ index, className = 'rf-swatch' }: { index: number; className?: string | undefined }) {
   return (
-    <svg className="rf-swatch" width="12" height="12" aria-hidden="true" focusable="false">
+    <svg className={className} width="12" height="12" aria-hidden="true" focusable="false">
       <rect width="12" height="12" rx="3" fill={seriesFill(index)} />
     </svg>
   );

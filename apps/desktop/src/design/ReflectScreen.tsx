@@ -7,8 +7,8 @@ import { prefs, usePrefs } from '../shell/prefs.ts';
 import { moneyText } from '../screens/shared/money.ts';
 import { budgetSnapshot, type PlanData } from '@hafb/store';
 import { Icon } from '../ui/Icon.tsx';
-import { donutAngles, donutSlice, linear, niceTicks } from './charts/scale.ts';
-import { SeriesPatterns, Swatch, seriesFill } from './charts/Patterns.tsx';
+import { donutAngles, donutSlice, linear, niceTicks } from '../screens/reflect/charts/scale.ts';
+import { SeriesPatterns, Swatch, seriesFill } from '../screens/reflect/charts/Patterns.tsx';
 import { moneyFormat } from '../screens/plan/planModel.ts';
 import './reflect.css';
 

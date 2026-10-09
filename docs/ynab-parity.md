@@ -176,15 +176,15 @@ A row is `done` only after Sarg validates it on hardware. Rows whose engine half
 
 | ID | Feature | Engine | UI | Status |
 |---|---|---|---|---|
-| RF-01 | Filters: category tree, account tree (Select All/None), timeframe presets + custom, previous/next | S1.7 | S6.1 | in-progress |
-| RF-02 | Drill-down transaction modal | S1.7 | S6.1 | in-progress |
-| RF-03 | Spending Breakdown: donut, stack-ranked list, positive-inflow categories | S1.7 | S6.2 | in-progress |
-| RF-04 | Spending Trends: stacked bars, average line, Totals/Trends toggle | S1.7 | S6.2 | in-progress |
-| RF-05 | Net Worth: assets vs debts bars, net worth line, month list with change | S1.7 | S6.3 | in-progress |
-| RF-06 | Income v Expense: collapsible income/expense groups, average, total, net income | S1.7 | S6.3 | in-progress |
-| RF-07 | Age of Money page (6m / 1y / 2y; empty until 10 outflows) | S1.7 | S6.3 | in-progress |
-| RF-08 | Export: CSV/TSV (Net Worth, Income v Expense); two files with transactions (Spending reports) | S1.7 | S6.1 | in-progress |
-| RF-09 | Share Your Progress image (amounts hidden), plus PNG export of any chart | — | S6.3 | todo |
+| RF-01 | Filters: category tree, account tree (Select All/None), timeframe presets + custom, previous/next | S1.7 | S6.1 | done (YNAB trial 2026-10-09: presets, Custom start/end, search, "N Selected Categories"; remembered per plan file) |
+| RF-02 | Drill-down transaction modal | S1.7 | S6.1 | done (Account / Date / Payee / Memo / Amount; a row opens the transaction in its register) |
+| RF-03 | Spending Breakdown: donut, stack-ranked list, positive-inflow categories | S1.7 | S6.2 | done (Categories / Groups toggle, group drill-in, Positive Inflow Categories, hidden categories marked) |
+| RF-04 | Spending Trends: stacked bars, average line, Totals/Trends toggle | S1.7 | S6.2 | done (stacked by group, drill into a group, month table with Compared to Average; YNAB 2026 has no Totals/Trends toggle) |
+| RF-05 | Net Worth: assets vs debts bars, net worth line, month list with change | S1.7 | S6.3 | done (hover a month; change with its percentage) |
+| RF-06 | Income v Expense: collapsible income/expense groups, average, total, net income | S1.7 | S6.3 | done (YNAB layout; every amount opens its transactions) |
+| RF-07 | Age of Money page (6m / 1y / 2y; empty until 10 outflows) | S1.7 | S6.3 | done |
+| RF-08 | Export: CSV/TSV (Net Worth, Income v Expense); two files with transactions (Spending reports) | S1.7 | S6.1 | done (YNAB's layouts; TSV for decimal-comma currencies; a zip for the Spending reports) |
+| RF-09 | Share Your Progress image (amounts hidden), plus PNG export of any chart | — | S6.3 | done (four formats, tagline and amounts switches, our own look; PNG of any chart) |
 
 ## 12. Loans ([loan accounts](https://support.ynab.com/en_us/loan-accounts-in-ynab-a-guide-HkNSkPHJi))
 
