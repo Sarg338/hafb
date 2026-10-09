@@ -44,6 +44,8 @@ export interface Prefs {
   collapsedGroups: Record<string, string[]>;
   /** Last route per plan file path, to reopen where the user left off. */
   lastRoute: Record<string, string>;
+  /** The Plan's selected focused view per plan file path (a device preference, not in the file). */
+  planViews: Record<string, string>;
 }
 
 export const INSPECTOR_MIN = 280;
@@ -66,6 +68,7 @@ export const DEFAULT_PREFS: Prefs = {
   registerViews: {},
   collapsedGroups: {},
   lastRoute: {},
+  planViews: {},
 };
 
 const THEMES: readonly ThemePref[] = ['system', 'light', 'dark', 'high-contrast'];
@@ -87,6 +90,8 @@ export function parsePrefs(text: string | null): Prefs {
   const width = typeof raw.inspectorWidth === 'number' && Number.isFinite(raw.inspectorWidth) ? Math.round(raw.inspectorWidth) : INSPECTOR_DEFAULT;
   const lastRoute: Record<string, string> = {};
   if (isRecord(raw.lastRoute)) for (const [k, v] of Object.entries(raw.lastRoute)) if (typeof v === 'string') lastRoute[k] = v;
+  const planViews: Record<string, string> = {};
+  if (isRecord(raw.planViews)) for (const [k, v] of Object.entries(raw.planViews)) if (typeof v === 'string') planViews[k] = v;
   const collapsedGroups: Record<string, string[]> = {};
   if (isRecord(raw.collapsedGroups)) for (const [k, v] of Object.entries(raw.collapsedGroups)) if (Array.isArray(v)) collapsedGroups[k] = strings(v);
   const registerViews: Record<string, RegisterViewPref> = {};
@@ -118,6 +123,7 @@ export function parsePrefs(text: string | null): Prefs {
     registerViews,
     collapsedGroups,
     lastRoute,
+    planViews,
   };
 }
 

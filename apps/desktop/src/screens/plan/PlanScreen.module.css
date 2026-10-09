@@ -301,3 +301,83 @@
   background: var(--c-focus);
   pointer-events: none;
 }
+
+/* ---- S5.3: Focused Views and Plan Reset dialogs ------------------------------------------- */
+
+.dialogNote {
+  margin: 12px 0 6px;
+  color: var(--c-text-muted);
+  font-size: var(--t-size-small);
+}
+
+.viewPicker {
+  display: grid;
+  gap: 10px;
+  max-height: 300px;
+  overflow: auto;
+  padding: 8px 10px;
+  border: var(--s-border-width) solid var(--c-border);
+  border-radius: var(--s-radius);
+}
+
+.viewPicker > div {
+  display: grid;
+  gap: 4px;
+}
+
+.viewGroup {
+  margin: 0;
+  font-weight: var(--t-weight-semibold);
+}
+
+.viewList {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.viewItem {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 6px 6px 12px;
+  border: var(--s-border-width) solid var(--c-border);
+  border-radius: var(--s-radius);
+}
+
+.viewName {
+  flex: 1;
+}
+
+.resetLines {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+}
+
+.resetLines > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.resetLines dt {
+  color: var(--c-text-muted);
+}
+
+.resetLines dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.resetTotal {
+  padding-top: 8px;
+  border-top: var(--s-border-width) solid var(--c-border);
+  font-weight: var(--t-weight-semibold);
+}
+
+.resetTotal dt {
+  color: var(--c-text);
+}

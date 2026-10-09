@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { applyChanges, createGroup, setCategoryHidden, setGroupHidden, type CommandContext, type PlanData } from '@hafb/store';
+import { applyChanges, createFocusedView, createGroup, setCategoryHidden, setGroupHidden, type CommandContext, type PlanData } from '@hafb/store';
 import { buildSamplePlan, SAMPLE_TODAY } from '../../design/sample.ts';
 import { planModel } from './planModel.ts';
-import { groupIds, HIDDEN_SECTION_ID, matchesFilter, overspentCount, planRows, type PlanCategoryRow, type PlanGroupRow } from './planRows.ts';
+import { filterFor, groupIds, HIDDEN_SECTION_ID, matchesFilter, overspentCount, planRows, type PlanCategoryRow, type PlanGroupRow } from './planRows.ts';
 
 let n = 0;
 const ctx: CommandContext = { now: '2026-10-14T15:00:00.000Z', today: SAMPLE_TODAY, newId: () => `test-${String((n += 1))}` };
@@ -87,5 +87,15 @@ describe('plan months', () => {
     expect(shownMonth(sample.plan, SAMPLE_TODAY, '2021-10')).toBe('2026-08');
     expect(shownMonth(sample.plan, SAMPLE_TODAY, '2030-01')).toBe('2027-10');
     expect(shownMonth(sample.plan, SAMPLE_TODAY, '2026-09')).toBe('2026-09');
+  });
+
+  it('a custom focused view shows just its categories and their groups', () => {
+    const groceries = sample.plan.categories.find((c) => c.name === 'Groceries')?.id ?? '';
+    const pets = sample.plan.categories.find((c) => c.name === 'Pets')?.id ?? '';
+    const withView = applyChanges(sample.plan, createFocusedView(sample.plan, { now: '2026-10-14T00:00:00.000Z', today: SAMPLE_TODAY, newId: () => 'v1' }, { name: 'Food & pets', categoryIds: [groceries, pets] }).changes).plan;
+    const rows = planRows(planModel(withView, '2026-10', SAMPLE_TODAY), 'view:v1');
+    expect(rows.filter((r) => r.data.kind === 'category').map((r) => r.id)).toEqual([groceries, pets]);
+    expect(filterFor({ id: 'v1' })).toBe('view:v1');
+    expect(filterFor({ id: 'x', builtin: 'moneyAvailable' })).toBe('available');
   });
 });

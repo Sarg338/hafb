@@ -15,6 +15,7 @@ import type { Actions } from '../../design/DesignApp.tsx';
 import { prefs, usePrefs } from '../../shell/prefs.ts';
 import { Button, IconButton } from '../../ui/Button.tsx';
 import { cx } from '../../ui/cx.ts';
+import { Dialog } from '../../ui/Dialog.tsx';
 import { Icon } from '../../ui/Icon.tsx';
 import { MoneyInput } from '../../ui/MoneyInput.tsx';
 import { Pill } from '../../ui/Pill.tsx';
@@ -23,7 +24,7 @@ import { Toggle } from '../../ui/Toggle.tsx';
 import { TextArea } from '../../ui/TextArea.tsx';
 import { cardBalance } from '../shared/cardModel.ts';
 import type { MoneyText } from '../shared/money.ts';
-import { autoAssignChoices, costView, monthSummary, type FutureMonth } from './inspectorModel.ts';
+import { autoAssignChoices, costView, monthSummary, type AutoAssignChoice, type FutureMonth } from './inspectorModel.ts';
 import { monthName } from './PlanHeader.tsx';
 import type { PlanModel } from './planModel.ts';
 import { suggestion, targetCard } from './targetModel.ts';
@@ -33,6 +34,8 @@ import styles from './Inspector.module.css';
 export interface InspectorProps {
   model: PlanModel;
   selected: ReadonlySet<Id>;
+  /** With nothing selected, Auto-Assign acts on the focused view's categories (null = everything). */
+  scope?: readonly Id[] | null;
   actions: Actions;
   money: MoneyText;
   future: readonly FutureMonth[];
@@ -44,7 +47,7 @@ export interface InspectorProps {
   edge?: ReactNode;
 }
 
-export function Inspector({ model, selected, actions, money, future, shortfalls, onRename, className, edge }: InspectorProps) {
+export function Inspector({ model, selected, scope = null, actions, money, future, shortfalls, onRename, className, edge }: InspectorProps) {
   const ids = [...selected].filter((id) => model.ms.categories[id] !== undefined);
   const first = ids[0];
   return (
@@ -64,7 +67,7 @@ export function Inspector({ model, selected, actions, money, future, shortfalls,
       ) : (
         <>
           <SummaryCard model={model} money={money} actions={actions} withCost />
-          <AutoAssign model={model} ids={[...model.views.keys()]} selection={false} actions={actions} money={money} />
+          <AutoAssign model={model} ids={scope === null ? [...model.views.keys()] : [...scope]} selection={false} actions={actions} money={money} />
           <FutureCard future={future} shortfalls={shortfalls} money={money} />
         </>
       )}
@@ -217,6 +220,12 @@ function Meter({ percent, tone }: { percent: number; tone: 'accent' | 'short' | 
 
 function AutoAssign({ model, ids, selection, actions, money }: { model: PlanModel; ids: Id[]; selection: boolean; actions: Actions; money: MoneyText }) {
   const choices = autoAssignChoices(model, ids, selection);
+  const [confirm, setConfirm] = useState<AutoAssignChoice | null>(null);
+  const commit = (o: AutoAssignChoice): void => {
+    // Underfunded shows the full need but stops when Ready to Assign runs out (YNAB trial).
+    const change = o.id === 'underfunded' ? limitToReadyToAssign(o.change, model.ms.readyToAssign) : o.change;
+    actions.run((p, ctx) => applyPlanChange(p, ctx, { change, kind: 'autoAssign', label: `Auto-Assign: ${o.label}` }));
+  };
   return (
     <Section id="autoAssign" title={<><Icon name="sync" /> Auto-Assign</>}>
       {choices.map((o, i) => (
@@ -227,9 +236,9 @@ function AutoAssign({ model, ids, selection, actions, money }: { model: PlanMode
             className={styles.auto}
             disabled={o.change.deltas.length === 0}
             onClick={() => {
-              // Underfunded shows the full need but stops when Ready to Assign runs out (YNAB trial).
-              const change = o.id === 'underfunded' ? limitToReadyToAssign(o.change, model.ms.readyToAssign) : o.change;
-              actions.run((p, ctx) => applyPlanChange(p, ctx, { change, kind: 'autoAssign', label: `Auto-Assign: ${o.label}` }));
+              // The Reset options ask first (YNAB: "Update Available Amounts" / "Update Assigned Amounts").
+              if (o.id === 'resetAvailable' || o.id === 'resetAssigned') setConfirm(o);
+              else commit(o);
             }}
           >
             <span>{o.label}</span>
@@ -237,6 +246,29 @@ function AutoAssign({ model, ids, selection, actions, money }: { model: PlanMode
           </button>
         </div>
       ))}
+      {confirm && (
+        <Dialog
+          open
+          onClose={() => { setConfirm(null); }}
+          title={confirm.label}
+          description={`This changes what’s assigned to ${String(confirm.change.deltas.length)} ${confirm.change.deltas.length === 1 ? 'category' : 'categories'} in ${monthName(model.month)} by ${money(confirm.change.total)}. You can undo it.`}
+          footer={
+            <>
+              <Button onClick={() => { setConfirm(null); }}>Cancel</Button>
+              <Button
+                variant="primary"
+                onClick={() => {
+                  const o = confirm;
+                  setConfirm(null);
+                  commit(o);
+                }}
+              >
+                {confirm.id === 'resetAvailable' ? 'Update Available Amounts' : 'Update Assigned Amounts'}
+              </Button>
+            </>
+          }
+        />
+      )}
     </Section>
   );
 }

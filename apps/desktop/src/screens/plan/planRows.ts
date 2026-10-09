@@ -8,7 +8,23 @@ import type { GridRow } from '../../ui/grid/types.ts';
 import type { PlanModel } from './planModel.ts';
 import type { CategoryView } from './planView.ts';
 
-export type ViewFilter = 'all' | 'underfunded' | 'overfunded' | 'available' | 'snoozed' | 'overspent';
+/** A built-in focused view, or a custom one (`view:<id>`; YNAB allows 12). */
+export type ViewFilter = 'all' | 'underfunded' | 'overfunded' | 'available' | 'snoozed' | 'overspent' | `view:${string}`;
+
+/** The filter a stored view stands for. */
+export function filterFor(view: { id: Id; builtin?: string }): ViewFilter {
+  switch (view.builtin) {
+    case 'underfunded':
+    case 'overfunded':
+    case 'snoozed':
+    case 'overspent':
+      return view.builtin;
+    case 'moneyAvailable':
+      return 'available';
+    default:
+      return `view:${view.id}`;
+  }
+}
 
 /** The synthetic group that collects hidden categories and hidden groups, always last. */
 export const HIDDEN_SECTION_ID = '__hidden__';
@@ -57,6 +73,10 @@ export function matchesFilter(filter: ViewFilter, model: PlanModel, id: Id): boo
       return view.state === 'snoozed';
     case 'overspent':
       return cm.available < 0;
+    default: {
+      const viewId = filter.slice('view:'.length);
+      return model.plan.focusedViews.find((v) => v.id === viewId)?.categoryIds.includes(id) === true;
+    }
   }
 }
 

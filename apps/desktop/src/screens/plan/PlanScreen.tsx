@@ -4,7 +4,7 @@
 import { useCallback, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react';
 import type { Id } from '@hafb/engine';
 import { minor, type ISODate, type Minor, type Month } from '@hafb/shared';
-import { applyChanges, coverOverspending, mergeChangeSets, moveMoney, setAssigned, snoozeTarget, type ChangeSet, type PlanData } from '@hafb/store';
+import { applyChanges, coverOverspending, focusedViews, mergeChangeSets, moveMoney, setAssigned, snoozeTarget, type ChangeSet, type FocusedViewRecord, type PlanData } from '@hafb/store';
 import type { Actions } from '../../design/DesignApp.tsx';
 import { usePrefs, prefs } from '../../shell/prefs.ts';
 import { Button, IconButton } from '../../ui/Button.tsx';
@@ -13,7 +13,7 @@ import { cx } from '../../ui/cx.ts';
 import { DataGrid, type GridColumn } from '../../ui/grid/DataGrid.tsx';
 import { MoneyCellEditor } from '../../ui/grid/editors.tsx';
 import type { EditEnd } from '../../ui/grid/keys.ts';
-import type { MenuItem } from '../../ui/Menu.tsx';
+import { MenuButton, type MenuItem } from '../../ui/Menu.tsx';
 import { Pill } from '../../ui/Pill.tsx';
 import { ProgressBar } from '../../ui/ProgressBar.tsx';
 import { useShortcut } from '../../ui/shortcuts/ShortcutProvider.tsx';
@@ -22,26 +22,21 @@ import { moneyText, type MoneyText } from '../shared/money.ts';
 import { NARROW_WINDOW, useMediaQuery } from '../shared/useMediaQuery.ts';
 import { activityLines, paymentActivity } from '../shared/cardModel.ts';
 import { ActivityPopover } from './ActivityPopover.tsx';
+import { ManageViewsDialog, ViewDialog } from './FocusedViews.tsx';
 import { Inspector } from './Inspector.tsx';
+import { PlanResetDialog } from './PlanReset.tsx';
 import { futureMonths } from './inspectorModel.ts';
 import { MovePopover, SourcePopover } from './MoneyPopovers.tsx';
 import { coverSources, futureShortfalls, laterMonths, moveTargets, parseSource } from './moneyMoves.ts';
 import { monthName, PlanHeader } from './PlanHeader.tsx';
 import { planModel, type PlanModel } from './planModel.ts';
 import { rectOf, usePlanEditing } from './PlanEditing.tsx';
-import { groupIds, HIDDEN_SECTION_ID, overspentCount, planRows, type PlanCategoryRow, type PlanGroupRow, type PlanRow, type ViewFilter } from './planRows.ts';
+import { filterFor, groupIds, HIDDEN_SECTION_ID, overspentCount, planRows, type PlanCategoryRow, type PlanGroupRow, type PlanRow, type ViewFilter } from './planRows.ts';
 import { usePlanDrag } from './usePlanDrag.ts';
 import styles from './PlanScreen.module.css';
 
 export { monthName, monthShort } from './PlanHeader.tsx';
 
-const VIEWS: { id: ViewFilter; label: string }[] = [
-  { id: 'all', label: 'All' },
-  { id: 'underfunded', label: 'Underfunded' },
-  { id: 'overfunded', label: 'Overfunded' },
-  { id: 'available', label: 'Money Available' },
-  { id: 'snoozed', label: 'Snoozed' },
-];
 
 const DEFAULT_COLLAPSED: readonly string[] = [HIDDEN_SECTION_ID];
 
@@ -64,7 +59,18 @@ export function PlanScreen({ plan, planPath, today, month, setMonth, actions, hi
   const money = useMemo(() => moneyText(model.fmt, p.hideAmounts), [model.fmt, p.hideAmounts]);
   const narrow = useMediaQuery(NARROW_WINDOW);
   const moneyWidth = narrow ? 112 : 140;
-  const [filter, setFilter] = useState<ViewFilter>('all');
+  // The selected focused view is a per-device preference (CLAUDE.md §4), remembered per plan file.
+  const views = useMemo(() => focusedViews(plan).filter((v) => v.builtin !== 'overspent'), [plan]);
+  const savedView = p.planViews[planPath];
+  // Overspent shows only while something is overspent; once the last one is covered, the view falls back to All.
+  const filter: ViewFilter = (savedView === 'overspent' ? (overspentCount(model) > 0 ? 'overspent' : 'all') : views.map(filterFor).find((f) => f === savedView)) ?? 'all';
+  const setFilter = useCallback(
+    (f: ViewFilter) => {
+      prefs.update({ planViews: { ...prefs.get().planViews, [planPath]: f } });
+    },
+    [planPath],
+  );
+  const [viewDialog, setViewDialog] = useState<{ kind: 'new' } | { kind: 'edit'; view: FocusedViewRecord } | { kind: 'manage' } | { kind: 'reset' } | null>(null);
   const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set());
   const collapsed = useMemo(() => new Set(p.collapsedGroups[planPath] ?? DEFAULT_COLLAPSED), [p.collapsedGroups, planPath]);
   const setCollapsed = useCallback(
@@ -75,6 +81,8 @@ export function PlanScreen({ plan, planPath, today, month, setMonth, actions, hi
   );
 
   const rows = useMemo(() => planRows(model, filter), [model, filter]);
+  // Auto-Assign with nothing selected acts on the focused view's categories (YNAB, §5.5).
+  const scope = useMemo(() => (filter === 'all' ? null : rows.filter((r) => r.data.kind === 'category' && r.groupId !== HIDDEN_SECTION_ID).map((r) => r.id)), [rows, filter]);
   // Later months with money assigned: cover sources (YNAB, Jun 2025) and future shortfall alerts.
   const later = useMemo(() => laterMonths(plan, month, today), [plan, month, today]);
   const future = useMemo(() => futureMonths(model, later), [model, later]);
@@ -110,8 +118,6 @@ export function PlanScreen({ plan, planPath, today, month, setMonth, actions, hi
     [justDragged, openRename, openAddCategory],
   );
   const overspent = overspentCount(model);
-  // Leaving a filter that no longer applies (the last overspent category got covered).
-  if (filter === 'overspent' && overspent === 0) setFilter('all');
 
   const collapseAll = useCallback(() => {
     setCollapsed(new Set(groupIds(rows)));
@@ -242,6 +248,8 @@ export function PlanScreen({ plan, planPath, today, month, setMonth, actions, hi
     { id: 'sep', label: '', separator: true },
     { id: 'collapse', label: 'Collapse all groups', shortcut: 'Ctrl+↑' },
     { id: 'expand', label: 'Expand all groups', shortcut: 'Ctrl+↓' },
+    { id: 'sep2', label: '', separator: true },
+    { id: 'reset', label: 'Plan Reset…', icon: 'undo' },
   ];
 
   return (
@@ -260,6 +268,7 @@ export function PlanScreen({ plan, planPath, today, month, setMonth, actions, hi
             else if (id === 'nocolor') prefs.update({ noColor: !p.noColor });
             else if (id === 'collapse') collapseAll();
             else if (id === 'expand') expandAll();
+            else if (id === 'reset') setViewDialog({ kind: 'reset' });
           }}
         />
 
@@ -271,13 +280,24 @@ export function PlanScreen({ plan, planPath, today, month, setMonth, actions, hi
               {overspent} Overspent
             </Chip>
           )}
-          {VIEWS.map((v) => (
-            <Chip key={v.id} pressed={filter === v.id} onClick={() => {
-              setFilter(v.id);
+          {views.map((v) => (
+            <Chip key={v.id} pressed={filter === filterFor(v)} onClick={() => {
+              setFilter(filterFor(v));
             }}>
-              {v.label}
+              {v.name}
             </Chip>
           ))}
+          <MenuButton
+            label="Focused views"
+            items={[
+              { id: 'manage', label: 'Manage Views', icon: 'list' },
+              { id: 'new', label: 'New View', icon: 'add' },
+            ]}
+            onSelect={(id) => {
+              setViewDialog(id === 'manage' ? { kind: 'manage' } : { kind: 'new' });
+            }}
+            trigger={(t) => <IconButton {...t} icon="filter" label="Focused views" />}
+          />
         </div>
 
         <div className={styles.toolbar}>
@@ -327,7 +347,19 @@ export function PlanScreen({ plan, planPath, today, month, setMonth, actions, hi
         {editing.element}
       </section>
       {inspectorEdge !== undefined && <div className={styles.inspectorEdge}>{inspectorEdge}</div>}
-      <Inspector model={model} selected={selected} actions={actions} money={money} future={future} shortfalls={shortfalls} onRename={nameActions.rename} />
+      <Inspector model={model} selected={selected} scope={scope} actions={actions} money={money} future={future} shortfalls={shortfalls} onRename={nameActions.rename} />
+      {viewDialog?.kind === 'new' && <ViewDialog plan={plan} actions={actions} onClose={() => { setViewDialog(null); }} onSaved={(id) => { setFilter(`view:${id}`); }} />}
+      {viewDialog?.kind === 'edit' && <ViewDialog plan={plan} view={viewDialog.view} actions={actions} onClose={() => { setViewDialog({ kind: 'manage' }); }} />}
+      {viewDialog?.kind === 'manage' && (
+        <ManageViewsDialog
+          plan={plan}
+          actions={actions}
+          onClose={() => { setViewDialog(null); }}
+          onNew={() => { setViewDialog({ kind: 'new' }); }}
+          onEdit={(view) => { setViewDialog({ kind: 'edit', view }); }}
+        />
+      )}
+      {viewDialog?.kind === 'reset' && <PlanResetDialog model={model} money={money} actions={actions} onClose={() => { setViewDialog(null); }} />}
     </div>
   );
 }
