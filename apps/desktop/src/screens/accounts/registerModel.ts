@@ -293,9 +293,14 @@ export function registerRows(plan: PlanData, options: RegisterOptions): Register
       },
     });
   }
-  const created = new Map(inView.map((t) => [t.id, t.createdAt]));
-  const entered = (x: RegisterRow): string => `${created.get(x.id) ?? ''}|${x.id}`;
-  const byDate = (a: RegisterRow, b: RegisterRow): number => (a.date !== b.date ? (a.date < b.date ? 1 : -1) : entered(a) < entered(b) ? 1 : entered(a) > entered(b) ? -1 : 0);
+  // One key per row, built once: the comparator runs n log n times (20k rows: ~300k calls).
+  const keys = new Map(inView.map((t) => [t.id, `${t.date}|${t.createdAt}|${t.id}`]));
+  const key = (x: RegisterRow): string => keys.get(x.id) ?? '';
+  const byDate = (a: RegisterRow, b: RegisterRow): number => {
+    const ka = key(a);
+    const kb = key(b);
+    return ka < kb ? 1 : ka > kb ? -1 : 0;
+  };
   const sort = options.sort ?? DEFAULT_SORT;
   const sign = sort.dir === 'desc' ? 1 : -1;
   const compare = (a: RegisterRow, b: RegisterRow): number => {
