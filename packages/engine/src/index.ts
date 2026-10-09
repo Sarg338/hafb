@@ -17,3 +17,4 @@ export * from './ageOfMoney.ts';
 export * from './loans.ts';
 export * from './reports.ts';
 export * from './balances.ts';
+export * from './bankImport/index.ts';
