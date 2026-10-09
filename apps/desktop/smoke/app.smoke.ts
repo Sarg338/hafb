@@ -1343,7 +1343,9 @@ void describe('loans, bank import, export and backups (Phase 6)', () => {
     await page.keyboard.press('Control+a');
     await page.keyboard.type('2500');
     await page.keyboard.press('Tab');
-    assert.match(norm(await sim.innerText()), /You’d save \$[\d,]+\.\d\d in interest/);
+    assert.match(norm(await sim.innerText()), /Paying \+\$[\d,]+\.\d\d extra every month .*\$[\d,]+\.\d\d Interest Savings .*\d+ yrs?(, \d+ mos?)? Time Savings/);
+    await sim.getByRole('button', { name: 'Reset all changes' }).click();
+    assert.match(norm(await sim.innerText()), /Paying the minimum every month/);
     await sim.getByRole('button', { name: 'Done' }).click();
     await loan.getByRole('button', { name: 'Get Started' }).click();
     const pair = page.getByRole('dialog', { name: /^Pair Home Mortgage/ });

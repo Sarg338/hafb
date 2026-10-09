@@ -6,7 +6,7 @@
 // celebration when the balance reaches zero (X-05). Figures come from the engine (loanModel).
 import { useMemo, useState, type Ref } from 'react';
 import type { Id } from '@hafb/engine';
-import { minor, monthOf, type ISODate, type Minor } from '@hafb/shared';
+import { minor, monthOf, sub, type ISODate, type Minor } from '@hafb/shared';
 import { applyChanges, createCategory, mergeChangeSets, pairLoanCategory, recordLoanPayment, type AccountRecord, type PlanData } from '@hafb/store';
 import type { Actions } from '../../design/DesignApp.tsx';
 import { usePrefs, prefs } from '../../shell/prefs.ts';
@@ -24,7 +24,7 @@ import { monthLabel, monthLong } from '../reflect/reflectModel.ts';
 import { ShareDialog } from '../reflect/ShareProgress.tsx';
 import { moneyFormat, planModel } from '../plan/planModel.ts';
 import { moneyText, type MoneyText } from '../shared/money.ts';
-import { currentTrack, durationText, loanProgress, owed, loanTerms, missingLoanDetails, paymentForPayoff, payoffMonths, simulate, trackSentence, type LoanProgress, type Projection } from '../shared/loanModel.ts';
+import { currentTrack, durationShort, durationText, loanProgress, owed, loanTerms, missingLoanDetails, paymentForPayoff, payoffMonths, simulate, trackSentence, type LoanProgress, type Projection } from '../shared/loanModel.ts';
 import { formatRate } from './accountsModel.ts';
 import reflect from '../reflect/Reflect.module.css';
 import styles from './LoanPanel.module.css';
@@ -357,7 +357,11 @@ function PayoffSimulator({ account, terms, today, money, plan, onClose }: { acco
                 if (m !== undefined) setPayment(paymentForPayoff(terms, today, m));
               }}
             />
-            {plan2 && <span className={styles.help}>You have {plan2.summary.months} payments remaining on your loan.</span>}
+            {plan2 && base && (
+              <span className={styles.help}>
+                {minimum ? `You have ${String(plan2.summary.months)} payments remaining on your loan.` : `Your original payoff date is ${monthLabel(base.summary.payoffMonth)}`}
+              </span>
+            )}
           </div>
           <MoneyInput
             label={`One time extra in ${monthLabel(monthOf(today)).slice(0, 3)}`}
@@ -369,28 +373,36 @@ function PayoffSimulator({ account, terms, today, money, plan, onClose }: { acco
             }}
             help="Extra one-off payments can have a large impact on your loan."
           />
+          {!minimum && (
+            <Button
+              variant="toolbar"
+              icon="dismiss"
+              onClick={() => {
+                setPayment(terms.monthlyPayment);
+                setExtra(minor(0));
+              }}
+            >
+              Reset all changes
+            </Button>
+          )}
         </div>
         <div className={styles.simResult}>
           {result.ok && plan2 && base ? (
             <>
               <LoanChart progress={progress} track={plan2} money={money} hidden={false} label={`${account.name} with this plan`} />
               <div className={styles.compare}>
-                <p className={styles.compareHead}>{minimum ? 'Paying the minimum every month' : `Paying ${money(payment)} every month${extra > 0 ? ` and ${money(extra)} now` : ''}`}</p>
+                {/* YNAB (trial 2026-10-09): the minimum shows what's left; a plan shows what it saves. */}
+                <p className={styles.compareHead}>{minimum ? 'Paying the minimum every month' : simHeading(money, sub(payment, terms.monthlyPayment), extra)}</p>
                 <div className={styles.compareCells}>
                   <div>
-                    <strong>{money(plan2.summary.totalInterest)}</strong>
-                    <span>Interest Remaining</span>
+                    <strong>{money(minimum ? plan2.interest : result.value.interestSaved)}</strong>
+                    <span>{minimum ? 'Interest Remaining' : 'Interest Savings'}</span>
                   </div>
                   <div>
-                    <strong>{plan2.summary.months === 0 ? 'Paid off' : durationText(plan2.summary.months)}</strong>
-                    <span>Time Remaining</span>
+                    <strong>{minimum ? (plan2.summary.months === 0 ? 'Paid off' : durationText(plan2.summary.months)) : durationShort(Math.max(0, result.value.monthsSaved))}</strong>
+                    <span>{minimum ? 'Time Remaining' : 'Time Savings'}</span>
                   </div>
                 </div>
-                {!minimum && (
-                  <p className={styles.saved}>
-                    You’d save <strong>{money(result.value.interestSaved)}</strong> in interest and finish <strong>{durationText(Math.max(0, result.value.monthsSaved))}</strong> sooner.
-                  </p>
-                )}
               </div>
               <div className={styles.totals}>
                 <div className={cx(styles.totalLine, styles.totalStrong)}>
@@ -399,11 +411,11 @@ function PayoffSimulator({ account, terms, today, money, plan, onClose }: { acco
                 </div>
                 <div className={styles.totalLine}>
                   <span>Principal</span>
-                  <span>{money(minor(plan2.remainingToPay - plan2.summary.totalInterest))}</span>
+                  <span>{money(sub(terms.principal, extra))}</span>
                 </div>
                 <div className={styles.totalLine}>
                   <span>Interest</span>
-                  <span>{money(plan2.summary.totalInterest)}</span>
+                  <span>{money(plan2.interest)}</span>
                 </div>
               </div>
               <p className={styles.help}>Note: Escrow amounts are not included.</p>
@@ -415,6 +427,13 @@ function PayoffSimulator({ account, terms, today, money, plan, onClose }: { acco
       </div>
     </Dialog>
   );
+}
+
+/** "Paying +$500.00 extra every month" (YNAB), with a one-time extra when there is one. */
+function simHeading(money: MoneyText, more: Minor, once: Minor): string {
+  const monthly = more > 0 ? `+${money(more)} extra every month` : '';
+  const now = once > 0 ? `${money(once)} extra now` : '';
+  return `Paying ${[monthly, now].filter(Boolean).join(' and ')}`;
 }
 
 // ---- pairing ---------------------------------------------------------------------------------

@@ -194,8 +194,8 @@ A row is `done` only after Sarg validates it on hardware. Rows whose engine half
 | L-02 | Monthly interest auto-posted (editable) | S1.7 | S6.4 | done (posted on the 1st as Interest / Escrow / Fees; editable like any transaction; a deleted one is never re-posted) |
 | L-03 | Payment allocation: interest + escrow first, then principal | S1.7 | S6.4 | done |
 | L-04 | Paired category; Record Payment; Monthly Debt Payment target | S1.7 | S6.4 | done (pair or create a category; one loan per category; Record Payment pre-fills Available; the inspector shows the loan) |
-| L-05 | Payoff calculator: payment ↔ payoff date, interest saved | S1.7 | S6.4 | done (Loan Payoff Simulator: monthly payment ↔ payoff date, interest remaining, time remaining) |
-| L-06 | Loan Planner what-if extra payments | S1.7 | S6.4 | done (a higher monthly payment and a one-time extra this month; interest and time saved) |
+| L-05 | Payoff calculator: payment ↔ payoff date, interest saved | S1.7 | S6.4 | done (Loan Payoff Simulator: monthly payment ↔ payoff date, interest remaining, time remaining; totals match YNAB to the cent, budget-math §10.5) |
+| L-06 | Loan Planner what-if extra payments | S1.7 | S6.4 | done (a higher monthly payment and a one-time extra this month; Interest Savings and Time Savings as YNAB words them, Reset all changes; +$500 on the trial mortgage matches YNAB exactly) |
 | L-07 | Missing-details indicator; no auto-close at $0; payoff celebration | — | S6.4 | done (gear in the sidebar and an "Add loan details" button; loans never close themselves; a celebration when the balance reaches zero) |
 
 ## 13. Import / export ([file import](https://support.ynab.com/en_us/file-based-import-a-guide-Bkj4Sszyo), [approve & match](https://support.ynab.com/en_us/approving-and-matching-transactions-a-guide-ByYNZaQ1i))

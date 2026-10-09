@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { minor } from '@hafb/shared';
 import type { AccountRecord } from '@hafb/store';
 import { buildSamplePlan } from '../../design/sample.ts';
-import { currentTrack, durationText, loanProgress, loanTerms, missingLoanDetails, paymentForPayoff, payoffMonths, simulate, trackSentence } from './loanModel.ts';
+import { currentTrack, durationShort, durationText, loanProgress, loanTerms, missingLoanDetails, paymentForPayoff, payoffMonths, simulate, trackSentence } from './loanModel.ts';
 
 const T0 = '2026-10-08T12:00:00.000Z';
 // The YNAB trial's mortgage: $200,000 at 6%, $1,500 minimum including $300 escrow.
@@ -33,9 +33,17 @@ describe('loan accounts (S6.4)', () => {
     expect(track.ok && track.value.summary.payoffMonth).toBe('2056-10');
     expect(track.ok && track.value.summary.months).toBe(360);
     expect(trackSentence('$1,500.00', track)).toBe('The minimum payment of $1,500.00 will pay off this loan in 30 years.');
-    // YNAB shows $231,096.44 interest; the engine's documented model is $0.50 higher (budget-math §13 Q7).
-    expect(track.ok && track.value.summary.totalInterest).toBe(23_109_694);
-    expect(track.ok && track.value.remainingToPay).toBe(20_000_000 + 23_109_694);
+    // YNAB: Interest Remaining $231,096.44 and Remaining to Pay $431,096.43, to the cent (budget-math §10.5).
+    expect(track.ok && track.value.interest).toBe(23_109_644);
+    expect(track.ok && track.value.remainingToPay).toBe(43_109_643);
+  });
+
+  it('YNAB at $2,000 a month: $128,659.77 interest saved, 15 yrs 2 mos sooner, paid off Aug 2041', () => {
+    const terms = loanTerms(house, minor(-20_000_000));
+    if (!terms) throw new Error('no terms');
+    const r = simulate(terms, today, minor(200_000), minor(0));
+    if (!r.ok) throw new Error(r.reason);
+    expect([r.value.interestSaved, r.value.monthsSaved, r.value.plan.summary.payoffMonth, r.value.plan.interest, r.value.plan.remainingToPay]).toEqual([12_865_977, 182, '2041-08', 10_243_667, 30_243_667]);
   });
 
   it('the simulator: paying more saves interest and time; a one-time extra comes off the principal now', () => {
@@ -45,7 +53,7 @@ describe('loan accounts (S6.4)', () => {
     expect(more.ok).toBe(true);
     if (!more.ok) return;
     expect(more.value.plan.summary.months).toBeLessThan(360);
-    expect(more.value.interestSaved).toBe(more.value.base.summary.totalInterest - more.value.plan.summary.totalInterest);
+    expect(more.value.interestSaved).toBe(more.value.base.interest - more.value.plan.interest);
     expect(more.value.monthsSaved).toBe(360 - more.value.plan.summary.months);
     const lump = simulate(terms, today, minor(150_000), minor(20_000_000));
     expect(lump.ok && lump.value.plan.summary.months).toBe(0);
@@ -80,5 +88,7 @@ describe('loan accounts (S6.4)', () => {
     expect(durationText(360)).toBe('30 years');
     expect(durationText(27)).toBe('2 years, 3 months');
     expect(durationText(1)).toBe('1 month');
+    expect(durationShort(182)).toBe('15 yrs, 2 mos');
+    expect(durationShort(13)).toBe('1 yr, 1 mo');
   });
 });

@@ -21,7 +21,7 @@
 
 | When | Check | Why | Status |
 |---|---|---|---|
-| **On or after 2026-11-01** (before the YNAB trial ends, early Nov) | Open the trial's mortgage account (`house`, in the archived plan) and record the **interest transaction YNAB posted**. HAFB predicts **$1,000.00** ($200,000 × 6.00% ÷ 12). | **Sarg's requirement: estimators must be as accurate as possible, not just the budget math.** The payoff simulator's total interest is $0.50 higher than YNAB's over 30 years (budget-math §13 Q7). The monthly posting pins down the per-month formula. If it matches, test the remaining simulator hypotheses (first-month proration from the account's start date, rounding of the final payment, floating-point accumulation) until the 30-year total matches to the cent. | ⏳ |
+| **On or after 2026-11-01** (before the YNAB trial ends, early Nov) | Open the trial's mortgage account (`house`, in the archived plan) and record the **interest transaction YNAB posted**. HAFB predicts **$1,000.00** ($200,000 × 6.00% ÷ 12). | **Sarg's requirement: estimators must be as accurate as possible, not just the budget math.** The payoff simulator's totals now match YNAB to the cent (2026-10-09: closed-form annuity, budget-math §10.5). What's left is the posted monthly charge (§10.4): if YNAB's differs from $1,000.00, fix `postLoanCharges` to YNAB's date and formula. | ⏳ |
 | Optional, any time before the trial ends | Trial extra: try to change an unlinked checking account with transactions to Credit Card. | Shows whether YNAB still allows type conversion; that decides whether the public sample's 95 converted-card values (Q8) matter for import. | ⏳ |
 
 ## Milestones

@@ -4,8 +4,8 @@
 // pay off this loan in N years"); the Loan Payoff Simulator (monthly payment ↔ payoff date, a
 // one-time extra this month; interest remaining, time remaining, remaining to pay = principal +
 // interest, "Escrow amounts are not included"); a gear when details are missing.
-import { accountBalances, amortizationSchedule, payoffSummary, requiredPaymentForPayoff, type AmortizationRow, type LoanTerms, type PayoffSummary } from '@hafb/engine';
-import { addMonths, compareMonths, minor, monthOf, monthsBetween, neg, sub, ZERO, type ISODate, type Minor, type Month } from '@hafb/shared';
+import { accountBalances, amortizationSchedule, payoffSummary, payoffTotals, requiredPaymentForPayoff, type AmortizationRow, type LoanTerms, type PayoffSummary } from '@hafb/engine';
+import { add, addMonths, compareMonths, minor, monthOf, monthsBetween, neg, sub, ZERO, type ISODate, type Minor, type Month } from '@hafb/shared';
 import { budgetSnapshot, isLoanAccount, type AccountRecord, type PlanData } from '@hafb/store';
 
 /** What's owed on a loan balance (debt is negative): never below zero. */
@@ -33,6 +33,15 @@ export function loanTerms(a: AccountRecord, balance: Minor): LoanTerms | null {
   };
 }
 
+/** YNAB's Time Savings: "15 yrs, 2 mos", "1 yr", "3 mos". */
+export function durationShort(months: number): string {
+  const y = Math.floor(months / 12);
+  const m = months % 12;
+  const part = (n: number, unit: string) => `${String(n)} ${unit}${n === 1 ? '' : 's'}`;
+  if (y === 0) return part(m, 'mo');
+  return m === 0 ? part(y, 'yr') : `${part(y, 'yr')}, ${part(m, 'mo')}`;
+}
+
 /** "30 years", "2 years, 3 months", "8 months", "1 month". */
 export function durationText(months: number): string {
   const y = Math.floor(months / 12);
@@ -49,6 +58,8 @@ export interface Projection {
   summary: PayoffSummary;
   /** Principal + interest, escrow and fees left out (as YNAB's "Remaining to Pay"). */
   remainingToPay: Minor;
+  /** Interest still to pay, as YNAB's simulator computes it (engine `payoffTotals`, budget-math §10.5). */
+  interest: Minor;
 }
 
 export type ProjectionResult = { ok: true; value: Projection } | { ok: false; reason: string };
@@ -57,7 +68,11 @@ function project(terms: LoanTerms, start: Month, extra: { extraMonthly?: Minor }
   try {
     const rows = amortizationSchedule(terms, start, extra);
     const summary = payoffSummary(terms, start, extra);
-    return { ok: true, value: { start, rows, summary, remainingToPay: minor(terms.principal + summary.totalInterest) } };
+    // YNAB's totals (closed-form annuity) where they exist; the schedule's otherwise.
+    const totals = payoffTotals(terms.principal, terms.aprBps, sub(sub(add(terms.monthlyPayment, extra.extraMonthly ?? ZERO), terms.escrow ?? ZERO), terms.fees ?? ZERO));
+    const interest = totals?.interest ?? summary.totalInterest;
+    const remainingToPay = totals?.remainingToPay ?? minor(terms.principal + summary.totalInterest);
+    return { ok: true, value: { start, rows, summary, remainingToPay, interest } };
   } catch (e) {
     return { ok: false, reason: e instanceof Error ? e.message : String(e) };
   }
@@ -85,8 +100,8 @@ export function simulate(terms: LoanTerms, today: ISODate, monthlyPayment: Minor
   if (!base.ok) return base;
   const principal = sub(terms.principal, oneTimeExtra);
   if (principal <= 0) {
-    const empty: Projection = { start, rows: [], summary: { payoffMonth: monthOf(today), months: 0, totalInterest: minor(0), totalPaid: minor(0) }, remainingToPay: minor(0) };
-    return { ok: true, value: { base: base.value, plan: empty, interestSaved: base.value.summary.totalInterest, monthsSaved: base.value.summary.months } };
+    const empty: Projection = { start, rows: [], summary: { payoffMonth: monthOf(today), months: 0, totalInterest: minor(0), totalPaid: minor(0) }, remainingToPay: minor(0), interest: minor(0) };
+    return { ok: true, value: { base: base.value, plan: empty, interestSaved: base.value.interest, monthsSaved: base.value.summary.months } };
   }
   const plan = project({ ...terms, principal, monthlyPayment }, start);
   if (!plan.ok) return plan;
@@ -95,7 +110,7 @@ export function simulate(terms: LoanTerms, today: ISODate, monthlyPayment: Minor
     value: {
       base: base.value,
       plan: plan.value,
-      interestSaved: minor(base.value.summary.totalInterest - plan.value.summary.totalInterest),
+      interestSaved: minor(base.value.interest - plan.value.interest),
       monthsSaved: base.value.summary.months - plan.value.summary.months,
     },
   };
