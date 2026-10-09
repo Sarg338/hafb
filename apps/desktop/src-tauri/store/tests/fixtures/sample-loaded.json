@@ -542,7 +542,11 @@
    "imported_payee",
    "imported_memo",
    "created_at",
-   "deleted_at"
+   "deleted_at",
+   "imported_date",
+   "imported_amount",
+   "entered_amount",
+   "matched_at"
   ],
   "rows": [
    [
@@ -564,6 +568,10 @@
     null,
     null,
     "2026-10-08T12:00:00.000Z",
+    null,
+    null,
+    null,
+    null,
     null
    ],
    [
@@ -585,6 +593,10 @@
     null,
     null,
     "2026-10-08T12:00:00.000Z",
+    null,
+    null,
+    null,
+    null,
     null
    ],
    [
@@ -606,6 +618,10 @@
     "GROC STORE #12",
     "POS",
     "2026-10-08T12:00:00.000Z",
+    null,
+    "2026-10-03",
+    -7500,
+    null,
     null
    ],
    [
@@ -627,6 +643,10 @@
     null,
     null,
     "2026-10-08T12:00:00.000Z",
+    null,
+    null,
+    null,
+    null,
     null
    ],
    [
@@ -648,6 +668,10 @@
     null,
     null,
     "2026-10-08T12:00:00.000Z",
+    null,
+    null,
+    null,
+    null,
     null
    ],
    [
@@ -665,11 +689,15 @@
     null,
     "s-rent",
     0,
-    null,
-    null,
+    "F-RENT",
+    "LANDLORD LLC",
     null,
     "2026-10-08T12:00:00.000Z",
-    null
+    null,
+    "2026-10-02",
+    -150000,
+    -149900,
+    "2026-10-08T12:00:00.000Z"
    ],
    [
     "t-del",
@@ -690,7 +718,11 @@
     null,
     null,
     "2026-10-08T12:00:00.000Z",
-    "2026-10-08T12:00:00.000Z"
+    "2026-10-08T12:00:00.000Z",
+    null,
+    null,
+    null,
+    null
    ]
   ]
  },

@@ -109,6 +109,12 @@ export interface TransactionRecord extends Transaction {
   importId?: string;
   importedPayee?: string;
   importedMemo?: string;
+  /** The bank's date and amount (S6.5): kept so a match can be undone. */
+  importedDate?: ISODate;
+  importedAmount?: Minor;
+  /** A matched transaction: when it matched, and the amount the user had entered before the bank's replaced it. */
+  matchedAt?: Timestamp;
+  enteredAmount?: Minor;
   createdAt: Timestamp;
   deletedAt?: Timestamp;
 }

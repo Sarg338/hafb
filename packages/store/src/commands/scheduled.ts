@@ -219,6 +219,27 @@ export function enterScheduledNow(plan: PlanData, ctx: CommandContext, args: { s
   return { label: args.scheduledIds.length === 1 ? 'Enter scheduled transaction' : `Enter ${String(args.scheduledIds.length)} scheduled transactions`, changes, transactionIds: ids };
 }
 
+/**
+ * Enter one scheduled occurrence on its own date and move the schedule past it (an import that
+ * matched it, S6.5). The entry is approved: a matched transaction needs no approval (YNAB).
+ */
+export function enterScheduledOccurrence(plan: PlanData, ctx: CommandContext, args: { scheduledId: Id; date: ISODate }): Command & { transactionId: Id } {
+  let id = '';
+  const { changes } = chain(plan, [
+    (p) => {
+      const cmd = addTransaction(p, ctx, entryFor(liveScheduled(new Draft(p), args.scheduledId), args.date, true));
+      id = cmd.transactionId;
+      return cmd;
+    },
+    (p) => {
+      const d = new Draft(p);
+      advance(d, ctx, liveScheduled(d, args.scheduledId), args.date);
+      return { label: '', changes: d.build() };
+    },
+  ]);
+  return { label: 'Enter scheduled transaction', changes, transactionId: id };
+}
+
 /** Skip the next occurrence (a one-time schedule is removed). */
 export function skipScheduled(plan: PlanData, ctx: CommandContext, args: { scheduledIds: readonly Id[] }): Command {
   const d = new Draft(plan);

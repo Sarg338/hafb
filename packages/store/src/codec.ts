@@ -563,6 +563,10 @@ function encodeTransaction(t: TransactionRecord): Row {
     import_id: n(t.importId),
     imported_payee: n(t.importedPayee),
     imported_memo: n(t.importedMemo),
+    imported_date: n(t.importedDate),
+    imported_amount: n(t.importedAmount),
+    entered_amount: n(t.enteredAmount),
+    matched_at: n(t.matchedAt),
     created_at: t.createdAt,
     deleted_at: n(t.deletedAt),
   };
@@ -578,6 +582,10 @@ function decodeTransaction(r: Reader): TransactionRecord {
   const importId = r.optStr('import_id');
   const importedPayee = r.optStr('imported_payee');
   const importedMemo = r.optStr('imported_memo');
+  const importedDate = r.optDate('imported_date');
+  const importedAmount = r.optMoney('imported_amount');
+  const enteredAmount = r.optMoney('entered_amount');
+  const matchedAt = r.optStr('matched_at');
   const deletedAt = r.optStr('deleted_at');
   const categoryId: CategoryRef = r.optStr('category_id') ?? null;
   return {
@@ -598,6 +606,10 @@ function decodeTransaction(r: Reader): TransactionRecord {
     ...(importId === undefined ? {} : { importId }),
     ...(importedPayee === undefined ? {} : { importedPayee }),
     ...(importedMemo === undefined ? {} : { importedMemo }),
+    ...(importedDate === undefined ? {} : { importedDate }),
+    ...(importedAmount === undefined ? {} : { importedAmount }),
+    ...(matchedAt === undefined ? {} : { matchedAt }),
+    ...(enteredAmount === undefined ? {} : { enteredAmount }),
     createdAt: r.str('created_at'),
     ...(deletedAt === undefined ? {} : { deletedAt }),
   };

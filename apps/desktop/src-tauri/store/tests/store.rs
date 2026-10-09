@@ -181,11 +181,19 @@ fn an_older_file_is_backed_up_then_migrated() {
     let dir = TempDir::new("migrate");
     let backups = dir.join("backups");
     let path = dir.join("Old.hafb");
-    // The sample as a v1 file: without the columns later migrations added (0002: payees.hidden).
+    // The sample as a v1 file: without the columns later migrations added (0002: payees.hidden;
+    // 0003: the transactions' import-matching columns).
     let mut v1 = sample();
     for t in v1.upserts.iter_mut().filter(|t| t.table == "payees") {
         for r in &mut t.rows {
             r.remove("hidden");
+        }
+    }
+    for t in v1.upserts.iter_mut().filter(|t| t.table == "transactions") {
+        for r in &mut t.rows {
+            for c in ["imported_date", "imported_amount", "entered_amount", "matched_at"] {
+                r.remove(c);
+            }
         }
     }
     Plan::create_with(&path, &v1, false, &MIGRATIONS[..1]).unwrap();
