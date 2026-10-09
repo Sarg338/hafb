@@ -194,6 +194,8 @@ A target is a **cadence** (weekly / monthly / yearly / custom ± repeat) plus a 
 - **Rounding:** multi-month shares round **up**. Confirmed by the .01 in Cost to Be Me (Vacation $133.34).
 - **Confirmed unchanged:** set aside / refill / have-a-balance formulas, months remaining, and progress %. All 19 cards matched in October and November.
 
+**Suggested amounts** (S5.2, `suggestTargetAmount`). YNAB says suggestions come from past spending (Feb 2025) and its onboarding reads 90 days, but publishes no formula. ASSUMPTION: the average net spending over the last three complete months the plan has (each month's −activity, floored at 0), rounded half up. Example: $40.00, $50.00, $60.01 → $50.00; $0, $0, $20.00 → $6.67. No spending, or no earlier month, suggests nothing.
+
 ## 7. Plan operations (CLAUDE.md §5.5, §5.6, §5.14)
 
 Every operation is pure. It returns assignment deltas and their total (the amount of Ready to Assign it uses), so the UI can preview it and commit it as one undo step.

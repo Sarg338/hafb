@@ -6,6 +6,7 @@
 import {
   addMonths,
   compareMonths,
+  divRound,
   dateParts,
   dayOfWeek,
   daysInMonth,
@@ -18,7 +19,7 @@ import {
   type Minor,
   type Month,
 } from '@hafb/shared';
-import type { CategoryMonth, MonthState } from './budget.ts';
+import type { BudgetState, CategoryMonth, MonthState } from './budget.ts';
 import { ValidationError } from './errors.ts';
 import type { Id } from './model.ts';
 
@@ -297,4 +298,23 @@ export function costToBeMe(evaluated: Record<Id, TargetMonth>, expectedIncome: M
   // share; "Have a balance of" with no date nothing (trial 2026-10: $1,390.01 exactly).
   for (const t of Object.values(evaluated)) if (t.status !== 'inactive') total += t.monthlyCost;
   return { targets: minor(total), expectedIncome, difference: minor(expectedIncome - total) };
+}
+
+/**
+ * A suggested monthly target from history (§5.4; YNAB, Feb 2025: "suggested amounts … based on your
+ * past spending", its onboarding reading 90 days). ASSUMPTION: the average net spending (−activity,
+ * never below zero per month) over the last three complete months the plan has, rounded half up;
+ * null when nothing was spent or there is no earlier month.
+ */
+export function suggestTargetAmount(state: BudgetState, categoryId: Id, month: Month): Minor | null {
+  let total = 0;
+  let months = 0;
+  for (let i = 1; i <= 3; i++) {
+    const ms = state.byMonth[addMonths(month, -i)];
+    if (!ms) continue;
+    months += 1;
+    total += Math.max(0, 0 - (ms.categories[categoryId]?.activity ?? 0));
+  }
+  if (months === 0 || total === 0) return null;
+  return divRound(minor(total), months);
 }
