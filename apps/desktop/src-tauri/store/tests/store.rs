@@ -182,11 +182,16 @@ fn an_older_file_is_backed_up_then_migrated() {
     let backups = dir.join("backups");
     let path = dir.join("Old.hafb");
     // The sample as a v1 file: without the columns later migrations added (0002: payees.hidden;
-    // 0003: the transactions' import-matching columns).
+    // 0003: the transactions' import-matching columns; 0004: plan.display_decimals).
     let mut v1 = sample();
     for t in v1.upserts.iter_mut().filter(|t| t.table == "payees") {
         for r in &mut t.rows {
             r.remove("hidden");
+        }
+    }
+    for t in v1.upserts.iter_mut().filter(|t| t.table == "plan") {
+        for r in &mut t.rows {
+            r.remove("display_decimals");
         }
     }
     for t in v1.upserts.iter_mut().filter(|t| t.table == "transactions") {

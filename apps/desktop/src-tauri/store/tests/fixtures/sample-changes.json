@@ -8,6 +8,7 @@
      "name": "Sample Plan",
      "currency_code": "USD",
      "currency_decimals": 2,
+     "display_decimals": 0,
      "currency_symbol": "$",
      "symbol_placement": "before",
      "number_format": "123,456.78",

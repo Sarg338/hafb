@@ -28,7 +28,10 @@ export interface PlanSettings {
   name: string;
   /** ISO 4217. */
   currencyCode: string;
+  /** Decimal places amounts are stored in; fixed when the plan is created. */
   currencyDecimals: number;
+  /** Decimal places shown after switching to a currency with other decimals (migration 0004); absent = currencyDecimals. */
+  displayDecimals?: number;
   currencySymbol: string;
   symbolPlacement: SymbolPlacement;
   /** YNAB's sample notation: '123,456.78', '123.456,78', … */

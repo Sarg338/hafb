@@ -12,7 +12,8 @@
    "first_month",
    "expected_income",
    "archived_at",
-   "created_at"
+   "created_at",
+   "display_decimals"
   ],
   "rows": [
    [
@@ -27,7 +28,8 @@
     "2026-09",
     500000,
     null,
-    "2026-10-08T12:00:00.000Z"
+    "2026-10-08T12:00:00.000Z",
+    0
    ]
   ]
  },

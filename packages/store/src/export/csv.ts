@@ -3,7 +3,7 @@
 // numbers bare. Currencies that use a decimal comma export tab-separated text instead
 // (https://support.ynab.com/en_us/how-to-export-reflection-data-Bykou09). Money is written from
 // integer minor units; it never passes through a float.
-import { abs, formatDate, numberFormatSeparators, type ISODate, type Minor } from '@hafb/shared';
+import { abs, formatDate, inputSeparators, numberFormatSeparators, type ISODate, type Minor } from '@hafb/shared';
 import type { PlanSettings } from '../records.ts';
 
 /** A cell: text is quoted; a `{ n }` number is written bare. */
@@ -36,7 +36,7 @@ export function encodeTable(rows: readonly (readonly Cell[])[], delimiter: Delim
 
 /** A bare number in the plan's decimal separator, no grouping: "-1200.00" or "-1200,00". */
 export function exportNumber(amount: Minor, settings: Pick<PlanSettings, 'currencyDecimals' | 'numberFormat'>): { n: string } {
-  const { decimal } = numberFormatSeparators(settings.numberFormat);
+  const { decimal } = inputSeparators(settings.numberFormat);
   const decimals = settings.currencyDecimals;
   const digits = String(Math.abs(amount)).padStart(decimals + 1, '0');
   const whole = digits.slice(0, digits.length - decimals);

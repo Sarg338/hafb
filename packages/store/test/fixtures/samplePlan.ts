@@ -11,6 +11,7 @@ export function samplePlan(): PlanData {
       name: 'Sample Plan',
       currencyCode: 'USD',
       currencyDecimals: 2,
+      displayDecimals: 0,
       currencySymbol: '$',
       symbolPlacement: 'before',
       numberFormat: '123,456.78',

@@ -301,6 +301,7 @@ export function encodeSettings(s: PlanSettings): Row {
     name: s.name,
     currency_code: s.currencyCode,
     currency_decimals: s.currencyDecimals,
+    display_decimals: n(s.displayDecimals),
     currency_symbol: s.currencySymbol,
     symbol_placement: s.symbolPlacement,
     number_format: s.numberFormat,
@@ -316,10 +317,12 @@ function decodeSettings(r: Reader): PlanSettings {
   const firstMonth = r.optMonth('first_month');
   const expectedIncome = r.optMoney('expected_income');
   const archivedAt = r.optStr('archived_at');
+  const displayDecimals = r.optInt('display_decimals');
   return {
     name: r.str('name'),
     currencyCode: r.str('currency_code'),
     currencyDecimals: r.int('currency_decimals'),
+    ...(displayDecimals === undefined ? {} : { displayDecimals }),
     currencySymbol: r.str('currency_symbol'),
     symbolPlacement: r.oneOf('symbol_placement', PLACEMENTS),
     numberFormat: r.str('number_format'),
