@@ -4,7 +4,7 @@
 // Canonical records: optional booleans equal to their column default are omitted (`closed: false`,
 // `approved: true`, `autoCategorize: true`, ...), and NULL columns are omitted fields. Decoding always
 // yields canonical records; `canonical()` normalizes a hand-built one.
-import { READY_TO_ASSIGN, ValidationError, type AccountType, type Assignment, type CategoryRef, type ClearedState, type FlagColor, type Frequency, type Id, type RenameMatch, type TargetBehavior, type TargetCadence } from '@hafb/engine';
+import { CREDIT_CARD_INTEREST, READY_TO_ASSIGN, ValidationError, type AccountType, type Assignment, type CategoryRef, type ClearedState, type FlagColor, type Frequency, type Id, type RenameMatch, type TargetBehavior, type TargetCadence } from '@hafb/engine';
 import { isISODate, isMonth, minor, type ISODate, type Minor, type Month } from '@hafb/shared';
 import type {
   AccountRecord,
@@ -923,7 +923,7 @@ export function decodePlan(tables: LoadedTables): PlanData {
   const collections: PlanCollections = {
     accounts: collect(TABLE_OF.accounts, decodeAccount),
     categoryGroups: collect(TABLE_OF.categoryGroups, decodeGroup, (r) => r.optStr('system_kind') !== 'inflow'),
-    categories: collect(TABLE_OF.categories, decodeCategory, (r) => r.str('id') !== READY_TO_ASSIGN),
+    categories: collect(TABLE_OF.categories, decodeCategory, (r) => r.str('id') !== READY_TO_ASSIGN && r.str('id') !== CREDIT_CARD_INTEREST),
     targets: collect(TABLE_OF.targets, decodeTarget),
     payees: collect(TABLE_OF.payees, decodePayee),
     payeeRenameRules: collect(TABLE_OF.payeeRenameRules, decodeRule),

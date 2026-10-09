@@ -577,3 +577,40 @@ fn load_of_twenty_thousand_transactions() {
         if cfg!(debug_assertions) { "debug" } else { "release" }
     );
 }
+
+// ---- transaction photos (S7.6, ADR 0009) -----------------------------------------------------------
+
+#[test]
+fn a_photo_lives_in_the_plan_file_one_per_transaction_and_travels_with_a_copy() {
+    let dir = TempDir::new("photos");
+    let path = create_sample(&dir);
+    let (mut plan, _) = Plan::open(&path, &no_backups()).unwrap();
+    let jpeg = vec![0xFF, 0xD8, 0xFF, 0xE0, 1, 2, 3, 4];
+    let info = plan.attachment_add("att-1", "t-sb", "receipt.JPG", &jpeg, "2026-10-09T12:00:00Z").unwrap();
+    assert_eq!((info.mime_type.as_str(), info.size_bytes, info.has_thumbnail), ("image/jpeg", 8, false));
+    plan.attachment_set_thumbnail("att-1", &[9, 9, 9]).unwrap();
+    assert_eq!(plan.attachment_data("att-1").unwrap(), jpeg);
+    assert_eq!(plan.attachment_thumbnail("att-1").unwrap(), Some(vec![9, 9, 9]));
+    assert!(plan.attachments().unwrap()[0].has_thumbnail);
+    // Another photo for the same transaction replaces the first (YNAB: one image per transaction).
+    plan.attachment_add("att-2", "t-sb", "scan.png", &[1, 2, 3], "2026-10-09T12:01:00Z").unwrap();
+    let all = plan.attachments().unwrap();
+    assert_eq!(all.iter().map(|a| a.id.as_str()).collect::<Vec<_>>(), vec!["att-2"]);
+    // Refused: not an image, too large, no such transaction.
+    assert_eq!(plan.attachment_add("x", "t-sb", "notes.pdf", &[1], "t").unwrap_err().kind, ErrorKind::Invalid);
+    let huge = vec![0u8; hafb_store::attachments::MAX_ATTACHMENT_BYTES + 1];
+    assert_eq!(plan.attachment_add("x", "t-sb", "big.jpg", &huge, "t").unwrap_err().kind, ErrorKind::Invalid);
+    assert_eq!(plan.attachment_add("x", "nope", "a.jpg", &[1], "t").unwrap_err().kind, ErrorKind::Invalid);
+    // Save a copy carries the photo; the snapshot load never includes BLOBs.
+    let copy = dir.join("Copy.hafb");
+    plan.save_copy(&copy).unwrap();
+    assert!(!plan.load().unwrap().contains_key("attachments"));
+    drop(plan);
+    let (copied, _) = Plan::open(&copy, &no_backups()).unwrap();
+    assert_eq!(copied.attachment_data("att-2").unwrap(), vec![1, 2, 3]);
+    drop(copied);
+    let (mut again, _) = Plan::open(&path, &no_backups()).unwrap();
+    again.attachment_delete("att-2").unwrap();
+    assert!(again.attachments().unwrap().is_empty());
+    assert_eq!(again.attachment_delete("att-2").unwrap_err().kind, ErrorKind::Invalid);
+}

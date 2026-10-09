@@ -4,7 +4,7 @@
 // "Make Repeating" (Shift+T) schedules a copy of an existing transaction. A one-time ("Never")
 // schedule is used up once entered or skipped. Entering goes through addTransaction, so transfers
 // and splits follow the same rules as typed transactions.
-import { nextOccurrence, READY_TO_ASSIGN, ValidationError, type CategoryRef, type FlagColor, type Frequency, type Id } from '@hafb/engine';
+import { CREDIT_CARD_INTEREST, isCreditAccountType, nextOccurrence, READY_TO_ASSIGN, ValidationError, type CategoryRef, type FlagColor, type Frequency, type Id } from '@hafb/engine';
 import { compareDates, dateParts, minor, type ISODate, type Minor } from '@hafb/shared';
 import { applyChanges, mergeChangeSets } from '../changes.ts';
 import type { PlanData, ScheduledSubtransactionRecord, ScheduledTransactionRecord } from '../records.ts';
@@ -45,7 +45,8 @@ function writeScheduled(d: Draft, ctx: CommandContext, id: Id, prior: ScheduledT
   // Categories follow §5.9 when entered; here a budget ↔ budget transfer and a tracking account's own rows have none.
   let categoryId: CategoryRef = lines ? null : (input.categoryId ?? null);
   if (other ? account.onBudget === other.onBudget : !account.onBudget) categoryId = null;
-  if (categoryId !== null && categoryId !== READY_TO_ASSIGN) liveCategory(d, categoryId);
+  if (categoryId === CREDIT_CARD_INTEREST && !isCreditAccountType(account.type)) throw new ValidationError('Credit Card Interest is only for credit card and line of credit accounts');
+  if (categoryId !== null && categoryId !== READY_TO_ASSIGN && categoryId !== CREDIT_CARD_INTEREST) liveCategory(d, categoryId);
   const payeeId = other ? transferPayee(d, other.id).id : input.payeeId ?? (input.payeeName !== undefined && input.payeeName.trim() !== '' ? payeeByName(d, ctx, input.payeeName).id : undefined);
   const subtransactions: ScheduledSubtransactionRecord[] | undefined = lines?.map((l) => ({
     id: l.id ?? ctx.newId(),

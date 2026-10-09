@@ -1,4 +1,4 @@
-import { READY_TO_ASSIGN, autoAssign, monthState } from '@hafb/engine';
+import { CREDIT_CARD_INTEREST, READY_TO_ASSIGN, autoAssign, monthState } from '@hafb/engine';
 import { minor, type Month } from '@hafb/shared';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { applyChanges, findRecord } from '../src/changes.ts';
@@ -240,6 +240,28 @@ describe('commands', () => {
   });
 
   describe('transactions and transfers (§5.9)', () => {
+    it('Credit Card Interest: a card transaction or split line, stored and reloaded; never on a cash account (§3.15)', () => {
+      const { transactionId } = b.run(addTransaction(b.plan, ctx, { accountId: visa, date: TODAY, amount: usd(-12.34), categoryId: CREDIT_CARD_INTEREST, payeeName: 'Interest' }));
+      expect(tx(b.plan, transactionId).categoryId).toBe(CREDIT_CARD_INTEREST);
+      b.run(
+        addTransaction(b.plan, ctx, {
+          accountId: visa,
+          date: TODAY,
+          amount: usd(-30),
+          payeeName: 'Bank',
+          subtransactions: [
+            { amount: usd(-25), categoryId: groceries },
+            { amount: usd(-5), categoryId: CREDIT_CARD_INTEREST },
+          ],
+        }),
+      );
+      // Off the plan: Ready to Assign and Groceries see only the groceries line.
+      expect(rta(b.plan)).toBe(usd(1500));
+      expect(monthState(planBudget(b.plan, { today: TODAY }), OCT).categories[groceries]?.activity).toBe(usd(-25));
+      expect(b.plan.categories.map((c) => c.id)).not.toContain(CREDIT_CARD_INTEREST);
+      expect(() => addTransaction(b.plan, ctx, { accountId: checking, date: TODAY, amount: usd(-1), categoryId: CREDIT_CARD_INTEREST })).toThrow(/only for credit/);
+    });
+
     it('cash-type accounts default to cleared, others to uncleared', () => {
       const wallet = b.run(createAccount(b.plan, ctx, { name: 'Wallet', type: 'cash', startingBalance: usd(20) })).accountId;
       const a = b.run(addTransaction(b.plan, ctx, { accountId: wallet, date: TODAY, amount: usd(-5), categoryId: groceries, payeeName: 'Cafe' }));

@@ -2,7 +2,7 @@
 // put the lines behind a report in this layout, and the YNAB-format plan export (S6.6) writes the
 // whole register this way so YNAB, or this app, can import it back.
 import { compareDates, neg, ZERO, type Minor } from '@hafb/shared';
-import { READY_TO_ASSIGN, type Id } from '@hafb/engine';
+import { CREDIT_CARD_INTEREST, READY_TO_ASSIGN, type Id } from '@hafb/engine';
 import type { PlanData, SubtransactionRecord, TransactionRecord } from '../records.ts';
 import { exportDate, exportMoney, type Cell } from './csv.ts';
 
@@ -44,6 +44,9 @@ function row(plan: PlanData, n: Names, tx: TransactionRecord, sub: Subtransactio
   if (categoryId === READY_TO_ASSIGN) {
     group = 'Inflow';
     category = 'Ready to Assign';
+  } else if (categoryId === CREDIT_CARD_INTEREST) {
+    // YNAB's export of this isn't known yet (budget-math §13); its name, with no group.
+    category = 'Credit Card Interest';
   } else if (categoryId !== null) {
     const c = n.category.get(categoryId);
     group = c?.group ?? '';
@@ -56,7 +59,7 @@ function row(plan: PlanData, n: Names, tx: TransactionRecord, sub: Subtransactio
     tx.flag === undefined ? '' : capitalized(tx.flag),
     exportDate(tx.date, s),
     payee,
-    category === '' ? '' : `${group}: ${category}`,
+    category === '' ? '' : group === '' ? category : `${group}: ${category}`,
     group,
     category,
     memo,

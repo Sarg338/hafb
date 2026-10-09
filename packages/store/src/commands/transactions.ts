@@ -8,7 +8,7 @@
 //   off ↔ off: no category.
 // A split line can be a transfer too: its other leg is a whole transaction in the other account
 // whose transferTransactionId is the line's id. That leg is edited through the split only.
-import { READY_TO_ASSIGN, ValidationError, type CategoryRef, type ClearedState, type FlagColor, type Id } from '@hafb/engine';
+import { CREDIT_CARD_INTEREST, isCreditAccountType, READY_TO_ASSIGN, ValidationError, type CategoryRef, type ClearedState, type FlagColor, type Id } from '@hafb/engine';
 import { formatMoney, minor, type ISODate, type Minor } from '@hafb/shared';
 import type { AccountRecord, PlanData, SubtransactionRecord, TransactionRecord } from '../records.ts';
 import { Draft, liveAccount, liveCategory, type Command, type CommandContext, omit } from './context.ts';
@@ -64,6 +64,10 @@ export interface TransactionPatch {
 function checkCategory(d: Draft, account: AccountRecord, categoryId: CategoryRef): CategoryRef {
   if (categoryId === null) return null;
   if (!account.onBudget) throw new ValidationError(`${account.name} is a tracking account; its transactions have no category`);
+  if (categoryId === CREDIT_CARD_INTEREST) {
+    if (!isCreditAccountType(account.type)) throw new ValidationError('Credit Card Interest is only for credit card and line of credit accounts');
+    return categoryId;
+  }
   if (categoryId !== READY_TO_ASSIGN) liveCategory(d, categoryId);
   return categoryId;
 }

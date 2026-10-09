@@ -207,6 +207,16 @@
     null
    ],
    [
+    "credit-card-interest",
+    "inflow",
+    "Credit Card Interest",
+    0,
+    null,
+    1,
+    null,
+    null
+   ],
+   [
     "c-visa",
     "g-cc",
     "Visa",
