@@ -33,4 +33,20 @@ describe('flattenRows', () => {
   it('visible indexes are sequential (aria-rowindex source)', () => {
     expect(flattenRows(grouped, new Set(['B'])).map((r) => r.index)).toEqual([0, 1, 2, 3, 4]);
   });
+
+  it('keeps ungrouped rows in order beside groups (a section header followed by plain rows)', () => {
+    const rows = [
+      { kind: 'group' as const, id: 's', data: 0 },
+      { kind: 'item' as const, id: 's1', groupId: 's', data: 0 },
+      { kind: 'item' as const, id: 'a', data: 0 },
+      { kind: 'item' as const, id: 'b', data: 0 },
+    ];
+    expect(flattenRows(rows, new Set()).map((v) => [v.row.id, v.level])).toEqual([
+      ['s', 1],
+      ['s1', 2],
+      ['a', 1],
+      ['b', 1],
+    ]);
+    expect(flattenRows(rows, new Set(['s'])).map((v) => v.row.id)).toEqual(['s', 'a', 'b']);
+  });
 });

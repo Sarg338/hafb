@@ -12,7 +12,7 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import { Checkbox } from '../Checkbox.tsx';
 import { cx } from '../cx.ts';
 import { tabbables } from '../focus.ts';
-import { Icon } from '../Icon.tsx';
+import { Icon, type IconName } from '../Icon.tsx';
 import styles from './DataGrid.module.css';
 import { endEdit, gridIntent, type EditEnd } from './keys.ts';
 import { moveActive, type NavContext } from './navigation.ts';
@@ -40,6 +40,8 @@ export interface GridColumn<T> {
   align?: 'start' | 'end' | 'center';
   /** Hide the header text visually (icon columns); it is still the accessible name. */
   headerHidden?: boolean;
+  /** An icon shown in place of the hidden header text (the register's flag and cleared columns). */
+  headerIcon?: IconName;
   resizable?: boolean;
   /** Display content. Plain strings get ellipsis truncation. */
   render: (row: GridRow<T>) => ReactNode;
@@ -86,10 +88,11 @@ export interface DataGridProps<T> {
   /** Move to (and optionally edit) a cell after mount, e.g. the new row after Ctrl+Enter. Change `key` to repeat. */
   request?: { cell: CellRef; edit: boolean; key: number };
   /**
-   * One row shown taller with extra content underneath it, spanning all columns (the register's
-   * Cancel / Save strip under the transaction being edited).
+   * Extra content under a row, spanning all columns (a split's lines, the register's Cancel / Save
+   * strip). It can lay itself out on the grid's columns with `grid-template-columns:
+   * var(--grid-template)`. Keep the function stable (useCallback): it drives row heights.
    */
-  expandedRow?: { id: string; height: number; content: ReactNode };
+  rowExtra?: (row: GridRow<T>) => { height: number; content: ReactNode } | undefined;
   /** The scroll element (benchmarks drive scrollTop). */
   scrollRef?: Ref<HTMLDivElement>;
   className?: string;
@@ -310,15 +313,15 @@ export function DataGrid<T>(props: DataGridProps<T>) {
 
   // Stable callbacks: TanStack Virtual memoizes its measurements on getItemKey's identity, and a
   // fresh closure per render would re-measure every row on every scroll frame.
-  const expandedId = props.expandedRow?.id;
-  const expandedHeight = props.expandedRow?.height ?? 0;
+  const rowExtra = props.rowExtra;
   const estimateSize = useCallback(
     (i: number) => {
       const r = visible[i]?.row;
       if (r?.kind === 'group') return metrics.group;
-      return r !== undefined && r.id === expandedId ? metrics.row + expandedHeight : metrics.row;
+      const extra = r === undefined ? undefined : rowExtra?.(r);
+      return metrics.row + (extra?.height ?? 0);
     },
-    [visible, metrics, expandedId, expandedHeight],
+    [visible, metrics, rowExtra],
   );
   const getItemKey = useCallback((i: number) => visible[i]?.row.id ?? i, [visible]);
   const getScrollElement = useCallback(() => scrollEl.current, []);
@@ -334,7 +337,7 @@ export function DataGrid<T>(props: DataGridProps<T>) {
   });
   useEffect(() => {
     virtualizer.measure();
-  }, [metrics, virtualizer, expandedId, expandedHeight]);
+  }, [metrics, virtualizer, rowExtra]);
 
   const nav = useCallback(
     (): NavContext => ({
@@ -685,11 +688,11 @@ export function DataGrid<T>(props: DataGridProps<T>) {
                   <button type="button" className={styles.sortButton} onClick={() => {
                     onSort(col.id);
                   }}>
-                    <span className={styles.headerLabel}>{col.headerHidden === true ? null : col.header}</span>
+                    <span className={styles.headerLabel}>{col.headerHidden === true ? (col.headerIcon ? <Icon name={col.headerIcon} /> : null) : col.header}</span>
                     {col.sort !== 'none' && <Icon name={col.sort === 'ascending' ? 'chevronUp' : 'chevronDown'} />}
                   </button>
                 ) : (
-                  <span className={styles.headerLabel}>{col.headerHidden === true ? null : col.header}</span>
+                  <span className={styles.headerLabel}>{col.headerHidden === true ? (col.headerIcon ? <Icon name={col.headerIcon} /> : null) : col.header}</span>
                 )}
                 {col.resizable !== false && (
                   <div
@@ -741,7 +744,10 @@ export function DataGrid<T>(props: DataGridProps<T>) {
                 isEditable={isEditable}
                 top={vi.start - virtualizer.options.scrollMargin}
                 ariaRowIndex={vi.index + 2}
-                {...(props.expandedRow && props.expandedRow.id === vrow.row.id ? { extra: props.expandedRow.content, extraHeight: props.expandedRow.height } : {})}
+                {...(() => {
+                  const extra = rowExtra?.(vrow.row);
+                  return extra ? { extra: extra.content, extraHeight: extra.height } : {};
+                })()}
               />
             );
           })}

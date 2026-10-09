@@ -145,21 +145,10 @@
   height: var(--d-row-group);
 }
 
-/* A row with content under it (the register's edit strip): cells in the first grid row. */
+/* A row with content under it (split lines, the register's edit strip). The content lays itself out. */
 .rowExtra {
   grid-column: 1 / -1;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-  padding: 0 var(--grid-pad-x);
-  border-bottom: var(--s-border-width) solid var(--c-border);
-  background: var(--c-selected);
-}
-
-.row.expanded .cell {
-  background: var(--c-selected);
-  overflow: visible;
+  min-width: 0;
 }
 
 .cell {
