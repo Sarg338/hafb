@@ -1,14 +1,15 @@
 import { useEffect, useState } from 'react';
 import { Button, IconButton } from '../ui/Button.tsx';
-import { TextInput } from '../ui/TextInput.tsx';
+import { PlanSettingsDialog } from '../screens/settings/PlanSettingsDialog.tsx';
+import { newPlanDraft, newPlanSettings } from '../screens/settings/settingsModel.ts';
 import { fileName } from './format.ts';
 import type { RecentPlan } from './ipc.ts';
-import { session } from './session.ts';
+import { session, todayLocal } from './session.ts';
 import styles from './Shell.module.css';
 
 /** No plan open: start a plan, open one, import from YNAB, or pick a recent file. */
 export function Welcome({ recent, busy }: { recent: readonly RecentPlan[]; busy: string | null }) {
-  const [name, setName] = useState('My Plan');
+  const [creating, setCreating] = useState(false);
   const working = busy !== null;
 
   useEffect(() => {
@@ -39,25 +40,31 @@ export function Welcome({ recent, busy }: { recent: readonly RecentPlan[]; busy:
               Open plan…
             </Button>
           </div>
-          <form
-            className={styles.actions}
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (name.trim() !== '') void session.createNew(name.trim());
-            }}
-          >
-            <TextInput
-              label="Or start a new plan"
-              value={name}
-              size="compact"
-              onChange={(e) => {
-                setName(e.target.value);
+          <div className={styles.actions}>
+            <Button
+              icon="add"
+              disabled={working}
+              onClick={() => {
+                setCreating(true);
+              }}
+            >
+              Start a new plan…
+            </Button>
+          </div>
+          {creating && (
+            <PlanSettingsDialog
+              mode="new"
+              initial={newPlanDraft('My Plan')}
+              year={Number(todayLocal().slice(0, 4))}
+              onClose={() => {
+                setCreating(false);
+              }}
+              onSubmit={(draft) => {
+                setCreating(false);
+                                void session.createNew(newPlanSettings(draft));
               }}
             />
-            <Button type="submit" icon="add" disabled={working || name.trim() === ''} style={{ alignSelf: 'end' }}>
-              New plan…
-            </Button>
-          </form>
+          )}
           {working && (
             <p className={styles.lede} role="status">
               {busy}

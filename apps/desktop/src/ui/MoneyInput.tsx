@@ -1,5 +1,5 @@
 import { forwardRef, useId, useRef, useState, type KeyboardEvent } from 'react';
-import { evaluateAmount, formatMoney, hasArithmetic, numberFormatSeparators, ZERO, type Minor, type MoneyFormat } from '@hafb/shared';
+import { evaluateAmount, formatMoney, hasArithmetic, inputSeparators, ZERO, type Minor, type MoneyFormat } from '@hafb/shared';
 import { cx } from './cx.ts';
 import fieldStyles from './Field.module.css';
 import styles from './MoneyInput.module.css';
@@ -30,7 +30,7 @@ export interface MoneyInputProps {
 
 /** The number a person edits: digits with the plan's decimal separator, no symbol or grouping. */
 export function plainAmount(value: Minor, format: MoneyFormat): string {
-  const { decimal } = numberFormatSeparators(format.numberFormat);
+  const { decimal } = inputSeparators(format.numberFormat);
   const digits = String(Math.abs(value)).padStart(format.decimals + 1, '0');
   const text = format.decimals > 0 ? `${digits.slice(0, -format.decimals)}${decimal}${digits.slice(-format.decimals)}` : digits;
   return value < 0 ? `-${text}` : text;
@@ -44,8 +44,8 @@ export const MoneyInput = forwardRef<HTMLInputElement, MoneyInputProps>(function
   { value, format, onCommit, label, hideLabel, variant = 'cell', size = 'medium', help, disabled, hot, id, className, onEnter, defaultDraft },
   ref,
 ) {
-  const { decimal, group } = numberFormatSeparators(format.numberFormat);
-  const options = { decimals: format.decimals, decimalSeparator: decimal, groupSeparator: group || ',' };
+  const { decimal, group } = inputSeparators(format.numberFormat);
+  const options = { decimals: format.decimals, decimalSeparator: decimal, groupSeparator: group };
   const [draft, setDraft] = useState<string | null>(defaultDraft ?? null);
   const [error, setError] = useState<string | null>(() => {
     if (defaultDraft === undefined || defaultDraft.trim() === '') return null;

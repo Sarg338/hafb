@@ -2,6 +2,7 @@
 //! work and `@hafb/store` owns every rule. Errors reach JS as `{ kind, message }`.
 
 use hafb_store::backup::{self, BackupInfo};
+use hafb_store::app_settings::{self, AppSettings};
 use hafb_store::backup_settings::{self, BackupSettings};
 use hafb_store::error::{ErrorKind, Result, StoreError};
 use hafb_store::recent::{self, RecentPlan};
@@ -216,6 +217,29 @@ pub async fn plan_backup_now(app: AppHandle, state: State<'_, PlanState>) -> Res
     Ok(path_string(&open.plan.backup_now(&open.backup_dir, keep)?))
 }
 
+/// Settings of this PC (S7.1): the plans folder the Open and Save dialogs start in.
+#[tauri::command]
+pub async fn app_settings_get(app: AppHandle) -> Result<AppSettings> {
+    Ok(app_settings::load(&data_dir(&app)?))
+}
+
+/// Save the plans folder (`null` = Windows' default). The folder is created if it doesn't exist.
+#[tauri::command]
+pub async fn app_settings_set(app: AppHandle, plan_folder: Option<String>) -> Result<AppSettings> {
+    let s = AppSettings { plan_folder }.sanitized();
+    if let Some(f) = &s.plan_folder {
+        std::fs::create_dir_all(f).map_err(|e| StoreError::invalid(format!("Can't use that folder: {e}")))?;
+    }
+    app_settings::save(&data_dir(&app)?, &s)?;
+    Ok(s)
+}
+
+/// Native folder picker for the plans folder; null if cancelled.
+#[tauri::command]
+pub async fn pick_plan_folder(window: WebviewWindow) -> Result<Option<String>> {
+    Ok(rfd::FileDialog::new().set_parent(&window).set_title("Choose a folder for your plans").pick_folder().map(|p| path_string(&p)))
+}
+
 #[tauri::command]
 pub async fn recent_plans(app: AppHandle) -> Result<Vec<RecentPlan>> {
     Ok(recent::list(&recent_file(&app)?))
@@ -235,8 +259,12 @@ pub enum PickMode {
 
 /// Native open/save dialog for plan files. Returns the chosen path, or null if cancelled.
 #[tauri::command]
-pub async fn pick_plan_path(window: WebviewWindow, mode: PickMode, default_name: Option<String>) -> Result<Option<String>> {
-    let dialog = rfd::FileDialog::new().set_parent(&window).add_filter("Plan", &["hafb"]);
+pub async fn pick_plan_path(app: AppHandle, window: WebviewWindow, mode: PickMode, default_name: Option<String>) -> Result<Option<String>> {
+    let mut dialog = rfd::FileDialog::new().set_parent(&window).add_filter("Plan", &["hafb"]);
+    // The plans folder (S7.1), when one is set, is where both dialogs start.
+    if let Some(dir) = app_settings::load(&data_dir(&app)?).plan_dir() {
+        dialog = dialog.set_directory(dir);
+    }
     let picked = match mode {
         PickMode::Open => dialog.set_title("Open plan").pick_file(),
         PickMode::Save => {

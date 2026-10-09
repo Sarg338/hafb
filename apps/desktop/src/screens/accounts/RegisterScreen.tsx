@@ -193,9 +193,11 @@ export interface RegisterScreenProps {
   history: { canUndo: boolean; canRedo: boolean; undoLabel: string | undefined; redoLabel: string | undefined };
   /** Open with this transaction selected and in view (Reflect drill-down). */
   focusTransactionId?: string;
+  /** All Accounts: the account new transactions and imports start in (Preferences, S7.1). */
+  defaultAccountId?: Id;
 }
 
-export function RegisterScreen({ plan, today, accountId, actions, history, focusTransactionId }: RegisterScreenProps) {
+export function RegisterScreen({ plan, today, accountId, actions, history, focusTransactionId, defaultAccountId }: RegisterScreenProps) {
   const p = usePrefs();
   const fmt = moneyFormat(plan);
   const money = useMemo(() => moneyText(fmt, p.hideAmounts), [fmt, p.hideAmounts]);
@@ -311,7 +313,8 @@ export function RegisterScreen({ plan, today, accountId, actions, history, focus
 
   // ---- editing ---------------------------------------------------------------------------------
   const openAccounts = useMemo(() => plan.accounts.filter((a) => a.deletedAt === undefined && a.closed !== true).toSorted((a, b) => a.sortOrder - b.sortOrder), [plan.accounts]);
-  const firstAccount = accountId ?? openAccounts.find((a) => a.onBudget)?.id ?? openAccounts[0]?.id ?? '';
+  const preferred = defaultAccountId !== undefined && openAccounts.some((a) => a.id === defaultAccountId) ? defaultAccountId : undefined;
+  const firstAccount = accountId ?? preferred ?? openAccounts.find((a) => a.onBudget)?.id ?? openAccounts[0]?.id ?? '';
 
   const startNew = useCallback(
     (from?: Partial<TxDraft>) => {
@@ -1384,7 +1387,7 @@ export function RegisterScreen({ plan, today, accountId, actions, history, focus
 
       {reconcileBanner()}
       {reconcilePopover()}
-      {importFiles && <ImportDialog plan={plan} accountId={accountId} files={importFiles} today={today} actions={actions} onClose={() => { setImportFiles(null); }} />}
+      {importFiles && <ImportDialog plan={plan} accountId={accountId ?? preferred ?? null} files={importFiles} today={today} actions={actions} onClose={() => { setImportFiles(null); }} />}
       {importDetailsNode()}
       {loanPayment && account && <RecordLoanPaymentDialog plan={plan} account={account} today={today} actions={actions} onClose={() => { setLoanPayment(false); }} />}
       {unapproved.length > 0 && (

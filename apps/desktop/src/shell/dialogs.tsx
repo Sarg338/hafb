@@ -1,56 +1,12 @@
-// Dialogs the shell opens from its menus: new plan, backups, import report.
+// Dialogs the shell opens from its menus: backups and the import report.
 import { useCallback, useEffect, useState } from 'react';
 import type { ImportReport } from '@hafb/store';
 import { Button } from '../ui/Button.tsx';
 import { Combobox } from '../ui/Combobox.tsx';
 import { Dialog, useConfirm } from '../ui/Dialog.tsx';
-import { TextInput } from '../ui/TextInput.tsx';
 import { backupTime } from './format.ts';
 import { errorMessage, type BackupInfo, type BackupSettingsInfo } from './ipc.ts';
 import styles from './Shell.module.css';
-
-export function NewPlanDialog({ open, onClose, onCreate }: { open: boolean; onClose: () => void; onCreate: (name: string) => void }) {
-  const [name, setName] = useState('My Plan');
-  const valid = name.trim() !== '';
-  const submit = (): void => {
-    if (!valid) return;
-    onClose();
-    onCreate(name.trim());
-  };
-  return (
-    <Dialog
-      open={open}
-      onClose={onClose}
-      title="New plan"
-      description="A plan is one file on your PC. Next you'll choose where to save it."
-      footer={
-        <>
-          <Button onClick={onClose}>Cancel</Button>
-          <Button variant="primary" disabled={!valid} onClick={submit}>
-            Choose where to save…
-          </Button>
-        </>
-      }
-    >
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          submit();
-        }}
-      >
-        <TextInput
-          label="Plan name"
-          value={name}
-          autoFocus
-          onChange={(e) => {
-            setName(e.target.value);
-          }}
-          {...(valid ? {} : { error: 'Give your plan a name.' })}
-        />
-      </form>
-    </Dialog>
-  );
-}
 
 const KIND_LABEL: Record<BackupInfo['kind'], string> = {
   open: 'When opened',

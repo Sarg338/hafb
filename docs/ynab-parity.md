@@ -21,7 +21,7 @@ A row is `done` only after Sarg validates it on hardware. Rows whose engine half
 | P-08 | Assigned / Activity / Available columns; inline assign with math (+ − × ÷) | S1.2 | S4.2 | done |
 | P-09 | Available pills: green, yellow (underfunded, or overspent only on credit, with a card icon), red (cash overspending), grey; icons (calendar = upcoming shortfall, pie = underfunded, snooze) | S1.4 | S4.1 | in-progress |
 | P-10 | Segmented progress bars (rollover / weekly / extra; light = spent, dark = available) | S1.4 | S4.1 | done |
-| P-11 | Display Options: progress bars on/off; balance style "differentiate without color"; theme | — | S4.1 / S7.1 | in-progress |
+| P-11 | Display Options: progress bars on/off; balance style "differentiate without color"; theme | — | S4.1 / S7.1 | done (YNAB's Display Options dialog in the plan menu: Theme Default / Dark / Match System, plus High contrast; Progress Bars; Balance Style; Apply or Cancel) |
 | P-12 | Cash overspending (zeroed next month, reduces Ready to Assign) | S1.2 | S4.1 | done |
 | P-13 | Credit overspending (resets to 0 next month; stays as card debt the payment category doesn't cover) | S1.3 | S4.1 | done |
 | P-14 | Overspent banner / Overspent focused view (shown only when something is overspent) | S1.2 | S4.3 / S5.3 | done |
@@ -224,9 +224,9 @@ A row is `done` only after Sarg validates it on hardware. Rows whose engine half
 | PL-02 | New-plan wizard: blank / template / import YNAB | — | S7.2 | todo |
 | PL-03 | Templates: bundled category sets; pick categories to import; never overwrite | — | S7.2 | todo |
 | PL-04 | Fresh Start (archive + new plan, §5.14; verify starting-balance rule) | S1.5 | S7.2 | in-progress |
-| PL-05 | Settings: currency & decimals, number/date format, first month | S1.1 | S7.1 | in-progress |
-| PL-06 | Settings: theme (light/dark/system/high contrast), font scale | — | S7.1 | in-progress |
-| PL-07 | Settings: default account, data folder, shortcuts on/off | — | S7.1 | todo |
+| PL-05 | Settings: currency & decimals, number/date format, first month | S1.1 | S7.1 | done (YNAB's Plan Settings: name, 160 currencies as "Name–CODE" with YNAB's defaults, placement before / after / don't show, all 8 number formats incl. 1,23,456.78, all 7 date formats; a currency with other decimals keeps every stored amount and only changes what shows, as YNAB does (migration 0004); undoable. YNAB has no first-month setting: it is the month the plan starts) |
+| PL-06 | Settings: theme (light/dark/system/high contrast), font scale | — | S7.1 | done (Display Options theme; Preferences text size 90–150% zooming the whole window, Ctrl+= / Ctrl+- / Ctrl+0) |
+| PL-07 | Settings: default account, data folder, shortcuts on/off | — | S7.1 | done (Preferences: default account per plan for All Accounts entry and imports, plans folder for the Open and Save dialogs, keyboard shortcuts on/off, Hide Amounts) |
 | PL-08 | Template sharing by link; YNAB Together; referrals; subscriptions | — | — | wontfix (server) |
 
 ## 15. Keyboard, accessibility, polish

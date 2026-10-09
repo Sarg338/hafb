@@ -46,6 +46,13 @@ describe('parsePrefs', () => {
     expect(parsePrefs(JSON.stringify({ version: 99, theme: 'dark' }))).toEqual(DEFAULT_PREFS);
   });
 
+  it('reads the text size (only the offered sizes) and default accounts per plan (S7.1)', () => {
+    const p = parsePrefs(JSON.stringify({ version: 1, textScale: 1.25, defaultAccounts: { 'C:/a.hafb': 'acct-1', 'C:/b.hafb': 7 } }));
+    expect(p.textScale).toBe(1.25);
+    expect(p.defaultAccounts).toEqual({ 'C:/a.hafb': 'acct-1' });
+    expect(parsePrefs(JSON.stringify({ version: 1, textScale: 3 })).textScale).toBe(1);
+  });
+
   it('keeps last routes per plan path as strings only', () => {
     const p = parsePrefs(JSON.stringify({ version: 1, lastRoute: { 'C:\\a.hafb': '#/reflect', bad: 4 } }));
     expect(p.lastRoute).toEqual({ 'C:\\a.hafb': '#/reflect' });

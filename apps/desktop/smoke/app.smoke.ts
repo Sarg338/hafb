@@ -61,7 +61,7 @@ void describe('welcome', () => {
   void test('shows the welcome screen when no plan is open', async () => {
     const { page } = app;
     await page.getByRole('heading', { name: 'Welcome to HAFB' }).waitFor();
-    for (const name of [/Import YNAB export/, /Open plan/, /New plan|Create/]) {
+    for (const name of [/Import YNAB export/, /Open plan/, /new plan/i]) {
       assert.ok(await page.getByRole('button', { name }).first().isVisible(), `button ${String(name)}`);
     }
     assert.equal(await page.title(), 'HAFB');

@@ -1,0 +1,65 @@
+/* Plan Settings, Display Options and Preferences (S7.1). Tokens only. */
+
+.form {
+  display: grid;
+  gap: 14px;
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+}
+
+.fieldLabel {
+  color: var(--c-text);
+  font-size: var(--t-size-body);
+  font-weight: var(--t-weight-semibold);
+}
+
+.pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.section {
+  display: grid;
+  gap: 8px;
+}
+
+.section h3 {
+  margin: 0;
+  color: var(--c-text);
+  font-size: var(--t-size-heading);
+  font-weight: var(--t-weight-semibold);
+}
+
+.help {
+  margin: 0;
+  color: var(--c-text-muted);
+  font-size: var(--t-size-small);
+}
+
+.note {
+  margin: 0;
+  color: var(--c-text-muted);
+  font-size: var(--t-size-small);
+}
+
+.folderRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.folderRow code {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--c-text);
+  font-family: var(--t-font-money);
+  font-size: var(--t-size-small);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

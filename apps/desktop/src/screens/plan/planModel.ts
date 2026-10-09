@@ -27,7 +27,7 @@ const cache = new WeakMap<PlanData, Map<string, PlanModel>>();
 
 export function moneyFormat(plan: PlanData): MoneyFormat {
   const s = plan.settings;
-  return { decimals: s.currencyDecimals, symbol: s.currencySymbol, placement: s.symbolPlacement, numberFormat: s.numberFormat };
+  return { decimals: s.currencyDecimals, ...(s.displayDecimals === undefined ? {} : { displayDecimals: s.displayDecimals }), symbol: s.currencySymbol, placement: s.symbolPlacement, numberFormat: s.numberFormat };
 }
 
 export function planModel(plan: PlanData, month: Month, today: ISODate): PlanModel {

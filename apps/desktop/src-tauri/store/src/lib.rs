@@ -10,6 +10,7 @@ pub mod recent;
 pub mod schema;
 pub mod time;
 pub mod backup_settings;
+pub mod app_settings;
 pub mod wire;
 
 use backup::{BackupKind, make_backup};

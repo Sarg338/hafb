@@ -2,6 +2,7 @@
 // current route, showing the real plan through the approved S3.1 screens.
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { isTauri } from '@tauri-apps/api/core';
+import { getCurrentWebview } from '@tauri-apps/api/webview';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import type { Month } from '@hafb/shared';
 import { minor } from '@hafb/shared';
@@ -13,6 +14,7 @@ import {
   closeAccount,
   createAccount,
   editAccount,
+  editPlanSettings,
   mergeChangeSets,
   planBudget,
   redoLabel,
@@ -32,6 +34,10 @@ import { moneyFormat } from '../screens/plan/planModel.ts';
 import { shownMonth } from '../screens/plan/planMonths.ts';
 import { moneyText } from '../screens/shared/money.ts';
 import { PlanScreen } from '../screens/plan/PlanScreen.tsx';
+import { DisplayOptionsDialog } from '../screens/settings/DisplayOptionsDialog.tsx';
+import { PlanSettingsDialog } from '../screens/settings/PlanSettingsDialog.tsx';
+import { PreferencesDialog, type PlanFolderControls } from '../screens/settings/PreferencesDialog.tsx';
+import { draftFrom, newPlanDraft, newPlanSettings, settingsEdit } from '../screens/settings/settingsModel.ts';
 import { cx } from '../ui/cx.ts';
 import { ErrorBoundary } from '../ui/ErrorBoundary.tsx';
 import { useRouteFocus } from '../ui/focusRoute.ts';
@@ -41,10 +47,11 @@ import type { MenuItem } from '../ui/Menu.tsx';
 import { Splitter } from '../ui/Splitter.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import { useConfirm } from '../ui/Dialog.tsx';
-import { BackupsDialog, ImportReportDialog, NewPlanDialog, type BackupControls } from './dialogs.tsx';
+import { BackupsDialog, ImportReportDialog, type BackupControls } from './dialogs.tsx';
 import { saveFile } from './files.ts';
-import { appIpc, errorMessage, planIpc, type TitlebarMode } from './ipc.ts';
-import { INSPECTOR_DEFAULT, INSPECTOR_MAX, INSPECTOR_MIN, prefs, usePrefs, type ThemePref } from './prefs.ts';
+import { fileName } from './format.ts';
+import { appIpc, errorMessage, planIpc, type RecentPlan, type TitlebarMode } from './ipc.ts';
+import { INSPECTOR_DEFAULT, INSPECTOR_MAX, INSPECTOR_MIN, prefs, TEXT_SCALES, usePrefs, type ThemePref } from './prefs.ts';
 import { navigate, useRoute, type Route } from './router.ts';
 import { localStamp, session, todayLocal, type OpenPlan } from './session.ts';
 import styles from './Shell.module.css';
@@ -60,6 +67,31 @@ const BACKUP_CONTROLS: BackupControls = {
   pickFolder: planIpc.pickBackupFolder,
   backupNow: planIpc.backupNow,
 };
+
+/** The plans folder (S7.1) lives on the Rust side; the browser preview has none. */
+const FOLDER_CONTROLS: PlanFolderControls | undefined = isTauri()
+  ? {
+      get: () => planIpc.appSettings().then((s) => s.planFolder),
+      set: (folder) => planIpc.setAppSettings(folder).then((s) => s.planFolder),
+      pick: planIpc.pickPlanFolder,
+    }
+  : undefined;
+
+/** Text size (S7.1): the whole window zooms, as WebView2's own zoom does; the preview zooms the page. */
+function useTextScale(scale: number): void {
+  useEffect(() => {
+    if (isTauri()) void getCurrentWebview().setZoom(scale).catch(() => undefined);
+    else document.documentElement.style.setProperty('zoom', String(scale));
+  }, [scale]);
+}
+
+/** One step bigger or smaller (Ctrl+= / Ctrl+-), or back to 100% (Ctrl+0). */
+function stepTextScale(step: 1 | -1 | 0): void {
+  const sizes = [...TEXT_SCALES];
+  const at = sizes.indexOf(prefs.get().textScale);
+  const next = step === 0 ? 1 : sizes[Math.min(sizes.length - 1, Math.max(0, at + step))];
+  if (next !== undefined) prefs.update({ textScale: next });
+}
 
 /** Show the plan's name in the custom title bar and as the window's title (taskbar, Alt+Tab). */
 function useWindowTitle(planName: string | null): void {
@@ -97,11 +129,12 @@ export function Shell() {
   const theme = useAppliedTheme(p.theme);
   const system = theme.system === true;
   useWindowTitle(state.open?.plan.settings.name ?? null);
+  useTextScale(p.textScale);
 
   return (
     <div className={cx('hafb-root', styles.shell)} data-nocolor={String(p.noColor || system)} data-theme-system={String(system)}>
       <SessionToasts />
-      {state.open ? <PlanFrame open={state.open} system={system} /> : <Welcome recent={state.recent} busy={state.busy} />}
+      {state.open ? <PlanFrame open={state.open} system={system} recent={state.recent} /> : <Welcome recent={state.recent} busy={state.busy} />}
     </div>
   );
 }
@@ -110,11 +143,11 @@ function themeLabel(t: ThemePref): string {
   return t === 'system' ? 'Match Windows' : t === 'light' ? 'Light' : t === 'dark' ? 'Dark' : 'High contrast';
 }
 
-function PlanFrame({ open, system }: { open: OpenPlan; /** A Windows-colour (contrast) theme is active. */ system: boolean }) {
+function PlanFrame({ open, system, recent }: { open: OpenPlan; /** A Windows-colour (contrast) theme is active. */ system: boolean; recent: readonly RecentPlan[] }) {
   const route = useRoute();
   const p = usePrefs();
   const today = todayLocal();
-  const [dialog, setDialog] = useState<null | 'new' | 'backups' | 'addAccount' | 'payees'>(null);
+  const [dialog, setDialog] = useState<null | 'new' | 'backups' | 'addAccount' | 'payees' | 'planSettings' | 'display' | 'prefs'>(null);
   const [editingAccount, setEditingAccount] = useState<string | null>(null);
   const confirm = useConfirm();
   const [showReport, setShowReport] = useState(open.importReport !== undefined);
@@ -166,6 +199,10 @@ function PlanFrame({ open, system }: { open: OpenPlan; /** A Windows-colour (con
   useShortcut({ id: 'nav.reflect', keys: 'G then R', description: 'Go to Reflect', group: 'Navigation', scope: 'global', run: () => { navigate({ kind: 'reflect' }); } });
   useShortcut({ id: 'nav.accounts', keys: 'G then A', description: 'Go to All Accounts', group: 'Navigation', scope: 'global', run: () => { navigate({ kind: 'accounts', accountId: null }); } });
   useShortcut({ id: 'nav.toggleSidebarYnab', keys: '>', description: 'Expand or collapse the sidebar (Shift+.)', group: 'Navigation', scope: 'global', run: () => { prefs.update({ sidebarCollapsed: !prefs.get().sidebarCollapsed }); } });
+  useShortcut({ id: 'view.textLarger', keys: 'Ctrl+=', description: 'Larger text', group: 'General', scope: 'global', system: true, run: () => { stepTextScale(1); } });
+  useShortcut({ id: 'view.textLargerPad', keys: 'Ctrl++', description: 'Larger text (numeric keypad)', group: 'General', scope: 'global', system: true, run: () => { stepTextScale(1); } });
+  useShortcut({ id: 'view.textSmaller', keys: 'Ctrl+-', description: 'Smaller text', group: 'General', scope: 'global', system: true, run: () => { stepTextScale(-1); } });
+  useShortcut({ id: 'view.textReset', keys: 'Ctrl+0', description: 'Text at 100%', group: 'General', scope: 'global', system: true, run: () => { stepTextScale(0); } });
   useShortcut({ id: 'nav.toggleSidebar', keys: 'Ctrl+B', description: 'Collapse or expand the sidebar', group: 'Navigation', scope: 'global', run: () => { prefs.update({ sidebarCollapsed: !prefs.get().sidebarCollapsed }); } });
 
   // Moving between screens puts keyboard focus at the start of the new screen.
@@ -256,22 +293,34 @@ function PlanFrame({ open, system }: { open: OpenPlan; /** A Windows-colour (con
     [],
   );
 
+  // YNAB's plan menu order (2026-10-09): New Plan, Open Plan, then the current plan's settings,
+  // payees, display options, export and Fresh Start; HAFB adds its file actions and Preferences.
+  const recentItems: MenuItem[] = recent
+    .filter((r) => r.path !== path)
+    .slice(0, 5)
+    .map((r) => ({ id: `recent:${r.path}`, label: fileName(r.path), icon: 'history' as const, disabled: !r.exists }));
   const planMenu: MenuItem[] = [
-    { id: 'open', label: 'Open plan…' },
     { id: 'new', label: 'New plan…', icon: 'add' },
+    { id: 'open', label: 'Open plan…' },
+    ...recentItems,
     { id: 'import', label: 'Import YNAB export…', icon: 'import' },
     { id: 'sep1', label: '', separator: true },
-    { id: 'copy', label: 'Save a copy…', icon: 'export' },
+    { id: 'planSettings', label: 'Plan Settings…', icon: 'settings' },
+    { id: 'payees', label: 'Manage Payees…', icon: 'settings' },
+    { id: 'display', label: 'Display Options…', icon: 'eye' },
     { id: 'exportYnab', label: 'Export for YNAB (CSV)…', icon: 'export' },
+    { id: 'copy', label: 'Save a copy…', icon: 'export' },
     { id: 'backups', label: 'Backups…', icon: 'history', disabled: open.inMemory === true },
     { id: 'sep2', label: '', separator: true },
-    { id: 'payees', label: 'Manage Payees…', icon: 'settings' },
+    { id: 'prefs', label: 'Preferences…', icon: 'settings' },
     { id: 'sep3', label: '', separator: true },
     { id: 'close', label: 'Close plan', icon: 'dismiss' },
   ];
   const onPlanMenu = (id: string): void => {
     if (id === 'open') void session.openDialog();
+    else if (id.startsWith('recent:')) void session.openPath(id.slice('recent:'.length));
     else if (id === 'new') setDialog('new');
+    else if (id === 'planSettings' || id === 'display' || id === 'prefs') setDialog(id);
     else if (id === 'import') void session.importExport();
     else if (id === 'copy') void session.saveCopy();
     else if (id === 'exportYnab') {
@@ -372,6 +421,7 @@ function PlanFrame({ open, system }: { open: OpenPlan; /** A Windows-colour (con
             plan={open.plan}
             today={today}
             accountId={route.accountId}
+            {...(p.defaultAccounts[path] === undefined ? {} : { defaultAccountId: p.defaultAccounts[path] })}
             actions={actions}
             history={history}
             {...(route.tx === undefined ? {} : { focusTransactionId: route.tx })}
@@ -400,13 +450,51 @@ function PlanFrame({ open, system }: { open: OpenPlan; /** A Windows-colour (con
         )}
         </ErrorBoundary>
       </div>
-      <NewPlanDialog
-        open={dialog === 'new'}
-        onClose={() => {
-          setDialog(null);
-        }}
-        onCreate={(name) => void session.createNew(name)}
-      />
+      {dialog === 'new' && (
+        <PlanSettingsDialog
+          mode="new"
+          initial={newPlanDraft('My Plan')}
+          year={Number(today.slice(0, 4))}
+          onClose={() => {
+            setDialog(null);
+          }}
+          onSubmit={(draft) => {
+            setDialog(null);
+                        void session.createNew(newPlanSettings(draft));
+          }}
+        />
+      )}
+      {dialog === 'planSettings' && (
+        <PlanSettingsDialog
+          mode="edit"
+          initial={draftFrom(open.plan.settings)}
+          year={Number(today.slice(0, 4))}
+          onClose={() => {
+            setDialog(null);
+          }}
+          onSubmit={(draft) => {
+            setDialog(null);
+            session.run((pl, ctx) => editPlanSettings(pl, ctx, settingsEdit(draft)), { announce: 'Plan settings applied.' });
+          }}
+        />
+      )}
+      {dialog === 'display' && (
+        <DisplayOptionsDialog
+          onClose={() => {
+            setDialog(null);
+          }}
+        />
+      )}
+      {dialog === 'prefs' && (
+        <PreferencesDialog
+          planPath={path}
+          accounts={open.plan.accounts}
+          {...(FOLDER_CONTROLS ? { folders: FOLDER_CONTROLS } : {})}
+          onClose={() => {
+            setDialog(null);
+          }}
+        />
+      )}
       {dialog === 'payees' && (
         <ManagePayeesDialog
           plan={open.plan}

@@ -95,15 +95,11 @@ function context(): CommandContext {
   return { now: new Date().toISOString(), today: todayLocal(), newId };
 }
 
-// Settings screen arrives in Phase 7; new plans start in US dollars.
-const DEFAULT_SETTINGS: Omit<PlanSettings, 'name' | 'createdAt' | 'firstMonth'> = {
-  currencyCode: 'USD',
-  currencyDecimals: 2,
-  currencySymbol: '$',
-  symbolPlacement: 'before',
-  numberFormat: '123,456.78',
-  dateFormat: 'MM/DD/YYYY',
-};
+/** A new plan's settings from the New Plan dialog (S7.1); the session adds the dates. */
+export type NewPlanSettings = Omit<PlanSettings, 'createdAt' | 'firstMonth'>;
+
+/** What a new plan starts with besides its settings (S7.2: a template's categories). */
+export type PlanSeed = (plan: PlanData, ctx: CommandContext) => PlanData;
 
 class PlanSession {
   private state: SessionState = { recent: [], open: null, busy: null, toast: null };
@@ -209,12 +205,13 @@ class PlanSession {
     });
   }
 
-  createNew(name: string): Promise<void> {
+  createNew(settings: NewPlanSettings, seed?: PlanSeed): Promise<void> {
     return this.task('Creating…', async () => {
-      const path = await planIpc.pickPlanPath('save', `${name}.hafb`);
+      const path = await planIpc.pickPlanPath('save', `${settings.name}.hafb`);
       if (path === null) return;
       const ctx = context();
-      const plan = newPlan({ ...DEFAULT_SETTINGS, name, firstMonth: monthOf(ctx.today), createdAt: ctx.now }, ctx);
+      const fresh = newPlan({ ...settings, firstMonth: monthOf(ctx.today), createdAt: ctx.now }, ctx);
+      const plan = seed ? seed(fresh, ctx) : fresh;
       await this.loadOpened(await planIpc.create(path, encodePlan(plan), true));
     });
   }

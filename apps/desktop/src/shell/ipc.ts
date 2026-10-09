@@ -30,6 +30,12 @@ export interface BackupSettingsInfo {
   planFolder: string | null;
 }
 
+/** Settings of this PC (S7.1), in the app's data folder. */
+export interface AppSettingsInfo {
+  /** Where plans are saved and opened from; null = Windows' default (Documents). */
+  planFolder: string | null;
+}
+
 export interface RecentPlan {
   path: string;
   exists: boolean;
@@ -69,6 +75,10 @@ export const planIpc = {
   backupSettings: () => invoke<BackupSettingsInfo>('backup_settings_get'),
   setBackupSettings: (keep: number, folder: string | null) => invoke<BackupSettingsInfo>('backup_settings_set', { keep, folder }),
   pickBackupFolder: () => invoke<string | null>('pick_backup_folder'),
+  /** Settings of this PC (S7.1): the plans folder the Open and Save dialogs start in. */
+  appSettings: () => invoke<AppSettingsInfo>('app_settings_get'),
+  setAppSettings: (planFolder: string | null) => invoke<AppSettingsInfo>('app_settings_set', { planFolder }),
+  pickPlanFolder: () => invoke<string | null>('pick_plan_folder'),
   recent: () => invoke<RecentPlan[]>('recent_plans'),
   removeRecent: (path: string) => invoke<null>('recent_remove', { path }),
   pickPlanPath: (mode: 'open' | 'save', defaultName?: string) => invoke<string | null>('pick_plan_path', { mode, defaultName }),
