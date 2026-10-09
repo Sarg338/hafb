@@ -9,8 +9,8 @@
 // Every section collapses, and the choice is remembered on this PC.
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { limitToReadyToAssign, type Id } from '@hafb/engine';
-import { minor, monthParts, neg, ZERO, type Minor, type Month } from '@hafb/shared';
-import { applyPlanChange, setAssigned, setCategoryNote, setExpectedIncome } from '@hafb/store';
+import { addMonths, minor, monthParts, neg, ZERO, type Minor, type Month } from '@hafb/shared';
+import { applyPlanChange, clearTarget, setAssigned, setCategoryNote, setExpectedIncome, setTarget, snoozeTarget } from '@hafb/store';
 import type { Actions } from '../../design/DesignApp.tsx';
 import { prefs, usePrefs } from '../../shell/prefs.ts';
 import { Button, IconButton } from '../../ui/Button.tsx';
@@ -18,14 +18,16 @@ import { cx } from '../../ui/cx.ts';
 import { Icon } from '../../ui/Icon.tsx';
 import { MoneyInput } from '../../ui/MoneyInput.tsx';
 import { Pill } from '../../ui/Pill.tsx';
-import { ProgressBar } from '../../ui/ProgressBar.tsx';
+import { ProgressRing } from '../../ui/ProgressBar.tsx';
+import { Toggle } from '../../ui/Toggle.tsx';
 import { TextArea } from '../../ui/TextArea.tsx';
 import { cardBalance } from '../shared/cardModel.ts';
 import type { MoneyText } from '../shared/money.ts';
 import { autoAssignChoices, costView, monthSummary, type FutureMonth } from './inspectorModel.ts';
 import { monthName } from './PlanHeader.tsx';
 import type { PlanModel } from './planModel.ts';
-import { targetSentence } from './planView.ts';
+import { suggestion, targetCard } from './targetModel.ts';
+import { TargetEditor } from './TargetEditor.tsx';
 import styles from './Inspector.module.css';
 
 export interface InspectorProps {
@@ -38,20 +40,18 @@ export interface InspectorProps {
   shortfalls: readonly { month: Month; readyToAssign: Minor }[];
   /** Rename the selected category (the pencil beside its name). */
   onRename?: (id: Id, anchor: Element) => void;
-  /** Create or edit a category's target (S5.2). */
-  onTarget?: (id: Id) => void;
   className?: string;
   edge?: ReactNode;
 }
 
-export function Inspector({ model, selected, actions, money, future, shortfalls, onRename, onTarget, className, edge }: InspectorProps) {
+export function Inspector({ model, selected, actions, money, future, shortfalls, onRename, className, edge }: InspectorProps) {
   const ids = [...selected].filter((id) => model.ms.categories[id] !== undefined);
   const first = ids[0];
   return (
     <aside className={cx(styles.inspector, className)} aria-label="Inspector">
       {edge}
       {ids.length === 1 && first !== undefined ? (
-        <CategoryDetail key={first} model={model} id={first} actions={actions} money={money} onRename={onRename} onTarget={onTarget} />
+        <CategoryDetail key={first} model={model} id={first} actions={actions} money={money} onRename={onRename} />
       ) : ids.length > 1 ? (
         <>
           <header className={styles.selectionHead}>
@@ -134,6 +134,7 @@ function CostToBeMe({ model, money, actions }: { model: PlanModel; money: MoneyT
     <div className={styles.cost}>
       <h4 className={styles.subhead}>Cost to Be Me</h4>
       <Line label={`${monthName(model.month)}’s Targets`} value={money(cost.targets)} />
+      {cost.nextMonth !== null && <Line label={`${monthName(addMonths(model.month, 1))}’s Targets`} value={money(cost.nextMonth)} />}
       {(cost.income > 0 || editing) && <Meter percent={cost.targetsPercent} tone={cost.difference < 0 ? 'short' : 'accent'} />}
       {editing ? (
         <div className={styles.incomeEdit}>
@@ -276,12 +277,103 @@ function FutureCard({ future, shortfalls, money }: { future: readonly FutureMont
   );
 }
 
-function CategoryDetail({ model, id, actions, money, onRename, onTarget }: { model: PlanModel; id: Id; actions: Actions; money: MoneyText; onRename: InspectorProps['onRename']; onTarget: InspectorProps['onTarget'] }) {
+/** The Target card (YNAB trial): the target's summary, ring, box and lines; the editor inline; snooze. */
+function TargetSection({ model, id, name, actions, money }: { model: PlanModel; id: Id; name: string; actions: Actions; money: MoneyText }) {
+  const target = model.targets.get(id);
+  const tm = model.evaluated[id];
+  const cm = model.ms.categories[id];
+  const [editing, setEditing] = useState(false);
+  const card = target && tm && cm ? targetCard(target, tm, cm, model.fmt) : null;
+  const snoozed = target?.snoozedMonths?.includes(model.month) === true;
+  return (
+    <Section id="target" title={<><Icon name="target" /> Target</>}>
+      {editing ? (
+        <TargetEditor
+          target={target}
+          today={model.today}
+          fmt={model.fmt}
+          dateFormat={model.plan.settings.dateFormat}
+          suggestion={suggestion(model, id)}
+          onCancel={() => {
+            setEditing(false);
+          }}
+          onSave={(args) => {
+            setEditing(false);
+            actions.run((p, ctx) => setTarget(p, ctx, { categoryId: id, ...args }));
+          }}
+          {...(target
+            ? {
+                onDelete: () => {
+                  setEditing(false);
+                  actions.run((p, ctx) => clearTarget(p, ctx, { categoryId: id }), { announce: `Deleted the target for ${name}.` });
+                },
+              }
+            : {})}
+        />
+      ) : card && cm ? (
+        <>
+          <p className={styles.targetHeading}>{card.heading}</p>
+          <p className={styles.note}>{card.subline}</p>
+          <div className={styles.ring}>
+            <ProgressRing percent={card.percent} size={64} stroke={6} state={card.status === 'underfunded' ? 'underfunded' : card.status === 'snoozed' ? 'snoozed' : 'funded'} label={`${String(card.percent)}% of the target`} />
+          </div>
+          {card.box && (
+            <div className={styles.targetBox} data-tone={card.box.tone}>
+              <p>{card.box.text}</p>
+              {card.box.assign !== undefined && (
+                <Button
+                  variant="primary"
+                  full
+                  onClick={() => {
+                    const more = card.box?.assign ?? 0;
+                    actions.run((p, ctx) => setAssigned(p, ctx, { month: model.month, categoryId: id, amount: minor(cm.assigned + more) }));
+                  }}
+                >
+                  Assign
+                </Button>
+              )}
+            </div>
+          )}
+          {card.lines.map((l, i) => (
+            <Line key={l.label} label={l.label} value={money(l.value)} total={i === card.lines.length - 1} />
+          ))}
+          <div className={styles.actions}>
+            <Button variant="secondary" full icon="edit" onClick={() => { setEditing(true); }}>
+              Edit Target
+            </Button>
+          </div>
+          <div className={styles.snooze}>
+            <Toggle
+              label="Snooze target for this month"
+              checked={snoozed}
+              title="A snoozed target asks for nothing this month (Shift+Z)"
+              onChange={(on) => {
+                actions.run((p, ctx) => snoozeTarget(p, ctx, { categoryId: id, month: model.month, snoozed: on }));
+              }}
+            />
+          </div>
+        </>
+      ) : (
+        <>
+          <p className={styles.sentence}>
+            <strong>How much do you need for {name}?</strong>
+          </p>
+          <p className={styles.note}>When you create a target, you’ll see how much money to set aside to stay on track over time.</p>
+          <div className={styles.actions}>
+            <Button variant="secondary" icon="add" onClick={() => { setEditing(true); }}>
+              Create Target
+            </Button>
+          </div>
+        </>
+      )}
+    </Section>
+  );
+}
+
+function CategoryDetail({ model, id, actions, money, onRename }: { model: PlanModel; id: Id; actions: Actions; money: MoneyText; onRename: InspectorProps['onRename'] }) {
   const cm = model.ms.categories[id];
   const view = model.views.get(id);
   const category = model.plan.categories.find((c) => c.id === id);
-  const target = model.targets.get(id);
-  const tm = model.evaluated[id];
   const [note, setNote] = useState(category?.note ?? '');
   if (!cm || !view || !category) return null;
   const balance = cardBalance(cm);
@@ -358,59 +450,7 @@ function CategoryDetail({ model, id, actions, money, onRename, onTarget }: { mod
         )}
       </Section>
 
-      {!payment && (
-        <Section id="target" title={<><Icon name="target" /> Target</>}>
-          {target && tm ? (
-            <>
-              <p className={styles.sentence}>{targetSentence(target, tm, model.fmt)}</p>
-              {view.bar && <ProgressBar {...view.bar} state={view.barState} label={`${String(Math.round(view.bar.fillPercent))}% funded`} />}
-              <Line label="Funded" value={`${money(minor(Math.min(tm.funded, tm.needed)))} of ${money(tm.needed)}`} />
-              <Line label="To Go This Month" value={money(tm.underfunded)} />
-              <div className={styles.actions}>
-                {cm.available < 0 ? (
-                  <Button
-                    variant="primary"
-                    onClick={() => {
-                      actions.run((p, ctx) => setAssigned(p, ctx, { month: model.month, categoryId: id, amount: minor(cm.assigned - cm.available) }));
-                    }}
-                  >
-                    Cover {money(neg(cm.available))}
-                  </Button>
-                ) : (
-                  <Button
-                    variant="primary"
-                    disabled={tm.underfunded <= 0}
-                    onClick={() => {
-                      actions.run((p, ctx) => setAssigned(p, ctx, { month: model.month, categoryId: id, amount: minor(cm.assigned + tm.underfunded) }));
-                    }}
-                  >
-                    {tm.underfunded > 0 ? `Assign ${money(tm.underfunded)}` : 'Fully Funded'}
-                  </Button>
-                )}
-                {onTarget && (
-                  <Button variant="secondary" icon="edit" onClick={() => { onTarget(id); }}>
-                    Edit Target
-                  </Button>
-                )}
-              </div>
-            </>
-          ) : (
-            <>
-              <p className={styles.sentence}>
-                <strong>How much do you need for {category.name}?</strong>
-              </p>
-              <p className={styles.note}>When you create a target, you’ll see how much money to set aside to stay on track over time.</p>
-              {onTarget && (
-                <div className={styles.actions}>
-                  <Button variant="secondary" icon="add" onClick={() => { onTarget(id); }}>
-                    Create Target
-                  </Button>
-                </div>
-              )}
-            </>
-          )}
-        </Section>
-      )}
+      {!payment && <TargetSection model={model} id={id} name={category.name} actions={actions} money={money} />}
 
       <AutoAssign model={model} ids={[id]} selection actions={actions} money={money} />
 

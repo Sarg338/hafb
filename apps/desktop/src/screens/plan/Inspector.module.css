@@ -263,3 +263,160 @@
   border-color: var(--c-bar-funded);
   background: var(--c-bar-funded);
 }
+
+/* ---- S5.2: the target card and its editor ------------------------------------------------- */
+
+.targetHeading {
+  margin: 0;
+  font-weight: var(--t-weight-semibold);
+}
+
+.ring {
+  display: flex;
+  justify-content: center;
+  margin: 12px 0;
+}
+
+.targetBox {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 10px;
+  padding: 10px 12px;
+  border-radius: var(--s-radius);
+  background: var(--c-surface-alt);
+  text-align: center;
+}
+
+.targetBox p {
+  margin: 0;
+}
+
+.targetBox[data-tone='warn'] {
+  background: var(--c-underfunded-bg);
+  color: var(--c-underfunded-fg);
+}
+
+.targetBox[data-tone='good'] {
+  background: var(--c-funded-bg);
+  color: var(--c-funded-fg);
+}
+
+.snooze {
+  margin-top: 12px;
+}
+
+.targetEditor {
+  display: grid;
+  gap: 12px;
+}
+
+.suggestion {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: -6px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--c-link);
+  font-size: var(--t-size-small);
+  text-align: left;
+}
+
+.suggestion:hover {
+  text-decoration: underline;
+}
+
+.field {
+  display: grid;
+  gap: 4px;
+}
+
+.fieldLabel {
+  font-size: var(--t-size-small);
+  font-weight: var(--t-weight-semibold);
+}
+
+.chooser {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  height: var(--d-control);
+  padding: 0 10px;
+  border: var(--s-border-width) solid var(--c-input-border);
+  border-radius: var(--s-radius);
+  background: var(--c-input);
+  color: var(--c-text);
+  font: inherit;
+  text-align: left;
+}
+
+.chooser:hover {
+  border-color: var(--c-border-strong);
+}
+
+.behaviors {
+  display: grid;
+  padding: 4px;
+}
+
+.behavior {
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: var(--s-radius);
+  background: transparent;
+  color: var(--c-text);
+  font: inherit;
+  text-align: left;
+}
+
+.behavior:hover,
+.behavior:focus-visible {
+  background: var(--c-hover);
+}
+
+.behavior[aria-selected='true'] .behaviorTitle {
+  color: var(--c-link);
+}
+
+.behaviorTitle {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-weight: var(--t-weight-semibold);
+}
+
+.hint {
+  padding: 0 6px;
+  border-radius: var(--s-radius-pill);
+  background: var(--c-accent-soft);
+  color: var(--c-text);
+  font-size: var(--t-size-caption);
+  font-weight: var(--t-weight-medium);
+}
+
+.every {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.error {
+  margin: 0;
+  color: var(--c-bad-text);
+  font-size: var(--t-size-small);
+}
+
+.editorActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.grow {
+  flex: 1;
+}

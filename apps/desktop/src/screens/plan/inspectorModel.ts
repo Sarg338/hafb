@@ -7,6 +7,7 @@
 //   a pie of how funded its targets are.
 import { autoAssign, costToBeMe, evaluateTargets, type AutoAssignOption, type Id, type MonthState, type PlanChange } from '@hafb/engine';
 import { addMonths, minor, ZERO, type Minor, type Month } from '@hafb/shared';
+import { planBudget } from '@hafb/store';
 import type { PlanModel } from './planModel.ts';
 
 export interface MonthSummary {
@@ -39,13 +40,28 @@ export interface CostView {
   targetsPercent: number;
   incomePercent: number;
   difference: Minor;
+  /**
+   * Next month's targets, shown only when higher than this month's (YNAB help, "Edit Plan and Cost to
+   * Be Me"): weekly and monthly targets at full amount, longer ones less what's already assigned.
+   */
+  nextMonth: Minor | null;
 }
 
 export function costView(model: PlanModel): CostView {
   const income = model.plan.settings.expectedIncome ?? ZERO;
   const cost = costToBeMe(model.evaluated, income);
   const top = Math.max(cost.targets, income, 1);
-  return { targets: cost.targets, income, targetsPercent: (cost.targets / top) * 100, incomePercent: (income / top) * 100, difference: cost.difference };
+  const next = addMonths(model.month, 1);
+  const nextMs = planBudget(model.plan, { today: model.today, throughMonth: next }).byMonth[next];
+  const nextCost = nextMs ? costToBeMe(evaluateTargets([...model.targets.values()], nextMs, model.assignedFor, { today: model.today }), income).targets : ZERO;
+  return {
+    targets: cost.targets,
+    income,
+    targetsPercent: (cost.targets / top) * 100,
+    incomePercent: (income / top) * 100,
+    difference: cost.difference,
+    nextMonth: nextCost > cost.targets ? nextCost : null,
+  };
 }
 
 export interface FutureMonth {

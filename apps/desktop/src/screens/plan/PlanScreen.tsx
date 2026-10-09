@@ -4,7 +4,7 @@
 import { useCallback, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react';
 import type { Id } from '@hafb/engine';
 import { minor, type ISODate, type Minor, type Month } from '@hafb/shared';
-import { coverOverspending, moveMoney, setAssigned, type PlanData } from '@hafb/store';
+import { applyChanges, coverOverspending, mergeChangeSets, moveMoney, setAssigned, snoozeTarget, type ChangeSet, type PlanData } from '@hafb/store';
 import type { Actions } from '../../design/DesignApp.tsx';
 import { usePrefs, prefs } from '../../shell/prefs.ts';
 import { Button, IconButton } from '../../ui/Button.tsx';
@@ -119,6 +119,27 @@ export function PlanScreen({ plan, planPath, today, month, setMonth, actions, hi
   const expandAll = useCallback(() => {
     setCollapsed(new Set());
   }, [setCollapsed]);
+  // Shift+Z (YNAB): snooze the selected categories' targets for this month, or unsnooze them when
+  // every one is already snoozed. One undo step.
+  const snooze = useCallback(() => {
+    const ids = [...selected].filter((id) => model.targets.has(id));
+    if (ids.length === 0) {
+      actions.notify(selected.size === 0 ? 'Select a category with a target to snooze it.' : 'Snoozing needs a category with a target.');
+      return;
+    }
+    const all = ids.every((id) => model.targets.get(id)?.snoozedMonths?.includes(month) === true);
+    actions.run((pl, ctx) => {
+      let next = pl;
+      const sets: ChangeSet[] = [];
+      for (const id of ids) {
+        const cmd = snoozeTarget(next, ctx, { categoryId: id, month, snoozed: !all });
+        next = applyChanges(next, cmd.changes).plan;
+        sets.push(cmd.changes);
+      }
+      return { label: `${all ? 'Unsnooze' : 'Snooze'} ${ids.length === 1 ? 'target' : `${String(ids.length)} targets`}`, changes: mergeChangeSets(...sets) };
+    });
+  }, [selected, model.targets, month, actions]);
+  useShortcut({ id: 'plan.snooze', keys: 'Shift+Z', description: 'Snooze or unsnooze the target', group: 'Plan', scope: 'screen', run: snooze });
   useShortcut({ id: 'plan.collapseAll', keys: 'Ctrl+ArrowUp', description: 'Collapse all category groups', group: 'Plan', scope: 'screen', run: collapseAll });
   useShortcut({ id: 'plan.expandAll', keys: 'Ctrl+ArrowDown', description: 'Expand all category groups', group: 'Plan', scope: 'screen', run: expandAll });
 

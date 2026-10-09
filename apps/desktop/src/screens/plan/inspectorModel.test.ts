@@ -36,6 +36,8 @@ describe('inspector numbers (S5.1)', () => {
     expect(c.incomePercent).toBe(100);
     expect(c.targetsPercent).toBeCloseTo(50);
     expect(c.difference).toBe(c.income - c.targets);
+    // Next month's figure shows only when it is higher than this month's.
+    expect(c.nextMonth === null || c.nextMonth > c.targets).toBe(true);
   });
 
   it('Assigned in Future Months lists next month even with nothing assigned, then later months with money', () => {
