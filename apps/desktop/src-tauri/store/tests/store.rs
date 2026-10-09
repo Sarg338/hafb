@@ -181,7 +181,14 @@ fn an_older_file_is_backed_up_then_migrated() {
     let dir = TempDir::new("migrate");
     let backups = dir.join("backups");
     let path = dir.join("Old.hafb");
-    Plan::create_with(&path, &sample(), false, &MIGRATIONS[..1]).unwrap();
+    // The sample as a v1 file: without the columns later migrations added (0002: payees.hidden).
+    let mut v1 = sample();
+    for t in v1.upserts.iter_mut().filter(|t| t.table == "payees") {
+        for r in &mut t.rows {
+            r.remove("hidden");
+        }
+    }
+    Plan::create_with(&path, &v1, false, &MIGRATIONS[..1]).unwrap();
     let next: Vec<&str> = MIGRATIONS
         .iter()
         .copied()
@@ -190,7 +197,7 @@ fn an_older_file_is_backed_up_then_migrated() {
     let options = OpenOptions { backup_dir: Some(backups.clone()), backup_on_open: false };
     let (plan, report) = Plan::open_with(&path, &options, &next).unwrap();
     assert_eq!(report.migrated_from, Some(1));
-    assert_eq!(plan.schema_version().unwrap(), 2);
+    assert_eq!(plan.schema_version().unwrap(), u32::try_from(next.len()).unwrap());
     let copy = PathBuf::from(report.pre_migration_backup_path.unwrap());
     assert!(copy.file_name().unwrap().to_string_lossy().starts_with("before-migration-v1-"));
     drop(plan);

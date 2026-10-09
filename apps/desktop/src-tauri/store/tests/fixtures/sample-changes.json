@@ -287,6 +287,7 @@
      "default_category_id": "c-food",
      "default_category_fixed": 1,
      "auto_categorize": 1,
+     "hidden": 0,
      "note": "weekly",
      "deleted_at": null
     },
@@ -297,6 +298,7 @@
      "default_category_id": "ready-to-assign",
      "default_category_fixed": 0,
      "auto_categorize": 0,
+     "hidden": 0,
      "note": null,
      "deleted_at": null
     },
@@ -307,6 +309,7 @@
      "default_category_id": null,
      "default_category_fixed": 0,
      "auto_categorize": 1,
+     "hidden": 0,
      "note": null,
      "deleted_at": null
     },
@@ -317,6 +320,7 @@
      "default_category_id": null,
      "default_category_fixed": 0,
      "auto_categorize": 1,
+     "hidden": 0,
      "note": null,
      "deleted_at": null
     },
@@ -327,6 +331,7 @@
      "default_category_id": null,
      "default_category_fixed": 0,
      "auto_categorize": 1,
+     "hidden": 0,
      "note": null,
      "deleted_at": "2026-10-08T12:00:00.000Z"
     }

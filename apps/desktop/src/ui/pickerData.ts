@@ -10,7 +10,8 @@ export const SPLIT_ID = '__split__';
 const TRANSFER_PREFIX = 'Transfer : ';
 
 /** "Payments & Transfers" (one transfer payee per open account), then saved payees A–Z. */
-export function payeeGroups(plan: PlanData, options: { excludeAccountId?: Id } = {}): ComboGroup[] {
+/** Hidden payees (Manage Payees) aren't offered, except `keep` (the row's current payee). */
+export function payeeGroups(plan: PlanData, options: { excludeAccountId?: Id; keep?: Id | null } = {}): ComboGroup[] {
   const open = new Map(plan.accounts.filter((a) => a.deletedAt === undefined && a.closed !== true).map((a) => [a.id, a]));
   const live = plan.payees.filter((p) => p.deletedAt === undefined);
   const transfers: ComboOption[] = live
@@ -21,7 +22,7 @@ export function payeeGroups(plan: PlanData, options: { excludeAccountId?: Id } =
     })
     .sort((a, b) => a.label.localeCompare(b.label));
   const saved: ComboOption[] = live
-    .filter((p) => p.transferAccountId === undefined && !p.name.startsWith(TRANSFER_PREFIX))
+    .filter((p) => p.transferAccountId === undefined && !p.name.startsWith(TRANSFER_PREFIX) && (p.hidden !== true || p.id === options.keep))
     .map((p) => ({ id: p.id, label: p.name }))
     .sort((a, b) => a.label.localeCompare(b.label));
   return [

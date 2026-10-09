@@ -506,6 +506,7 @@ function encodePayee(p: PayeeRecord): Row {
     default_category_id: p.defaultCategoryId ?? null,
     default_category_fixed: b(p.defaultCategoryFixed),
     auto_categorize: b(p.autoCategorize !== false),
+    hidden: b(p.hidden),
     note: n(p.note),
     deleted_at: n(p.deletedAt),
   };
@@ -523,6 +524,7 @@ function decodePayee(r: Reader): PayeeRecord {
     ...(defaultCategoryId === undefined ? {} : { defaultCategoryId }),
     ...(r.bool('default_category_fixed') ? { defaultCategoryFixed: true } : {}),
     ...(r.bool('auto_categorize') ? {} : { autoCategorize: false }),
+    ...(r.bool('hidden') ? { hidden: true } : {}),
     ...(note === undefined ? {} : { note }),
     ...(deletedAt === undefined ? {} : { deletedAt }),
   };

@@ -363,7 +363,8 @@
    "default_category_fixed",
    "auto_categorize",
    "note",
-   "deleted_at"
+   "deleted_at",
+   "hidden"
   ],
   "rows": [
    [
@@ -374,7 +375,8 @@
     1,
     1,
     "weekly",
-    null
+    null,
+    0
    ],
    [
     "p-boss",
@@ -384,7 +386,8 @@
     0,
     0,
     null,
-    null
+    null,
+    0
    ],
    [
     "p-t-chk",
@@ -394,7 +397,8 @@
     0,
     1,
     null,
-    null
+    null,
+    0
    ],
    [
     "p-t-cc",
@@ -404,7 +408,8 @@
     0,
     1,
     null,
-    null
+    null,
+    0
    ],
    [
     "p-gone",
@@ -414,7 +419,8 @@
     0,
     1,
     null,
-    "2026-10-08T12:00:00.000Z"
+    "2026-10-08T12:00:00.000Z",
+    0
    ]
   ]
  },

@@ -31,7 +31,8 @@ export interface DialogProps {
   initialFocus?: RefObject<HTMLElement | null> | undefined;
   /** Escape and the close button dismiss it. Default true. */
   dismissible?: boolean | undefined;
-  size?: 'normal' | 'wide' | undefined;
+  /** 'large': a two-pane manager (Manage Payees). */
+  size?: 'normal' | 'wide' | 'large' | undefined;
 }
 
 export function Dialog({ open, ...panel }: DialogProps) {
@@ -67,7 +68,7 @@ function DialogPanel({ onClose, title, description, children, footer, initialFoc
           aria-labelledby={titleId}
           aria-describedby={description === undefined ? undefined : descId}
           tabIndex={-1}
-          className={cx(styles.panel, size === 'wide' && styles.wide)}
+          className={cx(styles.panel, size === 'wide' && styles.wide, size === 'large' && styles.large)}
           onKeyDown={(e) => {
             if (e.key === 'Escape' && dismissible !== false) {
               e.stopPropagation();

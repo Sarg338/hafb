@@ -25,6 +25,7 @@ import { ReflectScreen } from '../design/ReflectScreen.tsx';
 import '../design/design.css';
 import { AddAccountDialog, EditAccountDialog, type AccountEdits } from '../screens/accounts/AccountDialogs.tsx';
 import { RegisterScreen } from '../screens/accounts/RegisterScreen.tsx';
+import { ManagePayeesDialog } from '../screens/payees/ManagePayees.tsx';
 import { stepAccount } from '../screens/accounts/accountsModel.ts';
 import { moneyFormat } from '../screens/plan/planModel.ts';
 import { shownMonth } from '../screens/plan/planMonths.ts';
@@ -104,7 +105,7 @@ function PlanFrame({ open, system }: { open: OpenPlan; /** A Windows-colour (con
   const route = useRoute();
   const p = usePrefs();
   const today = todayLocal();
-  const [dialog, setDialog] = useState<null | 'new' | 'backups' | 'addAccount'>(null);
+  const [dialog, setDialog] = useState<null | 'new' | 'backups' | 'addAccount' | 'payees'>(null);
   const [editingAccount, setEditingAccount] = useState<string | null>(null);
   const confirm = useConfirm();
   const [showReport, setShowReport] = useState(open.importReport !== undefined);
@@ -239,6 +240,9 @@ function PlanFrame({ open, system }: { open: OpenPlan; /** A Windows-colour (con
       accountAction: (id: string, action: AccountAction) => {
         accountActionRef.current(id, action);
       },
+      managePayees: () => {
+        setDialog('payees');
+      },
     }),
     [],
   );
@@ -251,6 +255,8 @@ function PlanFrame({ open, system }: { open: OpenPlan; /** A Windows-colour (con
     { id: 'copy', label: 'Save a copy…', icon: 'export' },
     { id: 'backups', label: 'Backups…', icon: 'history', disabled: open.inMemory === true },
     { id: 'sep2', label: '', separator: true },
+    { id: 'payees', label: 'Manage Payees…', icon: 'settings' },
+    { id: 'sep3', label: '', separator: true },
     { id: 'close', label: 'Close plan', icon: 'dismiss' },
   ];
   const onPlanMenu = (id: string): void => {
@@ -259,6 +265,7 @@ function PlanFrame({ open, system }: { open: OpenPlan; /** A Windows-colour (con
     else if (id === 'import') void session.importExport();
     else if (id === 'copy') void session.saveCopy();
     else if (id === 'backups') setDialog('backups');
+    else if (id === 'payees') setDialog('payees');
     else if (id === 'close') void session.close();
   };
 
@@ -356,6 +363,17 @@ function PlanFrame({ open, system }: { open: OpenPlan; /** A Windows-colour (con
         }}
         onCreate={(name) => void session.createNew(name)}
       />
+      {dialog === 'payees' && (
+        <ManagePayeesDialog
+          plan={open.plan}
+          today={today}
+          actions={actions}
+          history={history}
+          onClose={() => {
+            setDialog(null);
+          }}
+        />
+      )}
       <BackupsDialog
         open={dialog === 'backups'}
         onClose={() => {

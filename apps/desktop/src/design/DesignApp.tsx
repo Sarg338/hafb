@@ -26,6 +26,8 @@ export interface Actions {
   notify: (text: string) => void;
   /** Account menu actions (S4.4): the shell opens Edit Account, stars, closes and reopens. */
   accountAction?: (accountId: Id, action: 'edit' | 'star' | 'unstar' | 'up' | 'down' | 'close' | 'reopen') => void;
+  /** Open Manage Payees (S5.5; the shell's dialog). */
+  managePayees?: () => void;
 }
 
 const newId = uuidv7Generator(

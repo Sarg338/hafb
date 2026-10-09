@@ -83,6 +83,8 @@ export interface TargetRecord extends Target {
 }
 
 export interface PayeeRecord extends Payee {
+  /** Hidden in Manage Payees: not suggested while typing (YNAB). */
+  hidden?: boolean;
   note?: string;
   deletedAt?: Timestamp;
 }

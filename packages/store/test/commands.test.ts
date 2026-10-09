@@ -21,6 +21,11 @@ import {
   deleteCategory,
   deleteGroup,
   deletePayee,
+  deletePayees,
+  setPayeesHidden,
+  addRenameRule,
+  editRenameRule,
+  deleteRenameRule,
   deleteTransactions,
   Draft,
   duplicateTransactions,
@@ -614,6 +619,44 @@ describe('commands', () => {
       expect(findRecord(b.plan, 'payees', target)?.deletedAt).toBeDefined();
       const transfer = b.plan.payees.find((p) => p.transferAccountId === checking)?.id ?? '';
       expect(() => deletePayee(b.plan, ctx, { payeeId: transfer })).toThrow(/Transfer/);
+    });
+
+    it('delete without a replacement leaves its transactions with no payee; with one, they move', () => {
+      const a = b.run(addTransaction(b.plan, ctx, { accountId: checking, date: TODAY, amount: usd(-1), payeeName: 'Kiosk', categoryId: groceries }));
+      const c = b.run(addTransaction(b.plan, ctx, { accountId: checking, date: TODAY, amount: usd(-1), payeeName: 'Booth', categoryId: groceries }));
+      const keep = b.run(addTransaction(b.plan, ctx, { accountId: checking, date: TODAY, amount: usd(-1), payeeName: 'Market', categoryId: groceries }));
+      const kiosk = tx(b.plan, a.transactionId).payeeId ?? '';
+      const booth = tx(b.plan, c.transactionId).payeeId ?? '';
+      const market = tx(b.plan, keep.transactionId).payeeId ?? '';
+      b.run(addRenameRule(b.plan, ctx, { payeeId: kiosk, match: 'contains', pattern: 'KIOSK' }));
+      b.run(deletePayees(b.plan, ctx, { payeeIds: [kiosk] }));
+      expect(tx(b.plan, a.transactionId).payeeId).toBeUndefined();
+      expect(b.plan.payeeRenameRules).toEqual([]);
+      b.run(deletePayees(b.plan, ctx, { payeeIds: [booth], replacementId: market }));
+      expect(tx(b.plan, c.transactionId).payeeId).toBe(market);
+      expect(findRecord(b.plan, 'payees', booth)?.deletedAt).toBeDefined();
+    });
+
+    it('hide and show payees; transfer payees cannot hide', () => {
+      const a = b.run(addTransaction(b.plan, ctx, { accountId: checking, date: TODAY, amount: usd(-1), payeeName: 'Fair', categoryId: groceries }));
+      const fair = tx(b.plan, a.transactionId).payeeId ?? '';
+      b.run(setPayeesHidden(b.plan, ctx, { payeeIds: [fair], hidden: true }));
+      expect(findRecord(b.plan, 'payees', fair)?.hidden).toBe(true);
+      b.run(setPayeesHidden(b.plan, ctx, { payeeIds: [fair], hidden: false }));
+      expect(findRecord(b.plan, 'payees', fair)?.hidden).toBeUndefined();
+      const transfer = b.plan.payees.find((p) => p.transferAccountId === checking)?.id ?? '';
+      expect(() => setPayeesHidden(b.plan, ctx, { payeeIds: [transfer], hidden: true })).toThrow(/Transfer/);
+    });
+
+    it('renaming rules: add (also for a transfer payee), edit, delete; empty patterns are refused', () => {
+      const transfer = b.plan.payees.find((p) => p.transferAccountId === checking)?.id ?? '';
+      const { ruleId } = b.run(addRenameRule(b.plan, ctx, { payeeId: transfer, match: 'startsWith', pattern: ' XFER ' }));
+      expect(findRecord(b.plan, 'payeeRenameRules', ruleId)).toMatchObject({ match: 'startsWith', pattern: 'XFER', targetPayeeId: transfer });
+      b.run(editRenameRule(b.plan, ctx, { ruleId, match: 'equals', pattern: 'ONLINE XFER' }));
+      expect(findRecord(b.plan, 'payeeRenameRules', ruleId)).toMatchObject({ match: 'equals', pattern: 'ONLINE XFER' });
+      expect(() => addRenameRule(b.plan, ctx, { payeeId: transfer, match: 'contains', pattern: '  ' })).toThrow();
+      b.run(deleteRenameRule(b.plan, ctx, { ruleId }));
+      expect(b.plan.payeeRenameRules).toEqual([]);
     });
   });
 

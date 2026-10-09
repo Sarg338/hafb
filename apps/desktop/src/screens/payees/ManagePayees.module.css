@@ -1,0 +1,156 @@
+/* Manage Payees (S5.5): YNAB's two panes, in the approved card language. Tokens only (ADR 0004). */
+
+.layout {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  height: min(560px, calc(100vh - 220px));
+  border: var(--s-border-width) solid var(--c-border);
+  border-radius: var(--s-radius);
+  overflow: hidden;
+}
+
+.list {
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 8px;
+  padding: 10px;
+  border-right: var(--s-border-width) solid var(--c-border);
+  background: var(--c-surface);
+}
+
+.groups {
+  overflow: auto;
+}
+
+.group + .group {
+  margin-top: 4px;
+}
+
+.groupHead {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-height: var(--d-row-register);
+  font-weight: var(--t-weight-semibold);
+}
+
+.items {
+  display: grid;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  min-height: var(--d-row-register);
+  padding-left: 30px;
+  border-radius: var(--s-radius-small);
+}
+
+.item:hover {
+  background: var(--c-hover);
+}
+
+.itemOn {
+  background: var(--c-selected);
+  color: var(--c-selected-text);
+}
+
+.detail {
+  min-height: 0;
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  overflow: auto;
+  padding: 14px;
+  background: var(--c-surface-alt);
+}
+
+.empty {
+  align-self: center;
+  margin: 120px 0 0;
+  color: var(--c-text-muted);
+  text-align: center;
+}
+
+.card {
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
+  border: var(--s-border-width) solid var(--c-border);
+  border-radius: var(--s-radius);
+  background: var(--c-surface);
+}
+
+.cardTitle,
+.heading {
+  margin: 0;
+  font-size: var(--t-size-body);
+  font-weight: var(--t-weight-semibold);
+}
+
+.note {
+  margin: 0;
+  color: var(--c-text-muted);
+  font-size: var(--t-size-small);
+}
+
+.strong {
+  color: var(--c-text);
+  font-weight: var(--t-weight-semibold);
+}
+
+.names {
+  margin: 0;
+}
+
+.summary {
+  display: grid;
+  gap: 4px;
+}
+
+.rule {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.rule:has(> :nth-child(2):last-child) {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.ruleMatch {
+  width: 150px;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
+.fine {
+  margin: 0;
+  color: var(--c-text-subtle);
+  font-size: var(--t-size-micro);
+}
+
+.info {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: var(--s-radius);
+  background: var(--c-accent-soft);
+}
+
+.inline {
+  flex: none;
+  margin-top: 2px;
+}
+
+.spacer {
+  flex: 1;
+}

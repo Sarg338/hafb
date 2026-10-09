@@ -12,10 +12,12 @@ export interface PayeePickerProps {
   autoFocus?: boolean;
   initialQuery?: string;
   disabled?: boolean;
+  /** Opens Manage Payees (YNAB: the button under the payee list). */
+  onManage?: () => void;
 }
 
 /** Payee field: search saved payees and transfer targets, or create a new payee. */
-export function PayeePicker({ groups, value, onChange, onCreate, size, autoFocus, initialQuery, disabled }: PayeePickerProps) {
+export function PayeePicker({ groups, value, onChange, onCreate, size, autoFocus, initialQuery, disabled, onManage }: PayeePickerProps) {
   return (
     <Combobox
       groups={groups}
@@ -29,6 +31,7 @@ export function PayeePicker({ groups, value, onChange, onCreate, size, autoFocus
       {...(autoFocus === undefined ? {} : { autoFocus })}
       {...(initialQuery === undefined ? {} : { initialQuery })}
       {...(disabled === undefined ? {} : { disabled })}
+      {...(onManage ? { footerAction: { label: 'Manage Payees', icon: 'settings' as const, onSelect: onManage } } : {})}
     />
   );
 }

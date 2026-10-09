@@ -2,7 +2,7 @@ import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type R
 import styles from './Combobox.module.css';
 import { CREATE_ID, createOption, filterGroups, flatten, move, type ComboGroup, type ComboOption, type MatchedOption, type MoveKey } from './comboModel.ts';
 import { cx } from './cx.ts';
-import { Icon } from './Icon.tsx';
+import { Icon, type IconName } from './Icon.tsx';
 import { Popover } from './Popover.tsx';
 
 export interface ComboboxProps {
@@ -24,6 +24,8 @@ export interface ComboboxProps {
   autoFocus?: boolean;
   /** Open on mount with this text typed (gallery deep links, focused editing). */
   initialQuery?: string;
+  /** A command under the list (the payee picker's "Manage Payees", as in YNAB). */
+  footerAction?: { label: string; icon?: IconName; onSelect: () => void };
   className?: string;
 }
 
@@ -60,6 +62,7 @@ export function Combobox({
   disabled = false,
   autoFocus = false,
   initialQuery,
+  footerAction,
   className,
 }: ComboboxProps) {
   const baseId = useId();
@@ -266,6 +269,22 @@ export function Combobox({
             </div>
           )}
         </div>
+        {footerAction && (
+          <button
+            type="button"
+            className={cx(styles.option, styles.create, styles.footerAction)}
+            onMouseDown={(e) => {
+              e.preventDefault();
+            }}
+            onClick={() => {
+              close(true);
+              footerAction.onSelect();
+            }}
+          >
+            <Icon name={footerAction.icon ?? 'settings'} />
+            <span className={styles.optionLabel}>{footerAction.label}</span>
+          </button>
+        )}
       </Popover>
     </div>
   );

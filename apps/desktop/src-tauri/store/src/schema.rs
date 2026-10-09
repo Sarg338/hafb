@@ -5,7 +5,10 @@ use rusqlite::Connection;
 
 /// Every migration, in order. `PRAGMA user_version` = how many have been applied.
 /// Never edit a shipped entry; append a new file instead.
-pub const MIGRATIONS: &[&str] = &[include_str!("../../migrations/0001_init.sql")];
+pub const MIGRATIONS: &[&str] = &[
+    include_str!("../../migrations/0001_init.sql"),
+    include_str!("../../migrations/0002_payee_hidden.sql"),
+];
 
 /// Marks a SQLite file as a plan (`PRAGMA application_id`, header offset 68): ASCII "HAFB".
 pub const APPLICATION_ID: i32 = 0x4841_4642;

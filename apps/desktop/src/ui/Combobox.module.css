@@ -141,6 +141,17 @@
   font-weight: var(--t-weight-medium);
 }
 
+/* A command under the list: a full-width button styled as the create row. */
+.footerAction {
+  width: 100%;
+  border-right: 0;
+  border-bottom: 0;
+  border-left: 0;
+  background: transparent;
+  font: inherit;
+  text-align: start;
+}
+
 .mark {
   border-radius: var(--s-radius-tiny);
   background: var(--c-accent-soft);

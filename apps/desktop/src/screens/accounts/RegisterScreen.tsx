@@ -579,7 +579,8 @@ export function RegisterScreen({ plan, today, accountId, actions, history }: Reg
   // ---- columns -----------------------------------------------------------------------------------
   const draftAccountId = draft?.accountId;
   const draftMonth = monthOf(draft?.date ?? today);
-  const payees = useMemo(() => payeeGroups(plan, draftAccountId === undefined ? {} : { excludeAccountId: draftAccountId }), [plan, draftAccountId]);
+  const draftPayeeId = draft?.payeeId ?? null;
+  const payees = useMemo(() => payeeGroups(plan, { keep: draftPayeeId, ...(draftAccountId === undefined ? {} : { excludeAccountId: draftAccountId }) }), [plan, draftAccountId, draftPayeeId]);
   const categories = useMemo(() => categoryPickerData(plan, draftMonth, today), [plan, draftMonth, today]);
   const payeeById = useMemo(() => new Map(plan.payees.map((x) => [x.id, x])), [plan.payees]);
   const isEditing = (r: GridRow<Row>): boolean => edit !== null && r.id === edit.id;
@@ -729,6 +730,7 @@ export function RegisterScreen({ plan, today, accountId, actions, history }: Reg
                 size="compact"
                 value={transferPayee ?? (draft.payeeName === '' ? draft.payeeId : NEW_PAYEE)}
                 autoFocus={autoFocus('payee')}
+                {...(actions.managePayees ? { onManage: actions.managePayees } : {})}
                 onChange={(id) => {
                   if (id === NEW_PAYEE) return;
                   const payee = payeeById.get(id);
