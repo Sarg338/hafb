@@ -301,7 +301,7 @@ Loans are their own off-budget account group.
 - The category picker also suggests categories while the user types.
 
 ### 5.14 Fresh Start
-- Archives the current plan: the file is kept, stamped *Archived* with today's date, and opens read-only.
+- Archives the current plan: the file is kept, stamped *Archived* with today's date and renamed "<plan> (Archived on YYYY-MM-DD)". *Corrected 2026-10-09:* this said the archived plan opens read-only; YNAB keeps it editable (the trial's archived plan took a template import and a currency change), so HAFB does too.
 - Creates a new plan that keeps the category structure, scheduled transactions, targets, expected income, notes and payees.
 - Every account restarts with a **$0** "Starting Balance" transaction dated today (unlinked accounts in YNAB; HAFB never links banks). The user then enters today's balance. Verified on YNAB (trial, 2026-10-08).
 

@@ -15,6 +15,9 @@ import {
   createAccount,
   editAccount,
   editPlanSettings,
+  importTemplate,
+  setTargets,
+  TEMPLATES,
   mergeChangeSets,
   planBudget,
   redoLabel,
@@ -34,10 +37,14 @@ import { moneyFormat } from '../screens/plan/planModel.ts';
 import { shownMonth } from '../screens/plan/planMonths.ts';
 import { moneyText } from '../screens/shared/money.ts';
 import { PlanScreen } from '../screens/plan/PlanScreen.tsx';
+import { FreshStartDialog } from '../screens/lifecycle/FreshStartDialog.tsx';
+import { NewPlanDialog } from '../screens/lifecycle/NewPlanDialog.tsx';
+import { TargetsEntryDialog } from '../screens/lifecycle/TargetsEntryDialog.tsx';
+import { TemplateDialog } from '../screens/lifecycle/TemplateDialog.tsx';
 import { DisplayOptionsDialog } from '../screens/settings/DisplayOptionsDialog.tsx';
 import { PlanSettingsDialog } from '../screens/settings/PlanSettingsDialog.tsx';
 import { PreferencesDialog, type PlanFolderControls } from '../screens/settings/PreferencesDialog.tsx';
-import { draftFrom, newPlanDraft, newPlanSettings, settingsEdit } from '../screens/settings/settingsModel.ts';
+import { draftFrom, settingsEdit } from '../screens/settings/settingsModel.ts';
 import { cx } from '../ui/cx.ts';
 import { ErrorBoundary } from '../ui/ErrorBoundary.tsx';
 import { useRouteFocus } from '../ui/focusRoute.ts';
@@ -147,7 +154,7 @@ function PlanFrame({ open, system, recent }: { open: OpenPlan; /** A Windows-col
   const route = useRoute();
   const p = usePrefs();
   const today = todayLocal();
-  const [dialog, setDialog] = useState<null | 'new' | 'backups' | 'addAccount' | 'payees' | 'planSettings' | 'display' | 'prefs'>(null);
+  const [dialog, setDialog] = useState<null | 'new' | 'backups' | 'addAccount' | 'payees' | 'planSettings' | 'display' | 'prefs' | 'template' | 'freshStart' | 'targets'>(null);
   const [editingAccount, setEditingAccount] = useState<string | null>(null);
   const confirm = useConfirm();
   const [showReport, setShowReport] = useState(open.importReport !== undefined);
@@ -307,10 +314,12 @@ function PlanFrame({ open, system, recent }: { open: OpenPlan; /** A Windows-col
     { id: 'sep1', label: '', separator: true },
     { id: 'planSettings', label: 'Plan Settings…', icon: 'settings' },
     { id: 'payees', label: 'Manage Payees…', icon: 'settings' },
+    { id: 'template', label: 'Add categories from a template…', icon: 'add' },
     { id: 'display', label: 'Display Options…', icon: 'eye' },
     { id: 'exportYnab', label: 'Export for YNAB (CSV)…', icon: 'export' },
     { id: 'copy', label: 'Save a copy…', icon: 'export' },
     { id: 'backups', label: 'Backups…', icon: 'history', disabled: open.inMemory === true },
+    { id: 'freshStart', label: 'Make a Fresh Start…', icon: 'history', disabled: open.inMemory === true },
     { id: 'sep2', label: '', separator: true },
     { id: 'prefs', label: 'Preferences…', icon: 'settings' },
     { id: 'sep3', label: '', separator: true },
@@ -320,7 +329,7 @@ function PlanFrame({ open, system, recent }: { open: OpenPlan; /** A Windows-col
     if (id === 'open') void session.openDialog();
     else if (id.startsWith('recent:')) void session.openPath(id.slice('recent:'.length));
     else if (id === 'new') setDialog('new');
-    else if (id === 'planSettings' || id === 'display' || id === 'prefs') setDialog(id);
+    else if (id === 'planSettings' || id === 'display' || id === 'prefs' || id === 'template' || id === 'freshStart') setDialog(id);
     else if (id === 'import') void session.importExport();
     else if (id === 'copy') void session.saveCopy();
     else if (id === 'exportYnab') {
@@ -451,16 +460,18 @@ function PlanFrame({ open, system, recent }: { open: OpenPlan; /** A Windows-col
         </ErrorBoundary>
       </div>
       {dialog === 'new' && (
-        <PlanSettingsDialog
-          mode="new"
-          initial={newPlanDraft('My Plan')}
+        <NewPlanDialog
           year={Number(today.slice(0, 4))}
           onClose={() => {
             setDialog(null);
           }}
-          onSubmit={(draft) => {
+          onCreate={(settings, template) => {
             setDialog(null);
-                        void session.createNew(newPlanSettings(draft));
+            void session.createNew(settings, template);
+          }}
+          onImportYnab={() => {
+            setDialog(null);
+            void session.importExport();
           }}
         />
       )}
@@ -475,6 +486,46 @@ function PlanFrame({ open, system, recent }: { open: OpenPlan; /** A Windows-col
           onSubmit={(draft) => {
             setDialog(null);
             session.run((pl, ctx) => editPlanSettings(pl, ctx, settingsEdit(draft)), { announce: 'Plan settings applied.' });
+          }}
+        />
+      )}
+      {dialog === 'template' && (
+        <TemplateDialog
+          templates={TEMPLATES}
+          planName={open.plan.settings.name}
+          onClose={() => {
+            setDialog(null);
+          }}
+          onImport={(template, exclude) => {
+            setDialog(null);
+            session.run((pl, ctx) => importTemplate(pl, ctx, { template, exclude }), { announce: `Added the ${template.name} categories at the bottom of your plan.` });
+            navigate({ kind: 'plan' });
+          }}
+        />
+      )}
+      {dialog === 'freshStart' && (
+        <FreshStartDialog
+          onClose={() => {
+            setDialog(null);
+          }}
+          onContinue={(name) => {
+            setDialog(null);
+            void session.freshStart(name);
+          }}
+        />
+      )}
+      {dialog === 'targets' && open.importReport && (
+        <TargetsEntryDialog
+          plan={open.plan}
+          rows={open.importReport.targetsToReenter.filter((r) => open.plan.categories.some((c) => c.id === r.categoryId && c.deletedAt === undefined))}
+          today={today}
+          format={fmt}
+          onClose={() => {
+            setDialog(null);
+          }}
+          onSave={(targets) => {
+            setDialog(null);
+            session.run((pl, ctx) => setTargets(pl, ctx, { targets }), { announce: targets.length === 1 ? 'Added 1 target.' : `Added ${String(targets.length)} targets.` });
           }}
         />
       )}
@@ -563,6 +614,10 @@ function PlanFrame({ open, system, recent }: { open: OpenPlan; /** A Windows-col
           report={open.importReport}
           onClose={() => {
             setShowReport(false);
+          }}
+          onAddTargets={() => {
+            setShowReport(false);
+            setDialog('targets');
           }}
         />
       )}

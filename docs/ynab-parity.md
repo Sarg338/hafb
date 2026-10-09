@@ -202,8 +202,8 @@ A row is `done` only after Sarg validates it on hardware. Rows whose engine half
 
 | ID | Feature | Engine | UI | Status |
 |---|---|---|---|---|
-| IE-01 | YNAB export import (Plan.csv + Register.csv), to the cent | S1.8 | S2.4 / S7.2 | in-progress |
-| IE-02 | Target re-entry screen after YNAB import | — | S7.2 | todo |
+| IE-01 | YNAB export import (Plan.csv + Register.csv), to the cent | S1.8 | S2.4 / S7.2 | done (welcome screen, plan menu and New Plan's "Import your YNAB export instead"; to the cent, golden-tested) |
+| IE-02 | Target re-entry screen after YNAB import | — | S7.2 | done (Add targets from the import report: a target choice and amount per category, prefilled with the 3-month average assigned; one undo step) |
 | IE-03 | CSV import: column mapper per account, date formats, swap inflow/outflow, semicolons | S1.6 | S6.5 | done (delimiter, header, date order and decimal mark detected; mapping remembered per account; header guesses checked on public Chase, Capital One, Schwab, N26, Outbank, UBS and credit-union layouts; UTF-8, UTF-16 and Windows-1252 files) |
 | IE-04 | OFX/QFX import, several files at once; QIF import | S1.6 | S6.5 | done (checked on public sample files from US Bank, Navy Federal, Wells Fargo, BMO, WaMu, CIBC, RBC, ATB and Fidelity) |
 | IE-05 | Dedupe: FITID + fuzzy; skip > 3 days before last reconciliation; keep zero rows | S1.6 | S6.5 | done (bank ids; same date and amount across formats; 3-day reconciliation rule; zero rows kept; optional pre-start rows) |
@@ -220,10 +220,10 @@ A row is `done` only after Sarg validates it on hardware. Rows whose engine half
 
 | ID | Feature | Engine | UI | Status |
 |---|---|---|---|---|
-| PL-01 | Multiple plans: open, recent list, create | — | S2.5 / S7.2 | in-progress |
-| PL-02 | New-plan wizard: blank / template / import YNAB | — | S7.2 | todo |
-| PL-03 | Templates: bundled category sets; pick categories to import; never overwrite | — | S7.2 | todo |
-| PL-04 | Fresh Start (archive + new plan, §5.14; verify starting-balance rule) | S1.5 | S7.2 | in-progress |
+| PL-01 | Multiple plans: open, recent list, create | — | S2.5 / S7.2 | done (welcome screen recent list; plan menu New plan, Open plan and the five most recent plans) |
+| PL-02 | New-plan wizard: blank / template / import YNAB | — | S7.2 | done (YNAB's New Plan fields, then Start with a blank plan or a template, or import a YNAB export instead) |
+| PL-03 | Templates: bundled category sets; pick categories to import; never overwrite | — | S7.2 | done (12 bundled templates; YNAB's Import Category Template dialog with a checklist; new groups at the bottom, nothing overwritten; amounts become "Have a balance of" targets with no date, as YNAB does) |
+| PL-04 | Fresh Start (archive + new plan, §5.14; verify starting-balance rule) | S1.5 | S7.2 | done (YNAB's dialog; new file with accounts at $0 today, groups, categories, targets, scheduled, payees, expected income; the old file is renamed "(Archived on …)" and keeps its history) |
 | PL-05 | Settings: currency & decimals, number/date format, first month | S1.1 | S7.1 | done (YNAB's Plan Settings: name, 160 currencies as "Name–CODE" with YNAB's defaults, placement before / after / don't show, all 8 number formats incl. 1,23,456.78, all 7 date formats; a currency with other decimals keeps every stored amount and only changes what shows, as YNAB does (migration 0004); undoable. YNAB has no first-month setting: it is the month the plan starts) |
 | PL-06 | Settings: theme (light/dark/system/high contrast), font scale | — | S7.1 | done (Display Options theme; Preferences text size 90–150% zooming the whole window, Ctrl+= / Ctrl+- / Ctrl+0) |
 | PL-07 | Settings: default account, data folder, shortcuts on/off | — | S7.1 | done (Preferences: default account per plan for All Accounts entry and imports, plans folder for the Open and Save dialogs, keyboard shortcuts on/off, Hide Amounts) |

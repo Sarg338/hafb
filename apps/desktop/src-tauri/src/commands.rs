@@ -260,6 +260,12 @@ pub enum PickMode {
 /// Native open/save dialog for plan files. Returns the chosen path, or null if cancelled.
 #[tauri::command]
 pub async fn pick_plan_path(app: AppHandle, window: WebviewWindow, mode: PickMode, default_name: Option<String>) -> Result<Option<String>> {
+    // The smoke suite sets HAFB_SAVE_DIR: a new plan is saved there under its default name, with
+    // no dialog (as HAFB_PICK_FILES does for bank files).
+    if let (PickMode::Save, Some(dir)) = (mode, std::env::var_os("HAFB_SAVE_DIR").filter(|v| !v.is_empty())) {
+        let name = default_name.unwrap_or_else(|| "My Plan.hafb".to_owned()).replace(['\\', '/', ':', '*', '?', '"', '<', '>', '|'], "-");
+        return Ok(Some(path_string(&PathBuf::from(dir).join(name))));
+    }
     let mut dialog = rfd::FileDialog::new().set_parent(&window).add_filter("Plan", &["hafb"]);
     // The plans folder (S7.1), when one is set, is where both dialogs start.
     if let Some(dir) = app_settings::load(&data_dir(&app)?).plan_dir() {

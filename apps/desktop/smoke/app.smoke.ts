@@ -1440,3 +1440,134 @@ void describe('loans, bank import, export and backups (Phase 6)', () => {
     await again.close();
   });
 });
+
+void describe('settings, templates and Fresh Start (Phase 7)', () => {
+  let box: Sandbox;
+  const running: App[] = [];
+  const plan: PlanData = { ...buildSamplePlan().plan, scheduled: [] };
+  const open = async (env: Record<string, string> = {}, path?: string): Promise<App> => {
+    const a = await launch(box, ['--open', path ?? box.planPath], { HAFB_SAVE_DIR: box.root, ...env });
+    running.push(a);
+    await a.page.getByRole('navigation', { name: 'Plan navigation' }).waitFor();
+    return a;
+  };
+  const sidebar = (page: Page) => page.getByRole('navigation', { name: 'Plan navigation' });
+  const planMenu = async (page: Page, item: string) => {
+    await sidebar(page).locator('button').first().click();
+    await page.getByRole('menuitem', { name: item }).click();
+  };
+  /** The plan grid is virtualized: scroll to its end so the last rows render. */
+  const toBottom = async (page: Page) => {
+    const grid = page.getByRole('main').locator('[role=treegrid], [role=grid]').first();
+    await grid.hover();
+    for (let i = 0; i < 6; i++) await page.mouse.wheel(0, 4000);
+    await page.waitForTimeout(300);
+  };
+  before(() => {
+    box = makeSandbox(plan);
+  });
+  after(async () => {
+    for (const a of running) await a.close().catch(() => undefined);
+    box.cleanup();
+  });
+
+  void test('Plan Settings: yen shows without decimals and survives a relaunch; text size too', { timeout: 300_000 }, async () => {
+    const app = await open();
+    const { page } = app;
+    await planMenu(page, 'Plan Settings…');
+    const dlg = page.getByRole('dialog', { name: 'Plan Settings' });
+    await dlg.getByRole('combobox', { name: 'Currency', exact: true }).click();
+    await page.keyboard.press('Control+a');
+    await page.keyboard.type('Japanese Yen');
+    await page.keyboard.press('Enter');
+    await dlg.getByRole('button', { name: 'Apply Settings' }).click();
+    await page.getByText(/^¥[\d,]+$/).first().waitFor();
+    const ratio = await page.evaluate(() => window.devicePixelRatio);
+    await planMenu(page, 'Preferences…');
+    const prefsDlg = page.getByRole('dialog', { name: 'Preferences' });
+    await prefsDlg.getByRole('radio', { name: '125%' }).click();
+    await prefsDlg.getByRole('button', { name: 'Done' }).click();
+    await page.waitForTimeout(500);
+    const zoomed = await page.evaluate(() => window.devicePixelRatio);
+    assert.ok(Math.abs(zoomed / ratio - 1.25) < 0.02, `zoom ${String(ratio)} → ${String(zoomed)}`);
+    await app.close();
+
+    const again = await open();
+    await again.page.getByText(/^¥[\d,]+$/).first().waitFor();
+    assert.ok(!(await again.page.getByRole('main').innerText()).includes('$'), 'no dollar amounts after the switch');
+    await again.page.waitForTimeout(500);
+    const after = await again.page.evaluate(() => window.devicePixelRatio);
+    assert.ok(Math.abs(after / ratio - 1.25) < 0.02, `zoom after relaunch ${String(after)}`);
+    // Back to dollars: the cents are all still there.
+    await planMenu(again.page, 'Plan Settings…');
+    const d2 = again.page.getByRole('dialog', { name: 'Plan Settings' });
+    await d2.getByRole('combobox', { name: 'Currency', exact: true }).click();
+    await again.page.keyboard.press('Control+a');
+    await again.page.keyboard.type('US Dollar');
+    await again.page.keyboard.press('Enter');
+    await d2.getByRole('button', { name: 'Apply Settings' }).click();
+    await again.page.getByText(/^\$[\d,]+\.\d\d$/).first().waitFor();
+    await again.page.keyboard.press('Control+0');
+    await again.close();
+  });
+
+  void test('a category template adds its groups at the bottom', { timeout: 300_000 }, async () => {
+    const app = await open();
+    const { page } = app;
+    await planMenu(page, 'Add categories from a template…');
+    const dlg = page.getByRole('dialog', { name: 'Import Category Template' });
+    await dlg.getByRole('button', { name: /^Travel/ }).click();
+    await dlg.getByRole('checkbox', { name: 'Souvenirs' }).uncheck();
+    try {
+      await dlg.getByRole('button', { name: 'Import Categories' }).click();
+      await page.getByText('Added the Travel categories at the bottom of your plan.').waitFor();
+      await toBottom(page);
+      await page.getByRole('main').getByText('Travel Insurance').first().waitFor();
+      assert.ok(!(await page.getByRole('main').innerText()).includes('Souvenirs'));
+    } finally {
+      await app.close();
+    }
+  });
+
+  void test('New Plan from a template creates and opens the file', { timeout: 300_000 }, async () => {
+    const app = await open();
+    const { page } = app;
+    await planMenu(page, 'New plan…');
+    const dlg = page.getByRole('dialog', { name: 'New Plan' });
+    await dlg.getByLabel('Plan Name').fill('Template Plan');
+    await dlg.getByRole('radio', { name: 'A template' }).click();
+    try {
+      await dlg.getByRole('button', { name: 'Create Plan' }).click();
+      await sidebar(page).getByText('Template Plan').first().waitFor();
+      await page.getByRole('main').getByText('Rent or Mortgage').first().waitFor();
+      assert.ok(existsSync(join(box.root, 'Template Plan.hafb')));
+    } finally {
+      await app.close();
+    }
+  });
+
+  void test('Fresh Start keeps this plan as archived and opens the new one with $0 accounts', { timeout: 300_000 }, async () => {
+    const app = await open();
+    const { page } = app;
+    await planMenu(page, 'Make a Fresh Start…');
+    const dlg = page.getByRole('dialog', { name: 'Make a Fresh Start' });
+    await dlg.getByLabel('New Plan Name').fill('Fresh Household');
+    try {
+      await dlg.getByRole('button', { name: 'Continue' }).click();
+      await sidebar(page).getByText('Fresh Household').first().waitFor();
+      assert.ok(existsSync(join(box.root, 'Fresh Household.hafb')));
+      const side = norm(await sidebar(page).innerText());
+      assert.match(side, /Everyday Checking \$0\.00/);
+      // The categories came across.
+      await page.getByRole('main').getByText('Groceries').first().waitFor();
+    } finally {
+      await app.close();
+    }
+    // The original file is kept, renamed "(Archived on …)", with its history.
+    const old = await open({}, box.planPath);
+    const today = todayLocal();
+    await sidebar(old.page).getByText(`(Archived on ${today})`).first().waitFor();
+    assert.doesNotMatch(norm(await sidebar(old.page).innerText()), /Everyday Checking \$0\.00/);
+    await old.close();
+  });
+});

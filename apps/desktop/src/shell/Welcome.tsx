@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Button, IconButton } from '../ui/Button.tsx';
-import { PlanSettingsDialog } from '../screens/settings/PlanSettingsDialog.tsx';
-import { newPlanDraft, newPlanSettings } from '../screens/settings/settingsModel.ts';
+import { NewPlanDialog } from '../screens/lifecycle/NewPlanDialog.tsx';
 import { fileName } from './format.ts';
 import type { RecentPlan } from './ipc.ts';
 import { session, todayLocal } from './session.ts';
@@ -52,16 +51,18 @@ export function Welcome({ recent, busy }: { recent: readonly RecentPlan[]; busy:
             </Button>
           </div>
           {creating && (
-            <PlanSettingsDialog
-              mode="new"
-              initial={newPlanDraft('My Plan')}
+            <NewPlanDialog
               year={Number(todayLocal().slice(0, 4))}
               onClose={() => {
                 setCreating(false);
               }}
-              onSubmit={(draft) => {
+              onCreate={(settings, template) => {
                 setCreating(false);
-                                void session.createNew(newPlanSettings(draft));
+                void session.createNew(settings, template);
+              }}
+              onImportYnab={() => {
+                setCreating(false);
+                void session.importExport();
               }}
             />
           )}

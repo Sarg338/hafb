@@ -209,7 +209,7 @@ export function BackupsDialog({
   );
 }
 
-export function ImportReportDialog({ report, onClose }: { report: ImportReport | undefined; onClose: () => void }) {
+export function ImportReportDialog({ report, onClose, onAddTargets }: { report: ImportReport | undefined; onClose: () => void; onAddTargets?: () => void }) {
   if (!report) return null;
   const c = report.counts;
   return (
@@ -220,9 +220,12 @@ export function ImportReportDialog({ report, onClose }: { report: ImportReport |
       title="Your YNAB plan is in"
       description={`${String(c.accounts)} accounts, ${String(c.categories)} categories and ${c.transactions.toLocaleString()} transactions came across, with ${String(c.months)} months of assigned money.`}
       footer={
-        <Button variant="primary" onClick={onClose}>
-          Start planning
-        </Button>
+        <>
+          {onAddTargets && report.targetsToReenter.length > 0 && <Button onClick={onAddTargets}>Add targets…</Button>}
+          <Button variant="primary" onClick={onClose}>
+            Start planning
+          </Button>
+        </>
       }
     >
       <div className={styles.report}>
@@ -235,7 +238,7 @@ export function ImportReportDialog({ report, onClose }: { report: ImportReport |
           ))}
         </ul>
         {report.targetsToReenter.length > 0 && (
-          <p>Targets aren’t in the export. {report.targetsToReenter.length} categories need their targets added again.</p>
+          <p>Targets aren’t in the export. Add them again for any of your {report.targetsToReenter.length} categories with Add targets, or later from each category.</p>
         )}
         {report.scheduledWithoutRepeat > 0 && <p>{report.scheduledWithoutRepeat} upcoming transactions came across as one-offs; set their repeat when you see them.</p>}
         {report.warnings.length > 0 && (

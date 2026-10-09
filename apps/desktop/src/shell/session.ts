@@ -2,6 +2,8 @@
 // Framework-free; React reads it through useSyncExternalStore. No budget math here: commands come
 // from @hafb/store and numbers from the engine (CLAUDE.md §10).
 import {
+  applyChanges,
+  archivePlan,
   canRedo,
   canUndo,
   decodePlan,
@@ -11,9 +13,11 @@ import {
   postLoanCharges,
   exportDateFromName,
   findExportFiles,
+  freshStartPlan,
   historyDo,
   historyRedo,
   historyUndo,
+  importTemplate,
   importYnabExport,
   newPlan,
   normalizePlan,
@@ -21,6 +25,7 @@ import {
   readZip,
   redoLabel,
   undoLabel,
+  type CategoryTemplate,
   type Command,
   type CommandContext,
   type History,
@@ -98,8 +103,6 @@ function context(): CommandContext {
 /** A new plan's settings from the New Plan dialog (S7.1); the session adds the dates. */
 export type NewPlanSettings = Omit<PlanSettings, 'createdAt' | 'firstMonth'>;
 
-/** What a new plan starts with besides its settings (S7.2: a template's categories). */
-export type PlanSeed = (plan: PlanData, ctx: CommandContext) => PlanData;
 
 class PlanSession {
   private state: SessionState = { recent: [], open: null, busy: null, toast: null };
@@ -205,14 +208,36 @@ class PlanSession {
     });
   }
 
-  createNew(settings: NewPlanSettings, seed?: PlanSeed): Promise<void> {
+  /** A new plan file (S7.1/S7.2), optionally starting with a template's categories. */
+  createNew(settings: NewPlanSettings, template?: CategoryTemplate | null): Promise<void> {
     return this.task('Creating…', async () => {
       const path = await planIpc.pickPlanPath('save', `${settings.name}.hafb`);
       if (path === null) return;
       const ctx = context();
       const fresh = newPlan({ ...settings, firstMonth: monthOf(ctx.today), createdAt: ctx.now }, ctx);
-      const plan = seed ? seed(fresh, ctx) : fresh;
+      const plan = template ? applyChanges(fresh, importTemplate(fresh, ctx, { template, exclude: [] }).changes).plan : fresh;
       await this.loadOpened(await planIpc.create(path, encodePlan(plan), true));
+    });
+  }
+
+  /**
+   * Make a Fresh Start (§5.14, S7.2): this plan is renamed "(Archived on …)" and kept; a new file
+   * with the same structure opens, every account at $0 today.
+   */
+  freshStart(name: string): Promise<void> {
+    const open = this.state.open;
+    if (!open || open.inMemory === true) return Promise.resolve();
+    return this.task('Starting fresh…', async () => {
+      await this.writes;
+      const path = await planIpc.pickPlanPath('save', `${name}.hafb`);
+      if (path === null) return;
+      const today = todayLocal();
+      const fresh = freshStartPlan(open.plan, context(), { name, today });
+      this.run((pl, ctx) => archivePlan(pl, ctx, { today }));
+      await this.writes;
+      const archived = this.state.open?.plan.settings.name ?? open.plan.settings.name;
+      await this.loadOpened(await planIpc.create(path, encodePlan(fresh), true));
+      this.notify(`Your fresh start “${name}” is open. “${archived}” is kept with all its history.`);
     });
   }
 
