@@ -1511,6 +1511,34 @@ void describe('settings, templates and Fresh Start (Phase 7)', () => {
     await again.close();
   });
 
+  void test('Windows keys: F1, Ctrl+comma, Ctrl+N and Ctrl+= / Ctrl+0 do HAFB things, not browser things', { timeout: 300_000 }, async () => {
+    const app = await open();
+    const { page } = app;
+    try {
+      await page.getByRole('main').click({ position: { x: 5, y: 5 } });
+      await page.keyboard.press('F1');
+      await page.getByRole('dialog', { name: 'Keyboard shortcuts' }).waitFor();
+      await page.keyboard.press('Escape');
+      await page.keyboard.press('Control+,');
+      await page.getByRole('dialog', { name: 'Preferences' }).waitFor();
+      await page.keyboard.press('Escape');
+      await page.keyboard.press('Control+n');
+      await page.getByRole('dialog', { name: 'New Plan' }).waitFor();
+      await page.keyboard.press('Escape');
+      assert.equal(app.browser.contexts().flatMap((c) => c.pages()).length, 1, 'Ctrl+N opened no browser window');
+      const base = await page.evaluate(() => window.devicePixelRatio);
+      await page.keyboard.press('Control+=');
+      await page.waitForTimeout(500);
+      const bigger = await page.evaluate(() => window.devicePixelRatio);
+      assert.ok(Math.abs(bigger / base - 1.1) < 0.02, `one step: ${String(base)} → ${String(bigger)}`);
+      await page.keyboard.press('Control+0');
+      await page.waitForTimeout(500);
+      assert.ok(Math.abs((await page.evaluate(() => window.devicePixelRatio)) - base) < 0.01);
+    } finally {
+      await app.close();
+    }
+  });
+
   void test('a category template adds its groups at the bottom', { timeout: 300_000 }, async () => {
     const app = await open();
     const { page } = app;

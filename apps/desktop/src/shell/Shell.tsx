@@ -210,6 +210,9 @@ function PlanFrame({ open, system, recent }: { open: OpenPlan; /** A Windows-col
   useShortcut({ id: 'view.textLargerPad', keys: 'Ctrl++', description: 'Larger text (numeric keypad)', group: 'General', scope: 'global', system: true, run: () => { stepTextScale(1); } });
   useShortcut({ id: 'view.textSmaller', keys: 'Ctrl+-', description: 'Smaller text', group: 'General', scope: 'global', system: true, run: () => { stepTextScale(-1); } });
   useShortcut({ id: 'view.textReset', keys: 'Ctrl+0', description: 'Text at 100%', group: 'General', scope: 'global', system: true, run: () => { stepTextScale(0); } });
+  useShortcut({ id: 'file.new', keys: 'Ctrl+N', description: 'New plan', group: 'General', scope: 'global', run: () => { setDialog('new'); } });
+  useShortcut({ id: 'file.open', keys: 'Ctrl+O', description: 'Open plan', group: 'General', scope: 'global', run: () => { void session.openDialog(); } });
+  useShortcut({ id: 'app.preferences', keys: 'Ctrl+,', description: 'Preferences', group: 'General', scope: 'global', run: () => { setDialog('prefs'); } });
   useShortcut({ id: 'nav.toggleSidebar', keys: 'Ctrl+B', description: 'Collapse or expand the sidebar', group: 'Navigation', scope: 'global', run: () => { prefs.update({ sidebarCollapsed: !prefs.get().sidebarCollapsed }); } });
 
   // Moving between screens puts keyboard focus at the start of the new screen.
@@ -307,8 +310,8 @@ function PlanFrame({ open, system, recent }: { open: OpenPlan; /** A Windows-col
     .slice(0, 5)
     .map((r) => ({ id: `recent:${r.path}`, label: fileName(r.path), icon: 'history' as const, disabled: !r.exists }));
   const planMenu: MenuItem[] = [
-    { id: 'new', label: 'New plan…', icon: 'add' },
-    { id: 'open', label: 'Open plan…' },
+    { id: 'new', label: 'New plan…', icon: 'add', shortcut: 'Ctrl+N' },
+    { id: 'open', label: 'Open plan…', shortcut: 'Ctrl+O' },
     ...recentItems,
     { id: 'import', label: 'Import YNAB export…', icon: 'import' },
     { id: 'sep1', label: '', separator: true },
@@ -321,7 +324,7 @@ function PlanFrame({ open, system, recent }: { open: OpenPlan; /** A Windows-col
     { id: 'backups', label: 'Backups…', icon: 'history', disabled: open.inMemory === true },
     { id: 'freshStart', label: 'Make a Fresh Start…', icon: 'history', disabled: open.inMemory === true },
     { id: 'sep2', label: '', separator: true },
-    { id: 'prefs', label: 'Preferences…', icon: 'settings' },
+    { id: 'prefs', label: 'Preferences…', icon: 'settings', shortcut: 'Ctrl+,' },
     { id: 'sep3', label: '', separator: true },
     { id: 'close', label: 'Close plan', icon: 'dismiss' },
   ];

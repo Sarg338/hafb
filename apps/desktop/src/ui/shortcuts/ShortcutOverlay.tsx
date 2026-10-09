@@ -8,7 +8,7 @@ import { Toggle } from '../Toggle.tsx';
 import { formatKeys, parseKeys } from './registry.ts';
 import styles from './ShortcutOverlay.module.css';
 import { useShortcuts } from './ShortcutProvider.tsx';
-import { isDelivered, YNAB_SHORTCUTS } from './ynabShortcuts.ts';
+import { YNAB_SHORTCUTS } from './ynabShortcuts.ts';
 
 const GROUP_ORDER = ['General', 'Navigation', 'Plan', 'Register', 'Date fields'];
 
@@ -50,11 +50,10 @@ export function ShortcutOverlay({ open, onClose }: { open: boolean; onClose: () 
     }
     for (const p of YNAB_SHORTCUTS) {
       if (seen.has(p.id)) continue;
-      const delivered = isDelivered(p);
-      // In-component keys from delivered sprints work wherever that component is; registry keys
-      // from delivered sprints simply aren't registered on the current screen.
-      const live = p.inComponent === true && delivered;
-      const where = live ? null : delivered ? 'Not available on this screen' : `Coming in ${p.sprint}`;
+      // In-component keys work wherever that component is; other keys simply aren't registered on
+      // the current screen.
+      const live = p.inComponent === true;
+      const where = live ? null : 'Not available on this screen';
       const verify = p.extra === true ? 'HAFB extra' : p.verified ? null : 'to verify against YNAB';
       const note = [where, verify].filter((x): x is string => x !== null).join(' · ');
       out.push({

@@ -233,9 +233,9 @@ A row is `done` only after Sarg validates it on hardware. Rows whose engine half
 
 | ID | Feature | Engine | UI | Status |
 |---|---|---|---|---|
-| K-01 | Undo Ctrl+Z; redo Ctrl+Shift+Z (and Ctrl+Y) with descriptive toast | S2.3 | S4.8 | in-progress |
-| K-02 | Every published YNAB shortcut ([list](https://support.ynab.com/en_us/keyboard-shortcuts-Skw9Xp9A9)) | — | S7.3 | todo |
-| K-03 | `?` shortcut overlay; hints in menus and tooltips; disable toggle | — | S3.5 / S7.3 | in-progress |
+| K-01 | Undo Ctrl+Z; redo Ctrl+Shift+Z (and Ctrl+Y) with descriptive toast | S2.3 | S4.8 | done (every command is one undo step; the toast names what was undone and offers Redo; the toolbar buttons name the step) |
+| K-02 | Every published YNAB shortcut ([list](https://support.ynab.com/en_us/keyboard-shortcuts-Skw9Xp9A9)) | — | S7.3 | done (all of YNAB's help page and in-app dialog, checked 2026-10-09; a test proves each is registered with its keys or covered by a component test; docs/shortcuts.md is generated from the list) |
+| K-03 | `?` shortcut overlay; hints in menus and tooltips; disable toggle | — | S3.5 / S7.3 | done (`?` and F1; hints in the plan, register and context menus and on toolbar buttons; shortcuts on/off in Preferences; Windows conventions Ctrl+N, Ctrl+O, Ctrl+comma, Ctrl+= / Ctrl+- / Ctrl+0 checked in the release app) |
 | X-01 | Custom title bar with Snap Layouts; native fallback | — | Phase 0 ✅ / S3.3 | done |
 | X-02 | High-DPI 100–200%, multi-monitor | — | S7.7 | todo |
 | X-03 | Screen-reader grid semantics, focus visibility, high contrast, reduced motion (WCAG 2.2 AA) | — | S3.4 / S7.4 | todo |

@@ -100,6 +100,17 @@ function OverlayShortcut() {
       setOverlayOpen(!overlayOpen);
     },
   });
+  useShortcut({
+    id: 'general.help',
+    keys: 'F1',
+    description: 'Show keyboard shortcuts',
+    group: 'General',
+    scope: 'global',
+    system: true,
+    run: () => {
+      setOverlayOpen(!overlayOpen);
+    },
+  });
   return null;
 }
 
