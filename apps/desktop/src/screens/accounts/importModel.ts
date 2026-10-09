@@ -136,8 +136,10 @@ export function initialMapping(files: readonly LoadedFile[], profile: JsonValue 
   return mappingFromProfile(profile, csv) ?? guessCsvMapping(csv);
 }
 
-/** Decode a bank file: UTF-8 when it is valid, else Windows-1252 (older bank exports). */
+/** Decode a bank file: UTF-16 by its byte-order mark, UTF-8 when it is valid, else Windows-1252 (older bank exports). */
 export function decodeBankFile(bytes: Uint8Array): string {
+  if (bytes[0] === 0xff && bytes[1] === 0xfe) return new TextDecoder('utf-16le').decode(bytes);
+  if (bytes[0] === 0xfe && bytes[1] === 0xff) return new TextDecoder('utf-16be').decode(bytes);
   try {
     return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
   } catch {

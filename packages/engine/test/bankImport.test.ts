@@ -46,7 +46,57 @@ describe('CSV inspection and mapping (YNAB: Date, Payee, Memo, Outflow, Inflow; 
   });
 });
 
+describe('real bank layouts (headers as public sample exports write them; values made up)', () => {
+  const roles = (text: string) => {
+    const csv = inspectCsv(text);
+    const m = guessCsvMapping(csv);
+    const at = (r: string) => m.columns.indexOf(r as (typeof m.columns)[number]);
+    return { m, csv, map: { date: at('date'), payee: at('payee'), memo: at('memo'), amount: at('amount'), outflow: at('outflow'), inflow: at('inflow') } };
+  };
+
+  it('Chase checking: Description is the payee (not Details), a trailing comma on every row', () => {
+    const { m, csv, map } = roles('Details,Posting Date,Description,Amount,Type,Balance,Check or Slip #\nDEBIT,10/01/2026,"STARBUCKS STORE 123",-4.50,DEBIT_CARD,995.50,,\nCREDIT,10/02/2026,"ACME PAYROLL",1250.00,ACH_CREDIT,2245.50,,\n');
+    expect(map).toEqual({ date: 1, payee: 2, memo: -1, amount: 3, outflow: -1, inflow: -1 });
+    expect(parseCsvRows(csv, m, 2).rows.map((r) => [r.date, r.amount, r.payee])).toEqual([['2026-10-01', -450, 'STARBUCKS STORE 123'], ['2026-10-02', 125_000, 'ACME PAYROLL']]);
+  });
+
+  it('N26: Booking Date, not Value Date; Amount (EUR), not the value date as an amount', () => {
+    const { m, csv, map } = roles('"Booking Date","Value Date","Partner Name","Partner Iban",Type,"Payment Reference","Account Name","Amount (EUR)","Original Amount","Original Currency","Exchange Rate"\n2020-03-07,2020-03-08,"Corner Bakery",DE00,"MasterCard Payment",,"Main Account",-4.20,,,\n');
+    expect(map).toEqual({ date: 0, payee: 2, memo: 5, amount: 7, outflow: -1, inflow: -1 });
+    expect(parseCsvRows(csv, m, 2).rows.map((r) => [r.date, r.amount, r.payee])).toEqual([['2020-03-07', -420, 'Corner Bakery']]);
+  });
+
+  it('Outbank (German): semicolons, decimal comma, short US dates; Note is the memo', () => {
+    const header = '#;Account;Date;Value Date;Amount;Currency;Name;Number;Bank;Reason;Category;Subcategory;Tags;Note;Ultimate Receiver Name;Original Amount';
+    const { m, csv, map } = roles(`${header}\n1;DE00;2/20/19;2/20/19;100,00;EUR;"Jane Doe";"DE21";"BANK";"Rent share";;;;"thanks";;\n2;DE00;2/8/19;2/8/19;-63,89;EUR;"Shell Gas";"DE33";"BANK";"Fuel";;;;;;\n`);
+    expect(map).toEqual({ date: 2, payee: 6, memo: 13, amount: 4, outflow: -1, inflow: -1 });
+    expect(m.decimalSeparator).toBe(',');
+    expect(parseCsvRows(csv, m, 2).rows.map((r) => [r.date, r.amount, r.payee, r.memo])).toEqual([['2019-02-20', 10_000, 'Jane Doe', 'thanks'], ['2019-02-08', -6389, 'Shell Gas', '']]);
+  });
+
+  it('UBS (French): Débit and Crédit columns, a value date as the only date, Solde ignored', () => {
+    const { m, csv, map } = roles("Produit;Monn.;Description;Date de valeur;Description 1;N° de transaction;Débit;Crédit;Solde\n0123 45678901.23A;CHF;Compte personnel;31.03.2019;Frais;A01;10.00;;11'373.94\n0123 45678901.23A;CHF;Compte personnel;28.02.2019;Virement;A02;;240.00;11'613.94\n");
+    expect(map).toEqual({ date: 3, payee: 2, memo: -1, amount: -1, outflow: 6, inflow: 7 });
+    expect(parseCsvRows(csv, m, 2).rows.map((r) => [r.date, r.amount])).toEqual([['2019-03-31', -1000], ['2019-02-28', 24_000]]);
+  });
+
+  it('a credit union export: Memo wins over Reference Number; Description over Extended Description', () => {
+    const { map } = roles('"Transaction ID","Posting Date","Effective Date","Transaction Type","Amount","Check Number","Reference Number","Description","Transaction Category","Type","Balance","Memo","Extended Description"\n"1","10/1/2026","10/1/2026","Debit","-12.00","","9001","COFFEE","Food","POS","100.00","morning","COFFEE SHOP 12"\n');
+    expect(map).toEqual({ date: 1, payee: 7, memo: 11, amount: 4, outflow: -1, inflow: -1 });
+  });
+});
+
 describe('OFX / QFX', () => {
+  it('rounds amounts written with extra decimal places (Fidelity: +00000000000115.8331) half away from zero', () => {
+    const ofx = (amounts: string[]) => `<OFX><BANKTRANLIST>${amounts.map((a, i) => `<STMTTRN><DTPOSTED>20261001<TRNAMT>${a}<FITID>F${String(i)}<NAME>X</STMTTRN>`).join('')}</BANKTRANLIST></OFX>`;
+    expect(parseOfx(ofx(['-30.000', '+00000000000115.8331', '-00000000000197.1063', '0.005', '-0.005', '-3.77000']), 2).rows.map((r) => r.amount)).toEqual([-3000, 11_583, -19_711, 1, -1, -377]);
+  });
+
+  it('decodes a name the bank encoded twice (TPAY &amp;lt;DEFTPYMT&amp;gt;)', () => {
+    const r = parseOfx('<OFX><STMTTRN><DTPOSTED>20230301<TRNAMT>-1.00<FITID>A<NAME>TPAY &amp;lt;DEFTPYMT&amp;gt;</STMTTRN></OFX>', 2);
+    expect(r.rows[0]?.payee).toBe('TPAY <DEFTPYMT>');
+  });
+
   it('reads SGML OFX 1.x (unclosed tags), with FITIDs and negative outflows', () => {
     const sgml = `OFXHEADER:100
 DATA:OFXSGML
@@ -102,6 +152,10 @@ N1001
 ^
 `;
     expect(parseQif(qif, 'MDY', 2)).toEqual([row('2026-10-01', -450, 'COFFEE SHOP', { memo: 'Latte' }), row('2026-10-02', 125_000, 'PAYROLL', { checkNumber: '1001' })]);
+  });
+
+  it('rounds extra decimal places like OFX', () => {
+    expect(parseQif('!Type:Bank\nD10/01/2026\nT-30.000\nPX\n^\nD10/01/2026\nT1.2350\nPY\n^\n', 'MDY', 2).map((r) => r.amount)).toEqual([-3000, 124]);
   });
 });
 

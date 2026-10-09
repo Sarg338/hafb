@@ -3,7 +3,7 @@
 // amount (TRNAMT), FITID, NAME or PAYEE, MEMO and CHECKNUM. Amounts go straight to minor units.
 import { makeDate } from '@hafb/shared';
 import { ValidationError } from '../errors.ts';
-import { parseAmount } from '../ynab/csv.ts';
+import { parseBankAmount } from './amount.ts';
 import type { BankRow } from './types.ts';
 
 export interface OfxResult {
@@ -13,7 +13,13 @@ export interface OfxResult {
   currency?: string;
 }
 
+/** Entities decoded; a second pass when the bank encoded them twice ("&amp;lt;" in public samples). */
 function decode(text: string): string {
+  const once = decodeOnce(text);
+  return /&(lt|gt|quot|apos|amp|#\d+);/i.test(once) ? decodeOnce(once) : once;
+}
+
+function decodeOnce(text: string): string {
   return text
     .replace(/&lt;/gi, '<')
     .replace(/&gt;/gi, '>')
@@ -70,7 +76,7 @@ export function parseOfx(text: string, decimals: number): OfxResult {
 function toRow(t: Record<string, string>, decimals: number): BankRow {
   const amountText = t.TRNAMT ?? '';
   const decimalComma = amountText.includes(',') && !amountText.includes('.');
-  const amount = parseAmount(amountText, { decimalSeparator: decimalComma ? ',' : '.' }, decimals);
+  const amount = parseBankAmount(amountText, decimalComma ? ',' : '.', decimals);
   const payee = t.NAME ?? t.PAYEE ?? t.MEMO ?? '';
   const memo = t.NAME !== undefined || t.PAYEE !== undefined ? (t.MEMO ?? '') : '';
   return {

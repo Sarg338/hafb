@@ -336,6 +336,8 @@ Our rules:
   - "TST* TACO STAND 0042" → "Taco Stand".
   - "CHECK 1042" stays "Check 1042".
 - **Card payments:** an unapproved, uncategorized import of +X on a card and −X on a cash account within 3 days pair into a transfer.
+- **Extra decimal places** (OFX and QIF; public samples from Fidelity and others write `+00000000000115.8331` or `-30.000`): round half away from zero to the currency's places, in integer math. `115.8331` → $115.83, `0.005` → $0.01, `-0.005` → −$0.01. A CSV stays strict, so a wrong decimal mark shows up as row errors instead of silently rounded amounts.
+- **CSV headers:** each role takes the first column matching its strongest name. Payee: Payee/Description/Merchant before Name before Details (Chase has both Details and Description). Memo: Memo/Notes before Reference. Date: the transaction or booking date before Date, then Posted, and a value date only when it's the only date. A column named like a date is never an amount (N26 and Outbank have "Value Date"); Débit/Crédit and Soll/Haben count as outflow/inflow; balance columns (Balance, Saldo, Solde, Running) are skipped.
 
 ### 8.4 Payees (CLAUDE.md §5.13, `payees.ts`)
 

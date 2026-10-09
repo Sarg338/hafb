@@ -2,7 +2,8 @@
 // amount, P payee, M memo, N check number. Category (L) and split (S/E/$) lines are ignored:
 // YNAB doesn't set categories or splits on file import.
 import { ValidationError } from '../errors.ts';
-import { parseAmount, type DateOrder } from '../ynab/csv.ts';
+import type { DateOrder } from '../ynab/csv.ts';
+import { parseBankAmount } from './amount.ts';
 import { parseBankDate } from './csv.ts';
 import type { BankRow } from './types.ts';
 
@@ -26,7 +27,7 @@ export function parseQif(text: string, order: DateOrder, decimals: number): Bank
     const decimalComma = amountText.includes(',') && !/\.\d+$/.test(amountText) && /,\d{1,2}$/.test(amountText);
     rows.push({
       date: qifDate(rec.D, order),
-      amount: parseAmount(amountText, { decimalSeparator: decimalComma ? ',' : '.' }, decimals),
+      amount: parseBankAmount(amountText, decimalComma ? ',' : '.', decimals),
       payee: rec.P ?? '',
       memo: rec.M ?? '',
       ...(rec.N === undefined || rec.N === '' ? {} : { checkNumber: rec.N }),

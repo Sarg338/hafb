@@ -55,4 +55,9 @@ describe('Import Transactions (S6.5)', () => {
     expect(decodeBankFile(new TextEncoder().encode('Café'))).toBe('Café');
     expect(decodeBankFile(new Uint8Array([0x43, 0x61, 0x66, 0xe9]))).toBe('Café');
   });
+
+  it('decodes UTF-16 files by their byte-order mark (a public sample export is UTF-16LE)', () => {
+    expect(decodeBankFile(new Uint8Array([0xff, 0xfe, 0x43, 0x00, 0x61, 0x00, 0x66, 0x00, 0xe9, 0x00]))).toBe('Café');
+    expect(decodeBankFile(new Uint8Array([0xfe, 0xff, 0x00, 0x43, 0x00, 0x61, 0x00, 0x66, 0x00, 0xe9]))).toBe('Café');
+  });
 });

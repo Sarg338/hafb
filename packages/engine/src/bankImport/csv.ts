@@ -39,14 +39,20 @@ export function inspectCsv(text: string): CsvFile {
   return best;
 }
 
-const ROLE_NAMES: readonly [CsvColumn, RegExp][] = [
-  ['date', /\b(date|datum|fecha|posted|posting|transaction date|trans\. date)\b/i],
-  ['outflow', /\b(debit|debits|withdrawal|withdrawals|outflow|money out|paid out|spent|charge)\b/i],
-  ['inflow', /\b(credit|credits|deposit|deposits|inflow|money in|paid in|received)\b/i],
-  ['amount', /\b(amount|bedrag|betrag|montant|importe|value|sum)\b/i],
-  ['memo', /\b(memo|note|notes|notitie|reference|ref|comment)\b/i],
-  ['payee', /\b(payee|description|name|merchant|omschrijving|details|narrative|beschreibung|libell[eé]|concepto)\b/i],
+// Header names per role, strongest first: a role takes the first column matching its strongest
+// pattern. Checked against public sample exports (Chase, N26, Outbank, UBS, credit unions):
+// "Description" beats Chase's "Details", "Memo" beats "Reference Number", and the transaction or
+// booking date beats a value date, which is only used when it's the only date.
+const ROLE_NAMES: readonly [CsvColumn, readonly RegExp[]][] = [
+  ['date', [/\b(transaction|trans\.?|booking|buchungs)\s*date\b|\bbuchungstag\b/i, /\b(date|datum|fecha)\b/i, /\b(posted|posting)\b/i, /\bvaleur\b|\bvaluta\b|\bwertstellung\b/i]],
+  ['outflow', [/\b(debits?|d[ée]bit|withdrawals?|outflow|money out|paid out|spent|charge|soll|cargo)\b/i]],
+  ['inflow', [/\b(credits?|cr[ée]dit|deposits?|inflow|money in|paid in|received|haben|abono)\b/i]],
+  ['amount', [/\b(amount|bedrag|betrag|montant|importe)\b/i, /\b(value|sum)\b/i]],
+  ['memo', [/\b(memo|notes?|notitie|comment|verwendungszweck)\b/i, /\b(reference|ref)\b/i]],
+  ['payee', [/\b(payee|description|merchant|omschrijving|narrative|beschreibung|libell[eé]|concepto|partner name)\b/i, /\bname\b/i, /\bdetails\b/i]],
 ];
+const DATE_NAME = /\b(date|datum|fecha)\b|\bvaleur\b|\bvaluta\b/i;
+const MONEY_ROLES: readonly CsvColumn[] = ['outflow', 'inflow', 'amount'];
 
 const looksLikeDate = (s: string): boolean => /^\s*(\d{4}[-/.]\d{1,2}[-/.]\d{1,2}|\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4})\s*$/.test(s);
 const looksLikeAmount = (s: string): boolean => /^\s*[-+(]?\s*[^\d\s-]{0,3}\s*-?[\d.,\s']*\d[\d.,']*\s*[^\d\s]{0,3}\s*\)?\s*$/.test(s) && /\d/.test(s);
@@ -59,11 +65,20 @@ export function guessCsvMapping(csv: CsvFile): CsvMapping {
   const width = Math.max(0, ...csv.rows.map((r) => r.length));
   const columns: CsvColumn[] = Array.from({ length: width }, () => 'skip');
   if (header) {
-    first.forEach((name, i) => {
-      if (/balance|saldo|running/i.test(name)) return;
-      const role = ROLE_NAMES.find(([r, re]) => re.test(name) && !columns.includes(r))?.[0];
-      if (role) columns[i] = role;
-    });
+    const usable = (i: number, role: CsvColumn): boolean => {
+      const name = first[i] ?? '';
+      if (columns[i] !== 'skip' || /balance|saldo|solde|running|kontostand/i.test(name)) return false;
+      return !(MONEY_ROLES.includes(role) && DATE_NAME.test(name));
+    };
+    for (const [role, patterns] of ROLE_NAMES) {
+      for (const re of patterns) {
+        const i = first.findIndex((name, j) => usable(j, role) && re.test(name));
+        if (i >= 0) {
+          columns[i] = role;
+          break;
+        }
+      }
+    }
   }
   const body = csv.rows.slice(header ? 1 : 0);
   const cells = (i: number) => body.map((r) => r[i] ?? '').filter((c) => c.trim() !== '');

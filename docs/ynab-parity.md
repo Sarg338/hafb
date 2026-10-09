@@ -204,8 +204,8 @@ A row is `done` only after Sarg validates it on hardware. Rows whose engine half
 |---|---|---|---|---|
 | IE-01 | YNAB export import (Plan.csv + Register.csv), to the cent | S1.8 | S2.4 / S7.2 | in-progress |
 | IE-02 | Target re-entry screen after YNAB import | — | S7.2 | todo |
-| IE-03 | CSV import: column mapper per account, date formats, swap inflow/outflow, semicolons | S1.6 | S6.5 | done (delimiter, header, date order and decimal mark detected; mapping remembered per account) |
-| IE-04 | OFX/QFX import, several files at once; QIF import | S1.6 | S6.5 | done |
+| IE-03 | CSV import: column mapper per account, date formats, swap inflow/outflow, semicolons | S1.6 | S6.5 | done (delimiter, header, date order and decimal mark detected; mapping remembered per account; header guesses checked on public Chase, Capital One, Schwab, N26, Outbank, UBS and credit-union layouts; UTF-8, UTF-16 and Windows-1252 files) |
+| IE-04 | OFX/QFX import, several files at once; QIF import | S1.6 | S6.5 | done (checked on public sample files from US Bank, Navy Federal, Wells Fargo, BMO, WaMu, CIBC, RBC, ATB and Fidelity) |
 | IE-05 | Dedupe: FITID + fuzzy; skip > 3 days before last reconciliation; keep zero rows | S1.6 | S6.5 | done (bank ids; same date and amount across formats; 3-day reconciliation rule; zero rows kept; optional pre-start rows) |
 | IE-06 | Auto-match imports to entered/scheduled (same amount, ≤ 10 days) | S1.6 | S6.5 | done |
 | IE-07 | Imported cash inflows default to Ready to Assign; rename rules applied | S1.6 | S6.5 | done (YNAB-style payee cleanup too; the bank's text is kept) |
