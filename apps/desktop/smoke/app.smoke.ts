@@ -747,8 +747,12 @@ void describe('register', () => {
     const cake = grid.locator('[role=row][data-row-id]', { hasText: 'birthday cake' });
     await cake.waitFor();
     // The edited row stays selected, and a click on the selected row edits it (YNAB): Esc deselects first.
-    await page.keyboard.press('Escape');
-    await page.waitForTimeout(150);
+    // The save lands asynchronously, so press Esc until the row really is deselected.
+    for (let i = 0; i < 10 && (await cake.getAttribute('aria-selected')) === 'true'; i++) {
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(150);
+    }
+    assert.notEqual(await cake.getAttribute('aria-selected'), 'true', 'Esc deselects the saved row');
     await cake.locator('[data-col=date]').click();
     await page.keyboard.press('c');
     await page.keyboard.press('Shift+F');
@@ -1697,10 +1701,30 @@ void describe('settings, templates and Fresh Start (Phase 7)', () => {
     }
   });
 
+  void test('the plan grid fits its column without scrolling sideways (S7.7)', { timeout: 120_000 }, async () => {
+    const app = await open();
+    try {
+      await sidebar(app.page).getByRole('link', { name: 'Plan', exact: true }).click();
+      const grid = app.page.getByRole('treegrid', { name: 'Categories' });
+      await grid.waitFor();
+      // The last column's resize handle used to overhang the grid by 3 px.
+      const overflow = await grid.evaluate((g) => {
+        const scroller = [g, ...g.querySelectorAll('*')].find((c) => /(auto|scroll)/.test(getComputedStyle(c).overflowX) && c.clientWidth > 0);
+        return scroller ? scroller.scrollWidth - scroller.clientWidth : 0;
+      });
+      assert.equal(overflow, 0);
+    } finally {
+      await app.close();
+    }
+  });
+
   void test('Credit Card Interest behind its preference: off the plan, in the card activity (S7.6)', { timeout: 300_000 }, async () => {
     const app = await open();
     const { page } = app;
     try {
+      // A relaunch reopens the last route; start from the Plan.
+      await sidebar(page).getByRole('link', { name: 'Plan', exact: true }).click();
+      await page.getByRole('treegrid', { name: 'Categories' }).waitFor();
       const before = await rta(page);
       await planMenu(page, 'Preferences…');
       const prefsDlg = page.getByRole('dialog', { name: 'Preferences' });
@@ -1732,7 +1756,7 @@ void describe('settings, templates and Fresh Start (Phase 7)', () => {
       assert.match(norm(await row.innerText()), /Card Interest.*Credit Card Interest.*\$12\.34/);
 
       // Off the plan: Ready to Assign is unchanged; the payment category's Activity shows the interest.
-      await sidebar(page).getByText('Plan', { exact: true }).first().click();
+      await sidebar(page).getByRole('link', { name: 'Plan', exact: true }).click();
       const planGrid = page.getByRole('treegrid', { name: 'Categories' });
       await planGrid.waitFor();
       assert.equal(await rta(page), before, 'interest leaves Ready to Assign alone');

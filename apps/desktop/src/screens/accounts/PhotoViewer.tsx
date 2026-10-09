@@ -2,6 +2,7 @@
 // (confirmed: "Are you sure you want to delete this image?"), Download Image and Close.
 import { useEffect, useState } from 'react';
 import { photos, usePhotosVersion, type PhotoInfo } from '../../shell/photos.ts';
+import { cx } from '../../ui/cx.ts';
 import { Icon } from '../../ui/Icon.tsx';
 import { saveFile } from '../../shell/files.ts';
 import { Button } from '../../ui/Button.tsx';
@@ -122,7 +123,7 @@ export function PhotoCell({ transactionId, label, onOpen, notify }: { transactio
     <button
       type="button"
       data-interactive=""
-      className={styles.cellButton}
+      className={cx(styles.cellButton, styles.attach)}
       aria-label="Attach a photo"
       title="Attach a photo"
       onClick={() => {

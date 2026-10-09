@@ -20,8 +20,8 @@
 .cellButton {
   display: grid;
   place-items: center;
-  width: 24px;
-  height: 24px;
+  width: 26px;
+  height: 26px;
   padding: 0;
   border: 0;
   border-radius: var(--s-radius);
@@ -33,6 +33,16 @@
 .cellButton:hover {
   background: var(--c-hover);
   color: var(--c-text);
+}
+
+/* No photo yet: like the flag column, the button shows on the row's hover or keyboard focus (S7.7). */
+.attach {
+  opacity: 0;
+}
+
+:global([role='row']):hover .attach,
+.attach:focus-visible {
+  opacity: 1;
 }
 
 .thumb {

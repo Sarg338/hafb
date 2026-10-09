@@ -117,6 +117,16 @@
   transition: background-color var(--m-fast) var(--m-ease);
 }
 
+/* The last column's handle stays inside the grid; overhanging it made the grid scroll sideways (S7.7). */
+.columnHeader:last-child .resizer {
+  right: 0;
+}
+
+.columnHeader:last-child .resizer::after {
+  left: auto;
+  right: 0;
+}
+
 .columnHeader:hover .resizer::after,
 .resizer:focus-visible::after,
 .resizer[data-active='true']::after {

@@ -19,7 +19,7 @@ import { ProgressBar } from '../../ui/ProgressBar.tsx';
 import { useShortcut } from '../../ui/shortcuts/ShortcutProvider.tsx';
 import { useTweened } from '../../ui/useTweened.ts';
 import { moneyText, type MoneyText } from '../shared/money.ts';
-import { COMPACT_WINDOW, NARROW_WINDOW, useMediaQuery } from '../shared/useMediaQuery.ts';
+import { COMPACT_WINDOW, NARROW_WINDOW, TIGHT_WINDOW, useMediaQuery } from '../shared/useMediaQuery.ts';
 import { activityLines, paymentActivity } from '../shared/cardModel.ts';
 import { ActivityPopover } from './ActivityPopover.tsx';
 import { ManageViewsDialog, ViewDialog } from './FocusedViews.tsx';
@@ -66,7 +66,10 @@ export function PlanScreen({ plan, planPath, today, month, setMonth, actions, hi
   // Large text in a small window (WCAG 1.4.10): the inspector opens over the plan instead of beside it.
   const compact = useMediaQuery(COMPACT_WINDOW);
   const [inspectorOpen, setInspectorOpen] = useState(false);
-  const moneyWidth = narrow ? 112 : 140;
+  // A half-screen snap (~960 px) leaves the grid ~575 px beside the inspector: tighter columns
+  // keep it from scrolling sideways (S7.7).
+  const tight = useMediaQuery(TIGHT_WINDOW);
+  const moneyWidth = tight ? 100 : narrow ? 112 : 140;
   // The selected focused view is a per-device preference (CLAUDE.md §4), remembered per plan file.
   const views = useMemo(() => focusedViews(plan).filter((v) => v.builtin !== 'overspent'), [plan]);
   const savedView = p.planViews[planPath];
@@ -174,7 +177,7 @@ export function PlanScreen({ plan, planPath, today, month, setMonth, actions, hi
       {
         id: 'category',
         header: 'Category',
-        width: narrow ? 180 : 220,
+        width: tight ? 160 : narrow ? 180 : 220,
         flex: true,
         render: (r) =>
           r.data.kind === 'group' ? <GroupName id={r.id} row={r.data} on={nameActions} /> : <CategoryCell row={r.data} showBar={p.showProgressBars} on={nameActions} />,
@@ -255,7 +258,7 @@ export function PlanScreen({ plan, planPath, today, month, setMonth, actions, hi
           ),
       },
     ],
-    [money, model, month, assign, p.showProgressBars, narrow, moneyWidth, nameActions, later, actions, onlySelected],
+    [money, model, month, assign, p.showProgressBars, narrow, tight, moneyWidth, nameActions, later, actions, onlySelected],
   );
 
   // Esc deselects all (YNAB), when the grid is navigating rather than editing.
