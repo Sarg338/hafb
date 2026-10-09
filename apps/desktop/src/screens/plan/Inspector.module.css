@@ -310,6 +310,20 @@
   gap: 12px;
 }
 
+/* The Monthly Debt Payment's payoff calculator (S6.4). */
+.debtCalc {
+  display: grid;
+  gap: 8px;
+  margin-top: -4px;
+  padding: 10px 12px;
+  border-radius: var(--s-radius-medium);
+  background: var(--c-surface-alt);
+}
+
+.debtCalc .note {
+  margin: 0;
+}
+
 .suggestion {
   display: inline-flex;
   align-items: center;

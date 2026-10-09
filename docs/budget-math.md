@@ -451,6 +451,21 @@ To pay the same $1,000 off by February (two payments):
 
 So the required payment is **$507.51**. Paying it all in January takes $1,010.00 (principal plus a month of interest).
 
+### 10.4 Monthly charges in the register (S6.4)
+
+YNAB "calculates the monthly interest charge and applies it automatically"; past and current charges can be edited, and escrow works the same way ([Loan Accounts](https://support.ynab.com/en_us/loan-accounts-in-ynab-a-guide-HkNSkPHJi)). It doesn't say when the charge is posted.
+
+- **ASSUMPTION:** each month from the one after the loan's first transaction, charges are posted on the 1st:
+  - **Interest** on the balance at the end of the previous month (rule 1);
+  - **Escrow** and **Fees** at their monthly amounts.
+- Each charge is an ordinary transaction (payee Interest, Escrow or Fees; no category: the account is off budget). It can be edited, and once deleted it is never posted again for that month.
+- Payments arrive as transfers from a cash or credit account, categorized to the paired category, so the account balance follows rule 2: interest and escrow first, then principal.
+- **Example (store test):** $200,000 at 6% with $300 escrow, started Oct 8.
+  - Nov 1 posts $1,000.00 interest and $300.00 escrow.
+  - With no payment, Dec 1 posts $1,006.50, interest on $201,300.00.
+  - With a $1,500 payment on Nov 15 and November's interest deleted, Dec 1 posts $994.00, interest on $198,800.00.
+- **Verification:** YNAB's first posting on the trial mortgage (after 2026-11-01; roadmap Timed follow-ups) confirms the date and the amount (predicted $1,000.00).
+
 ## 11. Reflect reports
 
 Source articles: [Reflect](https://support.ynab.com/en_us/reflect-in-ynab-B1GJsrWkj), [Spending Breakdown](https://support.ynab.com/en_us/spending-breakdown-H1H7YxmD0), [Income v Expense](https://support.ynab.com/en_us/income-v-expense-Byu1BYWRq).

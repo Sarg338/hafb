@@ -8,7 +8,7 @@
 //   the card's Current Balance instead.
 // Every section collapses, and the choice is remembered on this PC.
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { limitToReadyToAssign, type Id } from '@hafb/engine';
+import { limitToReadyToAssign, type Id, type LoanTerms } from '@hafb/engine';
 import { addMonths, minor, monthParts, neg, ZERO, type Minor, type Month } from '@hafb/shared';
 import { applyPlanChange, clearTarget, setAssigned, setCategoryNote, setExpectedIncome, setTarget, snoozeTarget } from '@hafb/store';
 import type { Actions } from '../../design/DesignApp.tsx';
@@ -29,6 +29,8 @@ import { monthName } from './PlanHeader.tsx';
 import type { PlanModel } from './planModel.ts';
 import { suggestion, targetCard } from './targetModel.ts';
 import { TargetEditor } from './TargetEditor.tsx';
+import { currentTrack, loanProgress, loanTerms } from '../shared/loanModel.ts';
+import { monthLong } from '../reflect/reflectModel.ts';
 import styles from './Inspector.module.css';
 
 export interface InspectorProps {
@@ -310,7 +312,7 @@ function FutureCard({ future, shortfalls, money }: { future: readonly FutureMont
 }
 
 /** The Target card (YNAB trial): the target's summary, ring, box and lines; the editor inline; snooze. */
-function TargetSection({ model, id, name, actions, money }: { model: PlanModel; id: Id; name: string; actions: Actions; money: MoneyText }) {
+function TargetSection({ model, id, name, actions, money, debt }: { model: PlanModel; id: Id; name: string; actions: Actions; money: MoneyText; debt?: LoanTerms | undefined }) {
   const target = model.targets.get(id);
   const tm = model.evaluated[id];
   const cm = model.ms.categories[id];
@@ -326,6 +328,7 @@ function TargetSection({ model, id, name, actions, money }: { model: PlanModel; 
           fmt={model.fmt}
           dateFormat={model.plan.settings.dateFormat}
           suggestion={suggestion(model, id)}
+          debt={debt}
           onCancel={() => {
             setEditing(false);
           }}
@@ -388,12 +391,14 @@ function TargetSection({ model, id, name, actions, money }: { model: PlanModel; 
       ) : (
         <>
           <p className={styles.sentence}>
-            <strong>How much do you need for {name}?</strong>
+            <strong>{debt ? `How much will you pay toward this loan each month?` : `How much do you need for ${name}?`}</strong>
           </p>
-          <p className={styles.note}>When you create a target, you’ll see how much money to set aside to stay on track over time.</p>
+          <p className={styles.note}>
+            {debt ? 'A Monthly Debt Payment target sets aside your payment and shows when the loan will be paid off.' : 'When you create a target, you’ll see how much money to set aside to stay on track over time.'}
+          </p>
           <div className={styles.actions}>
             <Button variant="secondary" icon="add" onClick={() => { setEditing(true); }}>
-              Create Target
+              {debt ? 'Create Monthly Debt Payment' : 'Create Target'}
             </Button>
           </div>
         </>
@@ -411,6 +416,11 @@ function CategoryDetail({ model, id, actions, money, onRename }: { model: PlanMo
   const balance = cardBalance(cm);
   const upcoming = model.upcoming[id];
   const payment = cm.creditCard !== undefined;
+  // A category paired with a loan (S6.4): YNAB shows the minimum payment, balance and payoff date.
+  const loan = model.plan.accounts.find((a) => a.deletedAt === undefined && a.closed !== true && a.loan?.pairedCategoryId === id);
+  const loanBalance = loan ? loanProgress(model.plan, loan, model.today).balance : null;
+  const terms = loan && loanBalance !== null ? (loanTerms(loan, loanBalance) ?? undefined) : undefined;
+  const track = terms ? currentTrack(terms, model.today) : null;
   return (
     <>
       <header className={styles.categoryHead}>
@@ -482,7 +492,21 @@ function CategoryDetail({ model, id, actions, money, onRename }: { model: PlanMo
         )}
       </Section>
 
-      {!payment && <TargetSection model={model} id={id} name={category.name} actions={actions} money={money} />}
+      {loan && loanBalance !== null && (
+        <Section id="loan" title={<><Icon name="money" /> {loan.name}</>}>
+          <Line label="Current Balance" value={money(loanBalance)} />
+          <Line label="Minimum Payment" value={loan.loan?.minimumPayment === undefined ? '—' : money(loan.loan.minimumPayment)} />
+          <Line label="Payoff Date" value={track?.ok === true ? monthLong(track.value.summary.payoffMonth) : '—'} />
+          <p className={styles.note}>Payments to {loan.name} come from this category.</p>
+          <div className={styles.actions}>
+            <Button variant="secondary" full icon="accounts" onClick={() => { actions.navigate({ kind: 'register', accountId: loan.id }); }}>
+              Go to {loan.name}
+            </Button>
+          </div>
+        </Section>
+      )}
+
+      {!payment && <TargetSection model={model} id={id} name={category.name} actions={actions} money={money} debt={terms} />}
 
       <AutoAssign model={model} ids={[id]} selection actions={actions} money={money} />
 

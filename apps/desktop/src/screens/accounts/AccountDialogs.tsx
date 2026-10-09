@@ -47,28 +47,96 @@ function TypeList({ value, onPick }: { value: AccountType | null; onPick: (t: Ac
   );
 }
 
-/** Loan details fields (interest rate and the lender's required monthly payment). */
-function LoanFields({ rate, setRate, payment, setPayment, format }: { rate: string; setRate: (s: string) => void; payment: Minor; setPayment: (m: Minor) => void; format: MoneyFormat }) {
-  const bad = rate.trim() !== '' && parseRate(rate) === null;
+/** The loan details a form edits (S6.4: rate, minimum payment, escrow for mortgages, fees, original amount). */
+interface LoanDraft {
+  rate: string;
+  payment: Minor;
+  escrow: Minor;
+  fees: Minor;
+  original: Minor;
+}
+
+function loanDraftOf(l: LoanDetails | undefined): LoanDraft {
+  return {
+    rate: l?.interestRateBps === undefined ? '' : formatRate(l.interestRateBps),
+    payment: l?.minimumPayment ?? minor(0),
+    escrow: l?.escrow ?? minor(0),
+    fees: l?.fees ?? minor(0),
+    original: l?.originalPrincipal ?? minor(0),
+  };
+}
+
+/** The draft as loan details, keeping fields the form doesn't edit (the paired category). */
+function loanFromDraft(d: LoanDraft, keep: LoanDetails | undefined, mortgage: boolean): LoanDetails {
+  const rateBps = parseRate(d.rate);
+  return {
+    ...(keep?.pairedCategoryId === undefined ? {} : { pairedCategoryId: keep.pairedCategoryId }),
+    ...(rateBps === null ? {} : { interestRateBps: rateBps }),
+    ...(d.payment > 0 ? { minimumPayment: d.payment } : {}),
+    ...(mortgage && d.escrow > 0 ? { escrow: d.escrow } : {}),
+    ...(d.fees > 0 ? { fees: d.fees } : {}),
+    ...(d.original > 0 ? { originalPrincipal: d.original } : {}),
+  };
+}
+
+const loanDraftValid = (d: LoanDraft): boolean => d.rate.trim() === '' || parseRate(d.rate) !== null;
+
+/** Loan details fields. YNAB asks for the rate (not the APR), the lender's minimum, and escrow on a mortgage. */
+function LoanFields({ draft, setDraft, mortgage, format }: { draft: LoanDraft; setDraft: (d: LoanDraft) => void; mortgage: boolean; format: MoneyFormat }) {
+  const bad = !loanDraftValid(draft);
   return (
     <>
       <TextInput
         label="Interest rate"
         inputMode="decimal"
         suffix="%"
-        value={rate}
+        value={draft.rate}
         onChange={(e) => {
-          setRate(e.target.value);
+          setDraft({ ...draft, rate: e.target.value });
         }}
         {...(bad ? { error: 'Enter a percentage, like 6.25.' } : {})}
       />
       <MoneyInput
         label="Monthly payment required by your lender"
         variant="field"
-        value={payment}
+        value={draft.payment}
         format={format}
-        onCommit={setPayment}
+        onCommit={(payment) => {
+          setDraft({ ...draft, payment });
+        }}
         help="The total you must pay each month, including principal, interest, escrow and fees."
+      />
+      {mortgage && (
+        <MoneyInput
+          label="Monthly escrow"
+          variant="field"
+          value={draft.escrow}
+          format={format}
+          onCommit={(escrow) => {
+            setDraft({ ...draft, escrow });
+          }}
+          help="Taxes and insurance paid through your mortgage. Covered first each month; it never lowers what you owe."
+        />
+      )}
+      <MoneyInput
+        label="Monthly fees"
+        variant="field"
+        value={draft.fees}
+        format={format}
+        onCommit={(fees) => {
+          setDraft({ ...draft, fees });
+        }}
+        help="Any fee your lender charges every month. Covered before principal."
+      />
+      <MoneyInput
+        label="Original loan amount"
+        variant="field"
+        value={draft.original}
+        format={format}
+        onCommit={(original) => {
+          setDraft({ ...draft, original });
+        }}
+        help="Optional. Shows how much of the loan you’ve paid off."
       />
     </>
   );
@@ -79,13 +147,11 @@ export function AddAccountDialog({ format, onClose, onCreate }: { format: MoneyF
   const [name, setName] = useState('');
   const [type, setType] = useState<AccountType | null>(null);
   const [balance, setBalance] = useState<Minor>(minor(0));
-  const [rate, setRate] = useState('');
-  const [payment, setPayment] = useState<Minor>(minor(0));
-  const rateBps = parseRate(rate);
-  const valid = name.trim() !== '' && type !== null && (rate.trim() === '' || rateBps !== null);
+  const [loanDraft, setLoanDraft] = useState<LoanDraft>(() => loanDraftOf(undefined));
+  const valid = name.trim() !== '' && type !== null && loanDraftValid(loanDraft);
   const submit = (): void => {
     if (!valid) return;
-    const loan: LoanDetails = isLoanType(type) ? { ...(rateBps === null ? {} : { interestRateBps: rateBps }), ...(payment > 0 ? { minimumPayment: payment } : {}) } : {};
+    const loan: LoanDetails = isLoanType(type) ? loanFromDraft(loanDraft, undefined, type === 'mortgage') : {};
     onClose();
     onCreate({ name: name.trim(), type, startingBalance: signedBalance(type, balance), ...(Object.keys(loan).length > 0 ? { loan } : {}) });
   };
@@ -170,7 +236,7 @@ export function AddAccountDialog({ format, onClose, onCreate }: { format: MoneyF
           onCommit={setBalance}
           {...(debt ? { help: 'Enter what you owe as a positive amount. HAFB shows debt as a negative balance, like YNAB.' } : {})}
         />
-        {type !== null && isLoanType(type) && <LoanFields rate={rate} setRate={setRate} payment={payment} setPayment={setPayment} format={format} />}
+        {type !== null && isLoanType(type) && <LoanFields draft={loanDraft} setDraft={setLoanDraft} mortgage={type === 'mortgage'} format={format} />}
       </form>
     </Dialog>
   );
@@ -206,18 +272,15 @@ export function EditAccountDialog({
   const [name, setName] = useState(account.name);
   const [note, setNote] = useState(account.note ?? '');
   const [balance, setBalance] = useState<Minor>(workingBalance);
-  const [rate, setRate] = useState(account.loan?.interestRateBps === undefined ? '' : formatRate(account.loan.interestRateBps));
-  const [payment, setPayment] = useState<Minor>(account.loan?.minimumPayment ?? minor(0));
+  const [loanDraft, setLoanDraft] = useState<LoanDraft>(() => loanDraftOf(account.loan));
   const loanType = isLoanType(account.type);
-  const rateBps = parseRate(rate);
-  const valid = name.trim() !== '' && (rate.trim() === '' || rateBps !== null);
+  const valid = name.trim() !== '' && loanDraftValid(loanDraft);
   const closed = account.closed === true;
 
   const save = (): void => {
     if (!valid) return;
-    // Keep the loan's other details (escrow, fees, pairing); replace the two the form edits.
-    const rest: LoanDetails = Object.fromEntries(Object.entries(account.loan ?? {}).filter(([k]) => k !== 'interestRateBps' && k !== 'minimumPayment'));
-    const loan: LoanDetails | null = loanType ? { ...rest, ...(rateBps === null ? {} : { interestRateBps: rateBps }), ...(payment > 0 ? { minimumPayment: payment } : {}) } : null;
+    // The pairing isn't on this form: keep it.
+    const loan: LoanDetails | null = loanType ? loanFromDraft(loanDraft, account.loan, account.type === 'mortgage') : null;
     onClose();
     onSave({ name: name.trim(), note, workingBalance: balance, ...(loanType ? { loan } : {}) });
   };
@@ -298,7 +361,7 @@ export function EditAccountDialog({
           disabled={closed}
           help="Changing it adds a Manual Balance Adjustment transaction for the difference."
         />
-        {loanType && <LoanFields rate={rate} setRate={setRate} payment={payment} setPayment={setPayment} format={format} />}
+        {loanType && <LoanFields draft={loanDraft} setDraft={setLoanDraft} mortgage={account.type === 'mortgage'} format={format} />}
       </form>
     </Dialog>
   );

@@ -71,7 +71,8 @@ import { moneyFormat } from '../plan/planModel.ts';
 import { moneyText } from '../shared/money.ts';
 import { Pill } from '../../ui/Pill.tsx';
 import { cardHeader, recordPaymentAmount } from '../shared/cardModel.ts';
-import { typeInfo } from './accountsModel.ts';
+import { isLoanType, typeInfo } from './accountsModel.ts';
+import { LoanPanel, RecordLoanPaymentDialog } from './LoanPanel.tsx';
 import { colorLabel, FLAG_COLORS, flagForDigit, flagName } from './flags.ts';
 import {
   addSplitLine,
@@ -201,6 +202,7 @@ export function RegisterScreen({ plan, today, accountId, actions, history, focus
   const [flagMenu, setFlagMenu] = useState<{ ids: string[]; at: Rect } | null>(null);
   const [rowMenu, setRowMenu] = useState<{ ids: string[]; at: Rect } | null>(null);
   const [renamingFlags, setRenamingFlags] = useState(false);
+  const [loanPayment, setLoanPayment] = useState(false);
   const [repeatFor, setRepeatFor] = useState<{ id: string; at: Rect } | null>(null);
   const [reconcile, setReconcile] = useState<null | { step: 'ask' } | { step: 'enter'; amount: Minor } | { step: 'mode'; statement: Minor }>(null);
   const reconcileButton = useRef<HTMLButtonElement>(null);
@@ -1243,6 +1245,8 @@ export function RegisterScreen({ plan, today, accountId, actions, history, focus
         )}
       </header>
 
+      {account && isLoanType(account.type) && <LoanPanel plan={plan} account={account} today={today} money={money} actions={actions} />}
+
       <div className={styles.toolbar}>
         <Button variant="toolbar" icon="add" title="Add a transaction (Shift+N)" onClick={() => { startNew(); }}>
           Add Transaction
@@ -1259,6 +1263,11 @@ export function RegisterScreen({ plan, today, accountId, actions, history, focus
               startNew({ accountId: account.id, inflow: recordPaymentAmount(plan, budget, account.id) });
             }}
           >
+            Record Payment
+          </Button>
+        )}
+        {account && isLoanType(account.type) && account.closed !== true && (
+          <Button variant="toolbar" icon="card" title="A payment to this loan from a cash or credit account" onClick={() => { setLoanPayment(true); }}>
             Record Payment
           </Button>
         )}
@@ -1304,6 +1313,7 @@ export function RegisterScreen({ plan, today, accountId, actions, history, focus
 
       {reconcileBanner()}
       {reconcilePopover()}
+      {loanPayment && account && <RecordLoanPaymentDialog plan={plan} account={account} today={today} actions={actions} onClose={() => { setLoanPayment(false); }} />}
       {unapproved.length > 0 && (
         <div className={styles.banner}>
           <Notice

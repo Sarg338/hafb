@@ -1,0 +1,325 @@
+/* A loan account's page above its register (S6.4). Tokens only (ADR 0004). */
+
+.panel {
+  display: grid;
+  gap: 12px;
+  padding: 0 20px 12px;
+  border-bottom: var(--s-border-width) solid var(--c-border);
+}
+
+.stats {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 28px;
+  padding-top: 2px;
+}
+
+.stat {
+  display: grid;
+  gap: 1px;
+}
+
+.stat strong {
+  font-family: var(--t-font-display);
+  font-size: var(--t-size-subtitle);
+  font-weight: var(--t-weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+.stat span {
+  color: var(--c-text-muted);
+  font-size: var(--t-size-small);
+}
+
+.missing {
+  color: var(--c-warn-text);
+}
+
+.card {
+  border: var(--s-border-width) solid var(--c-border);
+  border-radius: var(--s-radius-large);
+  background: var(--c-surface);
+}
+
+.cardHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 10px 14px;
+  border: 0;
+  background: transparent;
+  color: var(--c-text);
+  font-family: var(--t-font-ui);
+  font-size: var(--t-size-body);
+  font-weight: var(--t-weight-semibold);
+  text-align: left;
+}
+
+.cardHead:hover {
+  background: var(--c-hover);
+}
+
+.cardBody {
+  display: grid;
+  gap: 8px;
+  padding: 4px 14px 14px;
+  border-top: var(--s-border-width) solid var(--c-border);
+}
+
+.progressHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding-top: 8px;
+}
+
+.remaining {
+  display: grid;
+  gap: 2px;
+}
+
+.remaining span {
+  color: var(--c-text-muted);
+  font-size: var(--t-size-small);
+}
+
+.remaining strong {
+  font-family: var(--t-font-display);
+  font-size: var(--t-size-display);
+  font-weight: var(--t-weight-strong);
+  letter-spacing: var(--t-display-tracking);
+  font-variant-numeric: tabular-nums;
+}
+
+.remaining .share {
+  color: var(--c-text-muted);
+  font-family: var(--t-font-ui);
+  font-size: var(--t-size-body);
+  font-weight: var(--t-weight-regular);
+  letter-spacing: normal;
+}
+
+.links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.chart {
+  display: block;
+  width: 100%;
+  max-width: 820px;
+  height: auto;
+  overflow: visible;
+}
+
+.pastLine {
+  fill: none;
+  stroke: var(--c-chart-1);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+}
+
+.trackLine {
+  fill: none;
+  stroke: var(--c-chart-1);
+  stroke-width: 2;
+  stroke-dasharray: 7 5;
+  opacity: 0.8;
+}
+
+.nowPoint {
+  fill: var(--c-surface);
+  stroke: var(--c-chart-1);
+  stroke-width: 2.5;
+}
+
+.sentence {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: var(--s-radius-medium);
+  background: var(--c-accent-soft);
+  text-align: center;
+}
+
+.paired {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: var(--c-text-muted);
+}
+
+.pairCard {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 24px;
+  padding: 12px 14px;
+  border: var(--s-border-width) solid var(--c-border);
+  border-radius: var(--s-radius-large);
+  background: var(--c-surface-alt);
+}
+
+.pairCard p {
+  margin: 2px 0 0;
+  color: var(--c-text-muted);
+}
+
+.celebrate {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.celebrate p {
+  margin: 0;
+}
+
+.celebrateIcon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--c-funded-bg);
+  color: var(--c-funded-fg);
+}
+
+/* ---- dialogs ---------------------------------------------------------------------------------- */
+
+.form {
+  display: grid;
+  gap: 14px;
+}
+
+.field {
+  display: grid;
+  gap: 4px;
+}
+
+.fieldLabel {
+  font-size: var(--t-size-small);
+  font-weight: var(--t-weight-semibold);
+}
+
+.help {
+  color: var(--c-text-muted);
+  font-size: var(--t-size-small);
+}
+
+.spacer {
+  flex: 1;
+}
+
+.sim {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 24px;
+}
+
+.simInputs {
+  display: grid;
+  align-content: start;
+  gap: 16px;
+  padding-right: 20px;
+  border-right: var(--s-border-width) solid var(--c-border);
+}
+
+.required {
+  display: grid;
+  gap: 2px;
+  padding-bottom: 12px;
+  border-bottom: var(--s-border-width) solid var(--c-border);
+  text-align: center;
+}
+
+.required strong {
+  font-size: var(--t-size-subtitle);
+  font-variant-numeric: tabular-nums;
+}
+
+.required span {
+  color: var(--c-text-muted);
+  font-size: var(--t-size-small);
+}
+
+.simResult {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  min-width: 0;
+}
+
+.compare {
+  overflow: hidden;
+  border: var(--s-border-width) solid var(--c-border-strong);
+  border-radius: var(--s-radius-medium);
+}
+
+.compareHead {
+  margin: 0;
+  padding: 8px 12px;
+  border-bottom: var(--s-border-width) solid var(--c-border);
+  background: var(--c-surface-alt);
+  font-weight: var(--t-weight-semibold);
+  text-align: center;
+}
+
+.compareCells {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+.compareCells > div {
+  display: grid;
+  gap: 2px;
+  padding: 12px;
+  text-align: center;
+}
+
+.compareCells > div + div {
+  border-left: var(--s-border-width) solid var(--c-border);
+}
+
+.compareCells strong {
+  font-variant-numeric: tabular-nums;
+}
+
+.compareCells span {
+  color: var(--c-text-muted);
+  font-size: var(--t-size-small);
+}
+
+.saved {
+  margin: 0;
+  padding: 8px 12px;
+  border-top: var(--s-border-width) solid var(--c-border);
+  background: var(--c-funded-bg);
+  color: var(--c-funded-fg);
+  text-align: center;
+}
+
+.totals {
+  display: grid;
+  gap: 4px;
+}
+
+.totalLine {
+  display: flex;
+  justify-content: space-between;
+  font-variant-numeric: tabular-nums;
+}
+
+.totalStrong {
+  padding-bottom: 6px;
+  border-bottom: var(--s-total-rule-width) var(--s-total-rule-style) var(--c-border-strong);
+  font-weight: var(--t-weight-semibold);
+}

@@ -66,7 +66,7 @@ A row is `done` only after Sarg validates it on hardware. Rows whose engine half
 | T-08 | Edit Plan mode (pencil); target suggestions from history | S1.4 | S5.2 | done |
 | T-09 | Expected income (for Cost to Be Me) | S1.4 | S5.1 | done |
 | T-10 | Legacy target types mapped on import | S1.4 | S2.4 | in-progress |
-| T-11 | Monthly Debt Payment target for paired loan categories | S1.7 | S6.4 | in-progress |
+| T-11 | Monthly Debt Payment target for paired loan categories | S1.7 | S6.4 | done (the paired category's target becomes a Monthly Debt Payment with the payoff calculator and a due day) |
 | T-12 | CC payoff target drives the CC underfunded alert | S1.3 | S5.2 | done |
 
 ## 4. Auto-Assign ([auto-assign](https://support.ynab.com/en_us/auto-assign-a-guide-r1gBNbBJo))
@@ -89,7 +89,7 @@ A row is `done` only after Sarg validates it on hardware. Rows whose engine half
 |---|---|---|---|---|
 | AC-01 | Cash accounts: checking, savings, cash | S1.2 | S4.4 | done |
 | AC-02 | Credit accounts: credit card, line of credit | S1.3 | S4.4 | done |
-| AC-03 | Loan accounts: mortgage, auto, student, personal, medical, other debt | S1.7 | S4.4 / S6.4 | in-progress |
+| AC-03 | Loan accounts: mortgage, auto, student, personal, medical, other debt | S1.7 | S4.4 / S6.4 | done |
 | AC-04 | Tracking accounts: asset, liability | S1.2 | S4.4 | done |
 | AC-05 | Add account flow with starting balance (incl. negative for credit) | S1.2 | S4.4 | done |
 | AC-06 | Edit (nickname, notes, working balance → Manual Balance Adjustment, loan details), close (a balance is zeroed with an adjustment after a warning), reopen; closed group | — | S4.4 | done |
@@ -190,13 +190,13 @@ A row is `done` only after Sarg validates it on hardware. Rows whose engine half
 
 | ID | Feature | Engine | UI | Status |
 |---|---|---|---|---|
-| L-01 | Loan setup: rate, escrow, fees, minimum payment, original principal | S1.7 | S6.4 | in-progress |
-| L-02 | Monthly interest auto-posted (editable) | S1.7 | S6.4 | in-progress |
-| L-03 | Payment allocation: interest + escrow first, then principal | S1.7 | S6.4 | in-progress |
-| L-04 | Paired category; Record Payment; Monthly Debt Payment target | S1.7 | S6.4 | in-progress |
-| L-05 | Payoff calculator: payment ↔ payoff date, interest saved | S1.7 | S6.4 | in-progress |
-| L-06 | Loan Planner what-if extra payments | S1.7 | S6.4 | in-progress |
-| L-07 | Missing-details indicator; no auto-close at $0; payoff celebration | — | S6.4 | todo |
+| L-01 | Loan setup: rate, escrow, fees, minimum payment, original principal | S1.7 | S6.4 | done (rate, minimum payment, escrow on mortgages, fees, original amount) |
+| L-02 | Monthly interest auto-posted (editable) | S1.7 | S6.4 | done (posted on the 1st as Interest / Escrow / Fees; editable like any transaction; a deleted one is never re-posted) |
+| L-03 | Payment allocation: interest + escrow first, then principal | S1.7 | S6.4 | done |
+| L-04 | Paired category; Record Payment; Monthly Debt Payment target | S1.7 | S6.4 | done (pair or create a category; one loan per category; Record Payment pre-fills Available; the inspector shows the loan) |
+| L-05 | Payoff calculator: payment ↔ payoff date, interest saved | S1.7 | S6.4 | done (Loan Payoff Simulator: monthly payment ↔ payoff date, interest remaining, time remaining) |
+| L-06 | Loan Planner what-if extra payments | S1.7 | S6.4 | done (a higher monthly payment and a one-time extra this month; interest and time saved) |
+| L-07 | Missing-details indicator; no auto-close at $0; payoff celebration | — | S6.4 | done (gear in the sidebar and an "Add loan details" button; loans never close themselves; a celebration when the balance reaches zero) |
 
 ## 13. Import / export ([file import](https://support.ynab.com/en_us/file-based-import-a-guide-Bkj4Sszyo), [approve & match](https://support.ynab.com/en_us/approving-and-matching-transactions-a-guide-ByYNZaQ1i))
 
@@ -240,7 +240,7 @@ A row is `done` only after Sarg validates it on hardware. Rows whose engine half
 | X-02 | High-DPI 100–200%, multi-monitor | — | S7.7 | todo |
 | X-03 | Screen-reader grid semantics, focus visibility, high contrast, reduced motion (WCAG 2.2 AA) | — | S3.4 / S7.4 | todo |
 | X-04 | Onboarding: resumable setup checklist; designed empty states | — | S7.5 | todo |
-| X-05 | Celebrations (target met, loan paid off) | — | S5.2 / S6.4 | todo |
+| X-05 | Celebrations (target met, loan paid off) | — | S5.2 / S6.4 | done (target met, S5.2; loan paid off, S6.4) |
 
 ## Out of scope (wontfix, needs YNAB's servers)
 

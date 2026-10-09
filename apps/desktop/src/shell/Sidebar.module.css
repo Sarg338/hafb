@@ -208,6 +208,13 @@
   white-space: nowrap;
 }
 
+/* A loan missing details (S6.4). */
+.missing {
+  display: inline-flex;
+  flex: none;
+  color: var(--c-sidebar-muted);
+}
+
 .num {
   font-variant-numeric: tabular-nums;
   text-align: right;

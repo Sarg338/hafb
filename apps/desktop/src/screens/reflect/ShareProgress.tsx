@@ -3,7 +3,7 @@
 // switches, a live preview, and Download Image. With amounts off, money reads as masked and the
 // axis loses its labels; percentages stay. The image uses this app's own look and copy, with no
 // branding. It's saved through the native Save dialog; nothing is uploaded anywhere.
-import { useMemo, useRef, useState, type Ref } from 'react';
+import { useMemo, useRef, useState, type ReactNode, type Ref } from 'react';
 import { netWorth, type ReportFilters } from '@hafb/engine';
 import type { ISODate } from '@hafb/shared';
 import { budgetSnapshot, exportFileName, type PlanData } from '@hafb/store';
@@ -53,7 +53,7 @@ export function ShareProgress({ plan, filters, today, open, onOpen, notify }: Sh
         Share Your Progress
       </Button>
       {open && (
-        <ShareDialog
+        <NetWorthShare
           plan={plan}
           filters={filters}
           today={today}
@@ -67,21 +67,42 @@ export function ShareProgress({ plan, filters, today, open, onOpen, notify }: Sh
   );
 }
 
-function ShareDialog({ plan, filters, today, onClose, notify }: { plan: PlanData; filters: ShareProgressProps['filters']; today: ISODate; onClose: () => void; notify: (t: string) => void }) {
+function NetWorthShare({ plan, filters, today, onClose, notify }: { plan: PlanData; filters: ShareProgressProps['filters']; today: ISODate; onClose: () => void; notify: (t: string) => void }) {
+  const rows = useMemo(() => netWorth(budgetSnapshot(plan), filters), [plan, filters]);
+  return (
+    <ShareDialog
+      fileParts={[plan.settings.name, 'Net Worth', today]}
+      canDownload={rows.length > 0}
+      onClose={onClose}
+      notify={notify}
+      Image={(o) => <ShareImage ref={o.ref} plan={plan} rows={rows} width={o.width} height={o.height} tagline={o.tagline} amounts={o.amounts} />}
+    />
+  );
+}
+
+export interface ShareRender {
+  ref: Ref<SVGSVGElement>;
+  width: number;
+  height: number;
+  tagline: boolean;
+  amounts: boolean;
+}
+
+/** "Download and Share": format, Show Tagline, Show Amounts, a live preview and Download Image. */
+export function ShareDialog({ fileParts, canDownload, onClose, notify, Image }: { fileParts: readonly string[]; canDownload: boolean; onClose: () => void; notify: (t: string) => void; Image: (o: ShareRender) => ReactNode }) {
   const [format, setFormat] = useState<ShareFormat>('portrait');
   const [tagline, setTagline] = useState(true);
   const [amounts, setAmounts] = useState(true);
   const [busy, setBusy] = useState(false);
   const preview = useRef<SVGSVGElement>(null);
   const spec = SHARE_FORMATS.find((f) => f.id === format) ?? SHARE_FORMATS[0];
-  const rows = useMemo(() => netWorth(budgetSnapshot(plan), filters), [plan, filters]);
 
   const download = async (): Promise<void> => {
     if (!preview.current || !spec) return;
     setBusy(true);
     try {
       const bytes = await svgPng(preview.current, { width: spec.width, height: spec.height });
-      const saved = await saveFile(exportFileName([plan.settings.name, 'Net Worth', today], 'png'), bytes);
+      const saved = await saveFile(exportFileName(fileParts, 'png'), bytes);
       if (saved !== null) {
         notify(`Saved your progress image to ${saved}.`);
         onClose();
@@ -102,7 +123,7 @@ function ShareDialog({ plan, filters, today, onClose, notify }: { plan: PlanData
       footer={
         <>
           <Button onClick={onClose}>Cancel</Button>
-          <Button variant="primary" disabled={busy || rows.length === 0} onClick={() => void download()}>
+          <Button variant="primary" disabled={busy || !canDownload} onClick={() => void download()}>
             Download Image
           </Button>
         </>
@@ -135,7 +156,7 @@ function ShareDialog({ plan, filters, today, onClose, notify }: { plan: PlanData
         <div className={styles.sharePreview}>
           <h3>Preview</h3>
           <div className={styles.previewStage}>
-            {spec && <ShareImage ref={preview} plan={plan} rows={rows} width={spec.width} height={spec.height} tagline={tagline} amounts={amounts} />}
+            {spec && <Image ref={preview} width={spec.width} height={spec.height} tagline={tagline} amounts={amounts} />}
           </div>
         </div>
       </div>

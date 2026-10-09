@@ -9,6 +9,7 @@ import { moneyFormat } from '../screens/plan/planModel.ts';
 import { prefs, usePrefs } from './prefs.ts';
 import { moneyText } from '../screens/shared/money.ts';
 import { stepAccount } from '../screens/accounts/accountsModel.ts';
+import { missingLoanDetails } from '../screens/shared/loanModel.ts';
 import { useAccountDrag } from './useAccountDrag.ts';
 import { formatRoute, type Route } from './router.ts';
 import styles from './Sidebar.module.css';
@@ -179,6 +180,13 @@ export function Sidebar({ plan, subtitle, today, route, planMenu, onPlanMenu, vi
                       >
                         {a.starred === true && s.id !== 'starred' && <span className="visually-hidden">Starred. </span>}
                         <span className={styles.accountName}>{a.name}</span>
+                        {/* A loan missing its rate or payment shows YNAB's gear (S6.4). */}
+                        {missingLoanDetails(a).length > 0 && (
+                          <span className={styles.missing} title={`Missing loan details: ${missingLoanDetails(a).join(', ')}`}>
+                            <Icon name="settings" />
+                            <span className="visually-hidden">Missing loan details. </span>
+                          </span>
+                        )}
                         <span className={cx(styles.num, overdrawn(a) && styles.neg)}>{money(balance(a))}</span>
                       </a>
                     </ContextMenu>

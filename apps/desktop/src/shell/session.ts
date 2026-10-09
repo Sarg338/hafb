@@ -8,6 +8,7 @@ import {
   emptyHistory,
   encodePlan,
   enterDueScheduled,
+  postLoanCharges,
   exportDateFromName,
   findExportFiles,
   historyDo,
@@ -311,6 +312,17 @@ class PlanSession {
       return;
     }
     if (command) this.commit(historyDo(open.history, open.plan, command.changes, command.label));
+    // Loans: each month's interest, escrow and fees, posted on the 1st (S6.4).
+    const now = this.state.open;
+    if (!now) return;
+    let charges: Command | null;
+    try {
+      charges = postLoanCharges(now.plan, ctx);
+    } catch (e) {
+      this.notify(`Couldn't post loan interest: ${errorMessage(e)}`, 'error');
+      return;
+    }
+    if (charges) this.commit(historyDo(now.history, now.plan, charges.changes, charges.label));
   }
 
   /** Enter due schedules if the calendar day has changed since the last check. */
