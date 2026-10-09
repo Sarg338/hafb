@@ -10,3 +10,4 @@ export * from './export/zipWrite.ts';
 export * from './export/csv.ts';
 export * from './export/register.ts';
 export * from './export/ynabExport.ts';
+export * from './templates.ts';

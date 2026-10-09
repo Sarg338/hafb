@@ -9,4 +9,5 @@ export * from './scheduled.ts';
 export * from './reconcile.ts';
 export * from './loans.ts';
 export * from './settings.ts';
+export * from './lifecycle.ts';
 export * from './bankImport.ts';
