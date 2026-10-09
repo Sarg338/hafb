@@ -468,6 +468,18 @@ describe('commands', () => {
       expect(b2?.payeeId).toBeUndefined();
     });
 
+    it('undo labels say what changed (the toast reads "Undid: ...")', () => {
+      const add = addTransaction(b.plan, ctx, { accountId: checking, date: TODAY, amount: usd(-5), categoryId: groceries, payeeName: 'Corner Bakery' });
+      expect(add.label).toBe('Add transaction: Corner Bakery');
+      b.run(add);
+      expect(editTransaction(b.plan, ctx, { transactionId: add.transactionId, patch: { memo: 'm' } }).label).toBe('Edit transaction: Corner Bakery');
+      expect(addTransaction(b.plan, ctx, { accountId: checking, date: TODAY, amount: usd(-5), transferAccountId: savings }).label).toBe('Add transfer: Savings');
+      expect(setCleared(b.plan, ctx, { transactionIds: [add.transactionId], cleared: 'cleared' }).label).toBe('Mark cleared');
+      const two = [add.transactionId, live(b.plan).find((t) => t.isStartingBalance === true)?.id ?? ''];
+      expect(setFlag(b.plan, ctx, { transactionIds: two, flag: 'red' }).label).toBe('Flag red (2 transactions)');
+      expect(approveTransactions(b.plan, ctx, { transactionIds: two }).label).toBe('Approve (2 transactions)');
+    });
+
     it('tracking accounts take no category', () => {
       expect(() => addTransaction(b.plan, ctx, { accountId: house, date: TODAY, amount: usd(-1), categoryId: groceries })).toThrow(/tracking/);
     });

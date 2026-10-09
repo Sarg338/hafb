@@ -290,8 +290,21 @@ export function addTransaction(plan: PlanData, ctx: CommandContext, input: Trans
     flag: input.flag,
     subtransactions: input.subtransactions,
   });
-  return { label: input.transferAccountId === undefined ? 'Add transaction' : 'Add transfer', changes: d.build(), transactionId: id };
+  const added = d.get('transactions', id);
+  return { label: named(input.transferAccountId === undefined ? 'Add transaction' : 'Add transfer', added ? whom(d, added) : ''), changes: d.build(), transactionId: id };
 }
+
+/** Who a transaction is with, for undo labels: its payee, or the transfer's other account. */
+function whom(d: Draft, t: TransactionRecord): string {
+  if (t.transferAccountId !== undefined) return d.get('accounts', t.transferAccountId)?.name ?? 'transfer';
+  return t.payeeId === undefined ? '' : (d.get('payees', t.payeeId)?.name ?? '');
+}
+
+/** "Edit transaction: Corner Bakery", or the bare verb when there is no payee. */
+const named = (verb: string, who: string): string => (who === '' ? verb : `${verb}: ${who}`);
+
+/** "Mark cleared" for one row, "Mark cleared (3 transactions)" for several. */
+const counted = (verb: string, n: number): string => (n === 1 ? verb : `${verb} (${String(n)} transactions)`);
 
 function liveTransaction(d: Draft, id: Id): TransactionRecord {
   const t = d.get('transactions', id);
@@ -361,7 +374,8 @@ export function editTransaction(plan: PlanData, ctx: CommandContext, args: { tra
   const d = new Draft(plan);
   const t = liveTransaction(d, args.transactionId);
   writeTransaction(d, ctx, t.id, t, resolveEdit(d, t, args.patch));
-  return { label: 'Edit transaction', changes: d.build() };
+  const after = d.get('transactions', t.id);
+  return { label: named('Edit transaction', after ? whom(d, after) : ''), changes: d.build() };
 }
 
 /** What a multi-row edit can set (YNAB's multi-select: Categorize, Memo, Flag, Move to Account; also date). */
@@ -482,7 +496,7 @@ export function setCleared(plan: PlanData, _ctx: CommandContext, args: { transac
     const t = liveTransaction(d, id);
     if (t.cleared !== args.cleared) d.put('transactions', { ...t, cleared: args.cleared });
   }
-  return { label: args.cleared === 'uncleared' ? 'Mark uncleared' : args.cleared === 'cleared' ? 'Mark cleared' : 'Mark reconciled', changes: d.build() };
+  return { label: counted(args.cleared === 'uncleared' ? 'Mark uncleared' : args.cleared === 'cleared' ? 'Mark cleared' : 'Mark reconciled', args.transactionIds.length), changes: d.build() };
 }
 
 export function setFlag(plan: PlanData, _ctx: CommandContext, args: { transactionIds: readonly Id[]; flag: FlagColor | null }): Command {
@@ -492,7 +506,7 @@ export function setFlag(plan: PlanData, _ctx: CommandContext, args: { transactio
     const rest = omit(t, 'flag');
     d.put('transactions', args.flag === null ? rest : { ...rest, flag: args.flag });
   }
-  return { label: args.flag === null ? 'Clear flag' : 'Set flag', changes: d.build() };
+  return { label: counted(args.flag === null ? 'Clear flag' : `Flag ${args.flag}`, args.transactionIds.length), changes: d.build() };
 }
 
 /** Name a flag colour (YNAB's custom flag names); an empty name goes back to the colour. */
@@ -532,5 +546,5 @@ export function approveTransactions(plan: PlanData, _ctx: CommandContext, args: 
       if (leg && leg.deletedAt === undefined) approve(leg);
     }
   }
-  return { label: 'Approve', changes: d.build() };
+  return { label: counted('Approve', args.transactionIds.length), changes: d.build() };
 }
