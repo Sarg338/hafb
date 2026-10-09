@@ -34,6 +34,8 @@ import target16 from '@fluentui/svg-icons/icons/target_arrow_16_regular.svg?raw'
 import savings16 from '@fluentui/svg-icons/icons/savings_16_regular.svg?raw';
 import checkmark16 from '@fluentui/svg-icons/icons/checkmark_16_regular.svg?raw';
 import note16 from '@fluentui/svg-icons/icons/note_16_regular.svg?raw';
+import copy16 from '@fluentui/svg-icons/icons/copy_16_regular.svg?raw';
+import tag16 from '@fluentui/svg-icons/icons/tag_16_regular.svg?raw';
 import edit16 from '@fluentui/svg-icons/icons/edit_16_regular.svg?raw';
 import eyeOff16 from '@fluentui/svg-icons/icons/eye_off_16_regular.svg?raw';
 import eye16 from '@fluentui/svg-icons/icons/eye_16_regular.svg?raw';
@@ -84,6 +86,8 @@ import target20 from '@fluentui/svg-icons/icons/target_arrow_20_regular.svg?raw'
 import savings20 from '@fluentui/svg-icons/icons/savings_20_regular.svg?raw';
 import checkmark20 from '@fluentui/svg-icons/icons/checkmark_20_regular.svg?raw';
 import note20 from '@fluentui/svg-icons/icons/note_20_regular.svg?raw';
+import copy20 from '@fluentui/svg-icons/icons/copy_20_regular.svg?raw';
+import tag20 from '@fluentui/svg-icons/icons/tag_20_regular.svg?raw';
 import edit20 from '@fluentui/svg-icons/icons/edit_20_regular.svg?raw';
 import eyeOff20 from '@fluentui/svg-icons/icons/eye_off_20_regular.svg?raw';
 import eye20 from '@fluentui/svg-icons/icons/eye_20_regular.svg?raw';
@@ -136,6 +140,8 @@ const ICONS = {
   savings: { 16: savings16, 20: savings20 },
   checkmark: { 16: checkmark16, 20: checkmark20 },
   note: { 16: note16, 20: note20 },
+  copy: { 16: copy16, 20: copy20 },
+  tag: { 16: tag16, 20: tag20 },
   edit: { 16: edit16, 20: edit20 },
   eyeOff: { 16: eyeOff16, 20: eyeOff20 },
   eye: { 16: eye16, 20: eye20 },

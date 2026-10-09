@@ -502,7 +502,7 @@ export function DataGrid<T>(props: DataGridProps<T>) {
     if (!hit) return;
     const { cell } = hit;
     // Controls inside a cell (a row being edited, a cleared or flag button) handle their own clicks.
-    if (e.target instanceof Element && e.target.closest('input, textarea, select, [role=combobox], [data-interactive]')) return;
+    if (e.target instanceof Element && e.target.closest('input:not([data-select]), textarea, select, [role=combobox], [data-interactive]')) return;
     // Clicks inside the open editor belong to the editor.
     if (editing && sameCell(editing.cell, cell)) return;
     if (editing) onEditEnd('blur');

@@ -71,8 +71,11 @@
 
 .sortButton {
   display: inline-flex;
+  flex: 1;
+  align-self: stretch;
   align-items: center;
   gap: 4px;
+  min-width: 0;
   max-width: 100%;
   padding: 0;
   border: 0;
@@ -83,6 +86,11 @@
   text-transform: inherit;
 }
 
+.columnHeader.end .sortButton {
+  justify-content: flex-end;
+}
+
+/* The whole header cell sorts, not just its words; the text stays where it was. */
 .sortButton:hover {
   color: var(--c-text);
 }

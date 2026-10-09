@@ -1,0 +1,67 @@
+/* Floating action bar for a selection: the approved toast's inverted surface. Tokens only. */
+
+.bar {
+  position: fixed;
+  left: 50%;
+  bottom: 18px;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  max-width: calc(100vw - 32px);
+  padding: 6px;
+  border-radius: var(--s-radius-large);
+  background: var(--c-text);
+  color: var(--c-surface);
+  box-shadow: 0 8px 24px var(--c-shadow);
+  font-size: var(--t-size-body);
+  transform: translateX(-50%);
+  animation: bar-in var(--m-move) var(--m-ease);
+}
+
+.item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: var(--d-chip);
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--s-radius);
+  background: transparent;
+  color: inherit;
+  font-weight: var(--t-weight-semibold);
+  white-space: nowrap;
+}
+
+.item:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.item:focus-visible {
+  outline-color: var(--c-surface);
+}
+
+.count {
+  font-variant-numeric: tabular-nums;
+}
+
+.rule {
+  align-self: stretch;
+  width: var(--s-border-width);
+  margin: 4px 4px;
+  background: currentColor;
+  opacity: 0.3;
+}
+
+/* While the bar shows, toasts rise above it. */
+:global(body:has([data-action-bar])) :global([data-toast]) {
+  bottom: 72px;
+}
+
+@keyframes bar-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 8px);
+  }
+}

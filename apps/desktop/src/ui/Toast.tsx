@@ -84,6 +84,7 @@ export function ToastView({ item, onDismiss, inline = false }: { item: ToastItem
   return (
     <div
       className={cx(styles.toast, inline && styles.inline)}
+      data-toast=""
       role={error ? 'alert' : 'status'}
       aria-live={error ? 'assertive' : 'polite'}
       onPointerEnter={() => {
