@@ -18,7 +18,7 @@ import {
 } from '@hafb/shared';
 import type { MonthState } from './budget.ts';
 import { InvariantViolation, ValidationError } from './errors.ts';
-import { READY_TO_ASSIGN, type Account, type CategoryRef, type Id, type Subtransaction, type Transaction } from './model.ts';
+import { CREDIT_CARD_INTEREST, READY_TO_ASSIGN, type Account, type CategoryRef, type Id, type Subtransaction, type Transaction } from './model.ts';
 
 /** YNAB's 13 repeat options (CLAUDE.md §4 ScheduledTransaction). */
 export type Frequency =
@@ -172,7 +172,7 @@ export function upcomingDetails(scheduled: readonly ScheduledTransaction[], mont
   const end = lastDayOfMonth(month);
   const totals = new Map<Id, { amount: number; count: number }>();
   const add = (categoryId: CategoryRef, amount: number, times: number) => {
-    if (categoryId === null || categoryId === READY_TO_ASSIGN || times === 0) return;
+    if (categoryId === null || categoryId === READY_TO_ASSIGN || categoryId === CREDIT_CARD_INTEREST || times === 0) return;
     const t = totals.get(categoryId) ?? { amount: 0, count: 0 };
     totals.set(categoryId, { amount: t.amount + amount * times, count: t.count + times });
   };

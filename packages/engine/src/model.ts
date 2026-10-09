@@ -5,6 +5,12 @@ export type Id = string;
 
 /** Category reference for "Inflow: Ready to Assign". */
 export const READY_TO_ASSIGN = 'ready-to-assign' as const;
+/**
+ * Category reference for YNAB's "Credit Card Interest" (rolling out Oct 2026; behind a flag in the
+ * app). Only on credit accounts: the interest stays out of the plan, like a card's starting debt, and
+ * the payment category shows it as debt to cover (budget-math §3.15).
+ */
+export const CREDIT_CARD_INTEREST = 'credit-card-interest' as const;
 /** Pseudo-category the engine uses for on-budget money with no category (YNAB's "Uncategorized"). */
 export const UNCATEGORIZED = 'uncategorized' as const;
 

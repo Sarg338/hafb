@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import {
   autoAssign,
   computeBudget,
+  CREDIT_CARD_INTEREST,
   InvariantViolation,
   monthState,
   READY_TO_ASSIGN,
@@ -208,6 +209,47 @@ describe('§3 credit cards', () => {
   it('3.13: a card that starts with a credit in your favour is cash-like: its starting balance is an inflow', () => {
     const s = plan().account('checking').card('visa').income('2026-10-01', 100_000).txn('2026-10-08', 'visa', 2_500, READY_TO_ASSIGN, { isStartingBalance: true }).build();
     expect(monthState(computeBudget(s, { today: TODAY }), '2026-10').readyToAssign).toBe(102_500);
+  });
+
+  describe('3.15: Credit Card Interest (YNAB, rolling out Oct 2026; behind a flag)', () => {
+    // YNAB: interest categorized as "Credit Card Interest" stays out of the spending plan and doesn't
+    // overspend a category; the payment category shows it as debt to cover.
+    const interestPlan = () => plan().account('checking').card('visa').category('dining').income('2026-10-01', 100_000);
+
+    it('interest touches no category and not Ready to Assign; the payment category shows the debt', () => {
+      const s = interestPlan().txn('2026-10-20', 'visa', -1_234, CREDIT_CARD_INTEREST).build();
+      const state = computeBudget(s, { today: TODAY });
+      const ms = monthState(state, '2026-10');
+      expect(ms.readyToAssign).toBe(100_000);
+      expect(ms.categories['pay:visa']).toMatchObject({ available: 0, activity: 0 });
+      expect(ms.categories['pay:visa']?.creditCard).toMatchObject({ balance: -1_234, interest: -1_234, spending: 0, unfundedSpending: 0 });
+      expect(ms.categories.dining).toMatchObject({ activity: 0, available: 0 });
+      expect(Object.keys(ms.categories)).not.toContain(CREDIT_CARD_INTEREST);
+      expect(Object.keys(ms.categories)).not.toContain(UNCATEGORIZED);
+      const change = autoAssign('underfunded', { state, month: '2026-10', categoryIds: Object.keys(ms.categories), targets: [], evaluated: {}, paymentCategoryIds: new Set(['pay:visa']) });
+      expect(change.deltas).toEqual([{ month: '2026-10', categoryId: 'pay:visa', delta: 1_234 }]);
+    });
+
+    it('a split line, an interest refund and next month: interest is counted per month, net', () => {
+      const s = interestPlan()
+        .split('2026-10-20', 'visa', [
+          { amount: -3_000, categoryId: 'dining' },
+          { amount: -500, categoryId: CREDIT_CARD_INTEREST },
+        ])
+        .txn('2026-10-25', 'visa', 200, CREDIT_CARD_INTEREST)
+        .txn('2026-11-20', 'visa', -700, CREDIT_CARD_INTEREST)
+        .build();
+      const state = computeBudget(s, { today: TODAY });
+      const oct = monthState(state, '2026-10');
+      expect(oct.categories['pay:visa']?.creditCard).toMatchObject({ interest: -300, spending: -3_000, balance: -3_300 });
+      expect(oct.categories.dining).toMatchObject({ activity: -3_000 });
+      expect(oct.readyToAssign).toBe(100_000);
+      expect(monthState(state, '2026-11').categories['pay:visa']?.creditCard).toMatchObject({ interest: -700, balance: -4_000 });
+    });
+
+    it('is only for credit accounts', () => {
+      expect(() => run(interestPlan().txn('2026-10-20', 'checking', -100, CREDIT_CARD_INTEREST).build())).toThrow(ValidationError);
+    });
   });
 
   const base = () =>

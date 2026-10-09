@@ -14,6 +14,7 @@ import {
 } from '@hafb/shared';
 import { InvariantViolation, ValidationError } from './errors.ts';
 import {
+  CREDIT_CARD_INTEREST,
   isCreditAccountType,
   READY_TO_ASSIGN,
   UNCATEGORIZED,
@@ -52,6 +53,8 @@ export interface CreditCardMonth {
   spending: Minor;
   /** Gross categorized inflows (refunds) on the card this month, not Ready to Assign; "Returns". */
   returns: Minor;
+  /** Net Credit Card Interest on the card this month (negative = charged); off the plan (§3.15). */
+  interest: Minor;
 }
 
 export interface CategoryMonth {
@@ -156,10 +159,12 @@ interface MonthBucket {
   /** Card account → gross categorized outflows (negative) and inflows this month. */
   cardSpending: Map<Id, number>;
   cardReturns: Map<Id, number>;
+  /** Card account → net Credit Card Interest this month. */
+  cardInterest: Map<Id, number>;
 }
 
 function emptyBucket(): MonthBucket {
-  return { inflows: 0, cash: new Map(), credit: new Map(), payments: new Map(), cardSpending: new Map(), cardReturns: new Map() };
+  return { inflows: 0, cash: new Map(), credit: new Map(), payments: new Map(), cardSpending: new Map(), cardReturns: new Map(), cardInterest: new Map() };
 }
 
 function addTo(map: Map<Id, number>, key: Id, amount: number): void {
@@ -306,6 +311,13 @@ export function computeBudget(snapshot: BudgetSnapshot, options: ComputeOptions)
       }
       if (line.categoryId === READY_TO_ASSIGN) {
         bucket.inflows += line.amount;
+        continue;
+      }
+      // Credit Card Interest stays out of the plan: the card's balance grows and the payment category
+      // shows the debt as uncovered, like a starting debt (§3.15).
+      if (line.categoryId === CREDIT_CARD_INTEREST) {
+        if (!isCard) throw new ValidationError(`Transaction ${tx.id}: Credit Card Interest is only for credit accounts`);
+        addTo(bucket.cardInterest, account.id, line.amount);
         continue;
       }
       let categoryId: Id;
@@ -460,6 +472,7 @@ export function computeBudget(snapshot: BudgetSnapshot, options: ComputeOptions)
           unfundedSpending: minor(unfundedByCard.get(cardId) ?? 0),
           spending: minor(bucket.cardSpending.get(cardId) ?? 0),
           returns: minor(bucket.cardReturns.get(cardId) ?? 0),
+          interest: minor(bucket.cardInterest.get(cardId) ?? 0),
         },
       };
     }

@@ -1,6 +1,7 @@
 // Worked examples for Reflect report math (docs/budget-math.md §11). Amounts are cents.
 import { describe, expect, it } from 'vitest';
 import { accountBalances, incomeLines, incomeVsExpense, netWorth, spendingBreakdown, spendingLines, spendingTrends } from '../src/reports.ts';
+import { CREDIT_CARD_INTEREST } from '../src/model.ts';
 import { plan } from './helpers.ts';
 import { regroup, withPayees } from './helpers-s17.ts';
 
@@ -203,6 +204,15 @@ describe('§11.6 Report rollups (S6.1)', () => {
   it("leaves a card's starting debt (category not needed) out of spending", () => {
     const snapshot = plan().account('checking').card('visa').category('food')
       .txn('2026-03-01', 'visa', -50_000, null, { isStartingBalance: true })
+      .spend('2026-03-02', 2_000, 'food', 'visa')
+      .build();
+    expect(spendingBreakdown(snapshot, { from: '2026-03', to: '2026-03' }).total).toBe(2_000);
+    expect(spendingLines(snapshot, { from: '2026-03', to: '2026-03' }).map((l) => l.categoryId)).toEqual(['food']);
+  });
+
+  it('leaves Credit Card Interest out of spending: it stays out of the spending plan (§3.15)', () => {
+    const snapshot = plan().account('checking').card('visa').category('food')
+      .txn('2026-03-20', 'visa', -1_500, CREDIT_CARD_INTEREST)
       .spend('2026-03-02', 2_000, 'food', 'visa')
       .build();
     expect(spendingBreakdown(snapshot, { from: '2026-03', to: '2026-03' }).total).toBe(2_000);

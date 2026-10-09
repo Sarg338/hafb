@@ -7,7 +7,7 @@
 import { compareDates, compareMonths, divRound, minor, monthOf, monthRange, type ISODate, type Minor, type Month } from '@hafb/shared';
 import { defaultStartingBalanceIds } from './ageOfMoney.ts';
 import { transactionLines } from './budget.ts';
-import { READY_TO_ASSIGN, UNCATEGORIZED, type Account, type BudgetSnapshot, type Id, type Subtransaction, type Transaction } from './model.ts';
+import { CREDIT_CARD_INTEREST, READY_TO_ASSIGN, UNCATEGORIZED, type Account, type BudgetSnapshot, type Id, type Subtransaction, type Transaction } from './model.ts';
 
 export interface ReportFilters {
   from: Month;
@@ -121,6 +121,9 @@ function categoryLines(snapshot: BudgetSnapshot, filters: ReportFilters, skip: R
     if (!inRange(monthOf(tx.date), filters)) continue;
     transactionLines(tx).forEach((line, i) => {
       if (line.categoryId === READY_TO_ASSIGN) return;
+      // Credit Card Interest stays out of the spending plan (budget-math §3.15), so out of the
+      // category reports too. To be checked against YNAB once the feature reaches every account.
+      if (line.categoryId === CREDIT_CARD_INTEREST) return;
       // A card's starting debt needs no category (budget-math §3.12): it isn't spending.
       if (line.categoryId === null && tx.isStartingBalance) return;
       const counterpart = line.transferAccountId === undefined ? undefined : allAccounts.get(line.transferAccountId);

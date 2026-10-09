@@ -4,7 +4,7 @@
 // "(assumption)" below.
 import { asISODate, compareDates, minor, type ISODate, type Minor } from '@hafb/shared';
 import { ValidationError } from './errors.ts';
-import { READY_TO_ASSIGN, type Id, type Transaction } from './model.ts';
+import { CREDIT_CARD_INTEREST, READY_TO_ASSIGN, type Id, type Transaction } from './model.ts';
 import { parseAmount, parseDate, type DateOrder } from './ynab/csv.ts';
 
 export type FlagColor = 'red' | 'orange' | 'yellow' | 'green' | 'blue' | 'purple';
@@ -213,7 +213,7 @@ function categoryTexts(tx: Transaction, ctx: SearchContext): string[] {
   const out: string[] = [];
   for (const ref of refs) {
     if (ref === null) continue;
-    const name = ctx.categoryName?.(ref) ?? (ref === READY_TO_ASSIGN ? 'Ready to Assign' : undefined);
+    const name = ctx.categoryName?.(ref) ?? (ref === READY_TO_ASSIGN ? 'Ready to Assign' : ref === CREDIT_CARD_INTEREST ? 'Credit Card Interest' : undefined);
     if (name !== undefined) out.push(name);
   }
   return out;
