@@ -3,6 +3,10 @@
 // Save / Save and add another under it; Enter saves, Esc cancels, Tab moves between fields,
 // Ctrl+Enter saves and starts another. Shortcuts follow YNAB's list: Shift+N adds, C toggles
 // cleared, Shift+F then 0–6 flags, Delete deletes.
+// S4.6 (YNAB, observed 2026-10-08): splits with "Amount remaining to assign"; a selection gets the
+// floating action bar (Categorize, Flag, Clear, More) and a right-click menu; A approves, Shift+L
+// approves all, K categorizes, S splits, Shift+D duplicates; criteria search; header sort; View
+// Options (date presets, Show Reconciled, Show Flags, running balance) kept per register.
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { CASH_ACCOUNT_TYPES, type ClearedState, type FlagColor, type Id } from '@hafb/engine';
 import { formatDate, minor, monthOf, neg, ZERO, type ISODate, type Minor } from '@hafb/shared';
@@ -11,17 +15,21 @@ import {
   applyChanges,
   approveTransactions,
   deleteTransactions,
+  duplicateTransactions,
   editTransaction,
+  editTransactions,
   mergeChangeSets,
   planBudget,
   setCleared,
   setFlag,
   setFlagName,
+  type BulkPatch,
   type ChangeSet,
   type PlanData,
 } from '@hafb/store';
 import type { Actions } from '../../design/DesignApp.tsx';
-import { prefs, usePrefs } from '../../shell/prefs.ts';
+import { DEFAULT_REGISTER_VIEW, prefs, usePrefs, type RegisterViewPref } from '../../shell/prefs.ts';
+import { ActionBar, ActionBarButton, ActionBarRule } from '../../ui/ActionBar.tsx';
 import { Notice } from '../../ui/Banner.tsx';
 import { Button, IconButton } from '../../ui/Button.tsx';
 import { CategoryPicker } from '../../ui/CategoryPicker.tsx';
@@ -32,7 +40,7 @@ import { Dialog } from '../../ui/Dialog.tsx';
 import { DataGrid, type GridColumn } from '../../ui/grid/DataGrid.tsx';
 import type { GridRow } from '../../ui/grid/types.ts';
 import { Icon } from '../../ui/Icon.tsx';
-import { MenuButton, MenuList, type MenuItem } from '../../ui/Menu.tsx';
+import { MenuList, type MenuItem } from '../../ui/Menu.tsx';
 import { MoneyInput } from '../../ui/MoneyInput.tsx';
 import { PayeePicker } from '../../ui/PayeePicker.tsx';
 import { categoryPickerData, payeeGroups } from '../../ui/pickerData.ts';
@@ -44,7 +52,33 @@ import { moneyFormat } from '../plan/planModel.ts';
 import { moneyText } from '../shared/money.ts';
 import { typeInfo } from './accountsModel.ts';
 import { colorLabel, FLAG_COLORS, flagForDigit, flagName } from './flags.ts';
-import { defaultCleared, draftFor, registerRows, toInput, toPatch, transferNeedsCategory, type RegisterRow, type TxDraft } from './registerModel.ts';
+import {
+  addSplitLine,
+  DATE_PRESETS,
+  DEFAULT_SORT,
+  defaultCleared,
+  draftFor,
+  nextSort,
+  parseRegisterSearch,
+  patchSplitLine,
+  presetRange,
+  registerCounts,
+  registerRows,
+  removeSplitLine,
+  selectedTotal,
+  splitRemaining,
+  startSplit,
+  toInput,
+  toPatch,
+  transferNeedsCategory,
+  type MonthRange,
+  type RegisterRow,
+  type RegisterSort,
+  type SortColumn,
+  type SplitLineDraft,
+  type TxDraft,
+} from './registerModel.ts';
+import { ViewOptions } from './ViewOptions.tsx';
 import styles from './RegisterScreen.module.css';
 
 const NEW = '__new__';
@@ -53,6 +87,20 @@ const NEW_PAYEE = '__new-payee__';
 const SCHEDULED = '__scheduled__';
 const STRIP_HEIGHT = 42;
 const SPLIT_LINE_HEIGHT = 26;
+/** A split line being edited, and the "Add another split" line under them. */
+const EDIT_LINE_HEIGHT = 34;
+/** The category picker's last option starts a split (YNAB's Split button). */
+const SPLIT = '__split__';
+const SORTABLE: readonly SortColumn[] = ['account', 'date', 'payee', 'category', 'memo', 'outflow', 'inflow'];
+const isSortable = (id: string): id is SortColumn => SORTABLE.some((c) => c === id);
+const plural = (n: number): string => `${String(n)} Transaction${n === 1 ? '' : 's'}`;
+
+/** The View Options date range: a preset's months, the custom From/To, or all dates. */
+function viewRange(view: RegisterViewPref, today: ISODate): MonthRange | null {
+  const preset = DATE_PRESETS.find((x) => x.id === view.preset);
+  if (preset) return presetRange(preset.id, today);
+  return view.from !== undefined && view.to !== undefined ? { from: view.from, to: view.to } : null;
+}
 
 type Row = { kind: 'tx'; tx: RegisterRow } | { kind: 'new' } | { kind: 'scheduled'; count: number };
 
@@ -72,8 +120,16 @@ export function RegisterScreen({ plan, today, accountId, actions, history }: Reg
   const money = useMemo(() => moneyText(fmt, p.hideAmounts), [fmt, p.hideAmounts]);
   const account = accountId === null ? undefined : plan.accounts.find((a) => a.id === accountId);
   const balances = useMemo(() => planBudget(plan, { today }).accountBalances, [plan, today]);
-  const [query, setQuery] = useState('');
+  const [searchText, setSearchText] = useState('');
   const [onlyUnapproved, setOnlyUnapproved] = useState(false);
+  const [onlyUncategorized, setOnlyUncategorized] = useState(false);
+  const [sort, setSort] = useState<RegisterSort>(DEFAULT_SORT);
+  const [viewOpen, setViewOpen] = useState(false);
+  const viewButton = useRef<HTMLButtonElement>(null);
+  const [categorizeFor, setCategorizeFor] = useState<{ ids: string[]; at: Rect } | null>(null);
+  const [moveFor, setMoveFor] = useState<{ ids: string[]; at: Rect } | null>(null);
+  const [moreFor, setMoreFor] = useState<{ ids: string[]; at: Rect } | null>(null);
+  const [memoFor, setMemoFor] = useState<string[] | null>(null);
   const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set());
   const [edit, setEdit] = useState<{ id: string; focus: string } | null>(null);
   const [draft, setDraftState] = useState<TxDraft | null>(null);
@@ -83,7 +139,12 @@ export function RegisterScreen({ plan, today, accountId, actions, history }: Reg
   const [rowMenu, setRowMenu] = useState<{ ids: string[]; at: Rect } | null>(null);
   const [renamingFlags, setRenamingFlags] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
-  const showBalance = accountId !== null && p.showRunningBalance;
+  const viewKey = accountId ?? 'all';
+  const view = p.registerViews[viewKey] ?? DEFAULT_REGISTER_VIEW;
+  const range = viewRange(view, today);
+  const showBalance = accountId !== null && view.runningBalance;
+  const search = useMemo(() => parseRegisterSearch(plan, searchText), [plan, searchText]);
+  const searching = search.query !== null;
 
   const setDraft = useCallback((d: TxDraft | null) => {
     draftRef.current = d;
@@ -99,17 +160,32 @@ export function RegisterScreen({ plan, today, accountId, actions, history }: Reg
 
   // A different account is a different register: the shell remounts this screen per account.
 
-  const txRows = useMemo(() => registerRows(plan, { accountId, query, onlyUnapproved }), [plan, accountId, query, onlyUnapproved]);
+  const txRows = useMemo(
+    () => registerRows(plan, { accountId, search: search.query, onlyUnapproved, onlyUncategorized, range, showReconciled: view.showReconciled, sort }),
+    // `range` is derived from view and today.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [plan, accountId, search.query, onlyUnapproved, onlyUncategorized, view, today, sort],
+  );
   const byId = useMemo(() => new Map(plan.transactions.map((t) => [t.id, t])), [plan.transactions]);
   const unapproved = useMemo(() => plan.transactions.filter((t) => t.deletedAt === undefined && t.approved === false && (accountId === null || t.accountId === accountId)), [plan.transactions, accountId]);
+  const counts = useMemo(() => registerCounts(plan, accountId), [plan, accountId]);
+  // The selection, limited to rows still shown (a filter or a delete can hide selected rows).
+  const shown = useMemo(() => new Set(txRows.map((r) => r.id)), [txRows]);
+  const picked = useMemo(() => [...selected].filter((id) => shown.has(id)), [selected, shown]);
+  const firstMonth = useMemo(() => {
+    let min = monthOf(today);
+    for (const t of plan.transactions) if (t.deletedAt === undefined && monthOf(t.date) < min) min = monthOf(t.date);
+    return min;
+  }, [plan.transactions, today]);
   const scheduledCount = plan.scheduled.filter((s) => s.deletedAt === undefined && (accountId === null || s.accountId === accountId)).length;
 
   const rows = useMemo((): GridRow<Row>[] => {
-    const out: GridRow<Row>[] = [{ kind: 'group', id: SCHEDULED, data: { kind: 'scheduled', count: scheduledCount } }];
+    // A search hides the Scheduled section (YNAB).
+    const out: GridRow<Row>[] = searching ? [] : [{ kind: 'group', id: SCHEDULED, data: { kind: 'scheduled', count: scheduledCount } }];
     if (edit?.id === NEW) out.push({ kind: 'item', id: NEW, data: { kind: 'new' } });
     for (const tx of txRows) out.push({ kind: 'item', id: tx.id, data: { kind: 'tx', tx } });
     return out;
-  }, [txRows, edit?.id, scheduledCount]);
+  }, [txRows, edit?.id, scheduledCount, searching]);
 
   // ---- editing ---------------------------------------------------------------------------------
   const openAccounts = useMemo(() => plan.accounts.filter((a) => a.deletedAt === undefined && a.closed !== true).toSorted((a, b) => a.sortOrder - b.sortOrder), [plan.accounts]);
@@ -130,12 +206,18 @@ export function RegisterScreen({ plan, today, accountId, actions, history }: Reg
   );
 
   const startEdit = useCallback(
-    (id: string, focus = 'payee') => {
+    (id: string, focus = 'payee', split = false) => {
       const t = byId.get(id);
       if (!t) return;
       if (t.cleared === 'reconciled') actions.notify('This transaction is reconciled. Changing it can make the account disagree with your bank.');
-      setDraft(draftFor(t, { accountId: t.accountId, date: t.date }));
-      setEdit({ id, focus });
+      const d = draftFor(t, { accountId: t.accountId, date: t.date });
+      if (split && t.transferTransactionId !== undefined && t.subtransactions === undefined && t.transferAccountId === undefined) {
+        actions.notify('This transfer comes from a split; edit it in the split.');
+        return;
+      }
+      setSelected(new Set([id]));
+      setDraft(split ? startSplit(d) : d);
+      setEdit({ id, focus: split && d.splits === null ? 'line-1:payee' : focus });
     },
     [byId, actions, setDraft],
   );
@@ -151,6 +233,11 @@ export function RegisterScreen({ plan, today, accountId, actions, history }: Reg
     (andAnother: boolean) => {
       const d = draftRef.current;
       if (!edit || !d) return;
+      const remaining = d.splits === null ? 0 : splitRemaining(d);
+      if (remaining !== 0) {
+        actions.notify(`Assign the remaining ${money(remaining < 0 ? neg(remaining) : remaining)} to a split line, or change the amount.`);
+        return;
+      }
       if (edit.id === NEW) {
         if (d.inflow === 0 && d.outflow === 0 && d.payeeId === null && d.payeeName.trim() === '' && d.transferAccountId === null && d.memo.trim() === '' && d.categoryId === null) {
           cancel();
@@ -173,7 +260,7 @@ export function RegisterScreen({ plan, today, accountId, actions, history }: Reg
         if (id !== NEW) setRequest((r) => ({ cell: { rowId: id, columnId: 'payee' }, edit: false, key: (r?.key ?? 0) + 1 }));
       }
     },
-    [edit, byId, plan, actions, startNew, cancel, setDraft],
+    [edit, byId, plan, actions, startNew, cancel, setDraft, money],
   );
 
   // Keys inside the row being edited: Enter saves (unless a picker's list is open or a field is
@@ -213,9 +300,9 @@ export function RegisterScreen({ plan, today, accountId, actions, history }: Reg
 
   // ---- actions on rows ---------------------------------------------------------------------------
   const targetIds = useCallback((rowId?: string): string[] => {
-    if (selected.size > 0 && (rowId === undefined || selected.has(rowId))) return [...selected];
+    if (picked.length > 0 && (rowId === undefined || picked.includes(rowId))) return picked;
     return rowId === undefined ? [] : [rowId];
-  }, [selected]);
+  }, [picked]);
   const activeRowId = (): string | undefined => {
     const el = document.activeElement;
     return el instanceof HTMLElement ? el.closest<HTMLElement>('[data-row-id]')?.dataset.rowId : undefined;
@@ -237,6 +324,48 @@ export function RegisterScreen({ plan, today, accountId, actions, history }: Reg
     },
     [actions],
   );
+  const setClearedTo = useCallback(
+    (ids: string[], to: ClearedState) => {
+      const live = ids.filter((id) => byId.get(id)?.cleared !== 'reconciled');
+      if (live.length > 0) actions.run((pl, ctx) => setCleared(pl, ctx, { transactionIds: live, cleared: to }));
+    },
+    [byId, actions],
+  );
+  const approve = useCallback(
+    (ids: string[]) => {
+      const todo = ids.filter((id) => byId.get(id)?.approved === false);
+      if (todo.length > 0) actions.run((pl, ctx) => approveTransactions(pl, ctx, { transactionIds: todo }));
+    },
+    [byId, actions],
+  );
+  const bulk = useCallback(
+    (ids: string[], patch: BulkPatch, announce?: string) => {
+      if (ids.length === 0) return;
+      actions.run((pl, ctx) => editTransactions(pl, ctx, { transactionIds: ids, patch }), announce === undefined ? {} : { announce });
+    },
+    [actions],
+  );
+  const duplicate = useCallback(
+    (ids: string[]) => {
+      if (ids.length === 0) return;
+      let created: string[] = [];
+      actions.run((pl, ctx) => {
+        const cmd = duplicateTransactions(pl, ctx, { transactionIds: ids });
+        created = cmd.transactionIds;
+        return cmd;
+      });
+      // YNAB selects the copies.
+      if (created.length > 0) setSelected(new Set(created));
+    },
+    [actions],
+  );
+  /** Where a keyboard-opened popover hangs: the focused row, else the middle of the register. */
+  const anchorFor = (rowId: string | undefined): Rect => {
+    const el = rowId === undefined ? null : document.querySelector<HTMLElement>(`[role=row][data-row-id="${CSS.escape(rowId)}"] [data-col=category]`);
+    const r = el?.getBoundingClientRect();
+    return r ? { top: r.bottom, left: r.left, width: r.width, height: 0 } : { top: window.innerHeight / 3, left: window.innerWidth / 2 - 140, width: 0, height: 0 };
+  };
+
   const remove = useCallback(
     (ids: string[]) => {
       if (ids.length === 0) return;
@@ -248,10 +377,39 @@ export function RegisterScreen({ plan, today, accountId, actions, history }: Reg
 
   // Shortcuts (YNAB's list). Shift+F waits for a digit: 1–6 a colour, 0 clears.
   const flagPending = useRef<number>(0);
+  const clickEdits = useRef<string | null>(null);
   useShortcut({ id: 'register.add', keys: 'Shift+N', description: 'Add a new transaction', group: 'Register', scope: 'screen', run: () => { startNew(); } });
   useShortcut({ id: 'register.toggleCleared', keys: 'C', description: 'Toggle cleared for the selection', group: 'Register', scope: 'screen', enabled: edit === null, run: () => { toggleCleared(targetIds(activeRowId())); } });
   useShortcut({ id: 'register.flag', keys: 'Shift+F', description: 'Flag (then 1–6 for a colour, 0 to clear)', group: 'Register', scope: 'screen', enabled: edit === null, run: () => { flagPending.current = performance.now(); } });
   useShortcut({ id: 'register.delete', keys: 'Delete', description: 'Delete', group: 'Register', scope: 'screen', enabled: edit === null, run: () => { remove(targetIds(activeRowId())); } });
+  useShortcut({ id: 'register.approve', keys: 'A', description: 'Approve', group: 'Register', scope: 'screen', enabled: edit === null, run: () => { approve(targetIds(activeRowId())); } });
+  useShortcut({ id: 'register.approveAll', keys: 'Shift+L', description: 'Approve all transactions', group: 'Register', scope: 'screen', enabled: edit === null, run: () => { approve(unapproved.map((t) => t.id)); } });
+  useShortcut({
+    id: 'register.categorize',
+    keys: 'K',
+    description: 'Categorize',
+    group: 'Register',
+    scope: 'screen',
+    enabled: edit === null,
+    run: () => {
+      const row = activeRowId();
+      const ids = targetIds(row);
+      if (ids.length > 0) setCategorizeFor({ ids, at: anchorFor(row ?? ids[0]) });
+    },
+  });
+  useShortcut({
+    id: 'register.split',
+    keys: 'S',
+    description: 'Split',
+    group: 'Register',
+    scope: 'screen',
+    enabled: edit === null,
+    run: () => {
+      const ids = targetIds(activeRowId());
+      if (ids.length === 1 && ids[0] !== undefined) startEdit(ids[0], 'payee', true);
+    },
+  });
+  useShortcut({ id: 'register.duplicate', keys: 'Shift+D', description: 'Duplicate', group: 'Register', scope: 'screen', enabled: edit === null, run: () => { duplicate(targetIds(activeRowId())); } });
   useShortcut({ id: 'register.search', keys: 'Ctrl+Shift+F', description: 'Focus the search bar', group: 'Register', scope: 'screen', allowInInputs: true, run: () => { searchRef.current?.focus(); } });
   useEffect(() => {
     const onKey = (e: globalThis.KeyboardEvent): void => {
@@ -276,9 +434,23 @@ export function RegisterScreen({ plan, today, accountId, actions, history }: Reg
   const payeeById = useMemo(() => new Map(plan.payees.map((x) => [x.id, x])), [plan.payees]);
   const isEditing = (r: GridRow<Row>): boolean => edit !== null && r.id === edit.id;
   const draftAccount = draft ? plan.accounts.find((a) => a.id === draft.accountId) : undefined;
-  const categoryDisabled = draft !== null && (draftAccount?.onBudget !== true || (draft.transferAccountId !== null && !transferNeedsCategory(plan, draft.accountId, draft.transferAccountId)) || (edit !== null && edit.id !== NEW && (byId.get(edit.id)?.subtransactions?.length ?? 0) > 0));
+  const categoryDisabled = draft !== null && (draftAccount?.onBudget !== true || (draft.transferAccountId !== null && !transferNeedsCategory(plan, draft.accountId, draft.transferAccountId)));
+  // The parent's picker ends with "Split (Multiple Categories)…" (YNAB's Split button).
+  const parentCategories = useMemo(() => [...categories.groups, { id: 'split', label: 'Split', options: [{ id: SPLIT, label: 'Split (Multiple Categories)…', keywords: ['split'] }] }], [categories.groups]);
 
   const autoFocus = (col: string): boolean => edit?.focus === col;
+  // Starting a split lands on the first line's payee. The lines mount under the row (rowExtra), after
+  // the grid has settled focus on the row, so focus them once both have rendered.
+  const splitFocus = edit?.focus.startsWith('line-1:') === true ? edit.focus : null;
+  useEffect(() => {
+    if (splitFocus === null) return;
+    const id = requestAnimationFrame(() => {
+      document.querySelector<HTMLElement>('[data-split-line="1"] [role=combobox]')?.focus();
+    });
+    return () => {
+      cancelAnimationFrame(id);
+    };
+  }, [splitFocus]);
   const editor = (col: string, node: ReactNode): ReactNode => (
     <div className={styles.field} data-row-editor="" data-field={col}>
       {node}
@@ -286,7 +458,9 @@ export function RegisterScreen({ plan, today, accountId, actions, history }: Reg
   );
 
   const columns = useMemo((): GridColumn<Row>[] => {
-    const cols: GridColumn<Row>[] = [
+    const cols: GridColumn<Row>[] = [];
+    // Show Flags off hides the column, except for the Scheduled header that draws there.
+    cols.push(
       {
         id: 'flag',
         header: 'Flag',
@@ -323,7 +497,7 @@ export function RegisterScreen({ plan, today, accountId, actions, history }: Reg
           );
         },
       },
-    ];
+    );
     if (accountId === null) {
       cols.push({
         id: 'account',
@@ -410,18 +584,27 @@ export function RegisterScreen({ plan, today, accountId, actions, history }: Reg
         width: 170,
         render: (r) => {
           if (isEditing(r) && draft) {
-            if (categoryDisabled) return editor('category', <span className={cx(styles.muted, styles.ellipsis)}>{draft.transferAccountId !== null || draftAccount?.onBudget !== true ? 'Category not needed' : 'Split (edit lines in S4.6)'}</span>);
+            if (draft.splits !== null) return editor('category', <span className={cx(styles.muted, styles.ellipsis)}><Icon name="split" className={styles.inline} />Split (Multiple Categories)…</span>);
+            if (categoryDisabled) return editor('category', <span className={cx(styles.muted, styles.ellipsis)}>Category not needed</span>);
             return editor(
               'category',
               <CategoryPicker
-                groups={categories.groups}
+                groups={draftAccount?.onBudget === true ? parentCategories : categories.groups}
                 available={categories.available}
                 format={fmt}
                 size="compact"
                 value={draft.categoryId}
                 autoFocus={autoFocus('category')}
                 onChange={(id) => {
-                  patchDraft({ categoryId: id });
+                  if (id === SPLIT) {
+                    const current = draftRef.current;
+                    if (current) {
+                      setDraft(startSplit(current));
+                      setEdit((e) => (e ? { ...e, focus: 'line-1:payee' } : e));
+                    }
+                  } else {
+                    patchDraft({ categoryId: id });
+                  }
                 }}
               />,
             );
@@ -477,7 +660,6 @@ export function RegisterScreen({ plan, today, accountId, actions, history }: Reg
                   size="compact"
                   value={draft.outflow}
                   format={fmt}
-                  disabled={edit?.id !== NEW && (byId.get(edit?.id ?? '')?.subtransactions?.length ?? 0) > 0}
                   onCommit={(v) => {
                     patchDraft(v > 0 ? { outflow: v, inflow: ZERO } : { outflow: v });
                   }}
@@ -504,7 +686,6 @@ export function RegisterScreen({ plan, today, accountId, actions, history }: Reg
                   size="compact"
                   value={draft.inflow}
                   format={fmt}
-                  disabled={edit?.id !== NEW && (byId.get(edit?.id ?? '')?.subtransactions?.length ?? 0) > 0}
                   onCommit={(v) => {
                     patchDraft(v > 0 ? { inflow: v, outflow: ZERO } : { inflow: v });
                   }}
@@ -556,19 +737,78 @@ export function RegisterScreen({ plan, today, accountId, actions, history }: Reg
         );
       },
     });
-    return cols;
+    const visible = view.showFlags || scheduledCount > 0 ? cols : cols.filter((c) => c.id !== 'flag');
+    return visible.map((c) => (isSortable(c.id) ? { ...c, sort: sort.column === c.id ? (sort.dir === 'desc' ? 'descending' : 'ascending') : 'none' } : c));
     // `isEditing`, `editor` and `autoFocus` read edit and draft, which are listed.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [plan, accountId, draft, edit, payees, categories, fmt, money, showBalance, openAccounts, payeeById, categoryDisabled, draftAccount, byId, account, targetIds, toggleCleared, patchDraft, today]);
+  }, [plan, accountId, draft, edit, payees, categories, parentCategories, fmt, money, showBalance, openAccounts, payeeById, categoryDisabled, draftAccount, byId, account, targetIds, toggleCleared, patchDraft, setDraft, today, sort, view.showFlags, scheduledCount]);
+
+  /** One split line's editors, laid on the grid's columns (YNAB: payee, category, memo, outflow, inflow). */
+  const splitLineEditor = (l: SplitLineDraft, i: number): ReactNode => {
+    if (!draft) return null;
+    const lineKey = l.key;
+    const focus = (field: string): boolean => edit?.focus === `${lineKey}:${field}` || (i === 0 && edit?.focus === `line-1:${field}`);
+    const patch = (x: Partial<Omit<SplitLineDraft, 'key' | 'id'>>): void => {
+      const current = draftRef.current;
+      if (current) setDraft(patchSplitLine(current, lineKey, x));
+    };
+    const linePayee = l.transferAccountId === null ? l.payeeId : (plan.payees.find((x) => x.transferAccountId === l.transferAccountId)?.id ?? null);
+    const noCategory = draftAccount?.onBudget !== true || (l.transferAccountId !== null && !transferNeedsCategory(plan, draft.accountId, l.transferAccountId));
+    return (
+      <div key={lineKey} className={styles.splitEditLine} data-row-editor="" data-split-line={String(i + 1)}>
+        <span className={styles.splitEditCell} />
+        {columns.map((c) => (
+          <span key={c.id} className={cx(styles.splitEditCell, (c.id === 'flag' || c.id === 'cleared') && styles.center)}>
+            {c.id === 'flag' ? (
+              <IconButton
+                icon="subtract"
+                size="small"
+                label={`Remove split line ${String(i + 1)}`}
+                onClick={() => {
+                  const current = draftRef.current;
+                  if (current) setDraft(removeSplitLine(current, lineKey));
+                }}
+              />
+            ) : null}
+            {c.id === 'payee' ? (
+              <PayeePicker
+                groups={payees}
+                size="compact"
+                value={linePayee}
+                autoFocus={focus('payee')}
+                onChange={(id) => {
+                  const payee = payeeById.get(id);
+                  if (payee?.transferAccountId !== undefined) patch({ transferAccountId: payee.transferAccountId, payeeId: null });
+                  else {
+                    const fill = l.categoryId === null && payee?.defaultCategoryId !== undefined && payee.defaultCategoryId !== null ? { categoryId: payee.defaultCategoryId } : {};
+                    patch({ payeeId: id, transferAccountId: null, ...fill });
+                  }
+                }}
+              />
+            ) : null}
+            {c.id === 'category' ? (
+              noCategory ? (
+                <span className={cx(styles.muted, styles.ellipsis)}>Category not needed</span>
+              ) : (
+                <CategoryPicker groups={categories.groups} available={categories.available} format={fmt} size="compact" value={l.categoryId} autoFocus={focus('category')} onChange={(id) => { patch({ categoryId: id }); }} />
+              )
+            ) : null}
+            {c.id === 'memo' ? <TextInput label={`Memo, split line ${String(i + 1)}`} hideLabel size="compact" placeholder="Memo" value={l.memo} onChange={(e) => { patch({ memo: e.target.value }); }} /> : null}
+            {c.id === 'outflow' ? <MoneyInput label={`Outflow, split line ${String(i + 1)}`} hideLabel variant="field" size="compact" value={l.outflow} format={fmt} onCommit={(v) => { patch(v > 0 ? { outflow: v, inflow: ZERO } : { outflow: v }); }} onEnter={() => undefined} /> : null}
+            {c.id === 'inflow' ? <MoneyInput label={`Inflow, split line ${String(i + 1)}`} hideLabel variant="field" size="compact" value={l.inflow} format={fmt} onCommit={(v) => { patch(v > 0 ? { inflow: v, outflow: ZERO } : { inflow: v }); }} onEnter={() => undefined} /> : null}
+          </span>
+        ))}
+      </div>
+    );
+  };
 
   // Under a row: the edit strip, or a split's lines aligned to the columns.
   const rowExtra = useCallback(
     (r: GridRow<Row>): { height: number; content: ReactNode } | undefined => {
       if (edit !== null && r.id === edit.id) {
-        return {
-          height: STRIP_HEIGHT,
-          content: (
-            <div className={styles.strip} data-row-editor="">
+        const lines = draft?.splits ?? null;
+        const strip = (
+          <div className={styles.strip} data-row-editor="">
               <span className={styles.hint}>Enter saves · Esc cancels · Ctrl+Enter saves and adds another</span>
               <Button size="small" onClick={cancel}>
                 Cancel
@@ -581,6 +821,31 @@ export function RegisterScreen({ plan, today, accountId, actions, history }: Reg
               <Button size="small" variant="primary" onClick={() => { save(false); }}>
                 Save
               </Button>
+          </div>
+        );
+        if (lines === null || !draft) return { height: STRIP_HEIGHT, content: strip };
+        const remaining = splitRemaining(draft);
+        return {
+          height: (lines.length + 1) * EDIT_LINE_HEIGHT + STRIP_HEIGHT,
+          content: (
+            <div className={styles.splitEditor}>
+              {lines.map((l, i) => splitLineEditor(l, i))}
+              <div className={styles.splitEditLine} data-row-editor="">
+                <span className={styles.splitEditCell} />
+                {columns.map((c) => (
+                  <span key={c.id} className={cx(styles.splitEditCell, (c.id === 'outflow' || c.id === 'inflow') && styles.end)}>
+                    {c.id === 'payee' ? (
+                      <Button size="small" variant="toolbar" icon="add" onClick={() => { setDraft(addSplitLine(draft)); }}>
+                        Add another split
+                      </Button>
+                    ) : null}
+                    {c.id === 'memo' ? <span className={styles.remainingLabel}>Amount remaining to assign:</span> : null}
+                    {c.id === 'outflow' ? <span className={cx(styles.remaining, remaining < 0 && styles.negative)} data-part="split-remaining-outflow">{money(remaining < 0 ? neg(remaining) : ZERO)}</span> : null}
+                    {c.id === 'inflow' ? <span className={styles.remaining} data-part="split-remaining-inflow">{money(remaining > 0 ? remaining : ZERO)}</span> : null}
+                  </span>
+                ))}
+              </div>
+              <div style={{ height: STRIP_HEIGHT }}>{strip}</div>
             </div>
           ),
         };
@@ -611,7 +876,9 @@ export function RegisterScreen({ plan, today, accountId, actions, history }: Reg
       }
       return undefined;
     },
-    [edit, cancel, save, columns, money],
+    // splitLineEditor reads draft and columns, which are listed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [edit, draft, cancel, save, columns, money, setDraft],
   );
 
   // ---- header ------------------------------------------------------------------------------------
@@ -620,7 +887,9 @@ export function RegisterScreen({ plan, today, accountId, actions, history }: Reg
   const daysSince = account?.lastReconciledAt === undefined ? null : Math.max(0, Math.round((Date.parse(today) - Date.parse(account.lastReconciledAt.slice(0, 10))) / 86_400_000));
   const overdrawn = account !== undefined && CASH_ACCOUNT_TYPES.includes(account.type) && total('working') < 0;
 
-  const viewItems: MenuItem[] = [{ id: 'balance', label: 'Show running balance', checked: p.showRunningBalance, disabled: accountId === null }];
+  const applyView = (v: RegisterViewPref): void => {
+    prefs.update({ registerViews: { ...prefs.get().registerViews, [viewKey]: v } });
+  };
 
   return (
     <div className={styles.screen}>
@@ -679,6 +948,12 @@ export function RegisterScreen({ plan, today, accountId, actions, history }: Reg
             <span>Working Balance</span>
           </div>
         </div>
+        {picked.length > 1 && (
+          <div className={styles.selectedTotal} aria-live="polite">
+            <strong>{money(selectedTotal(txRows, new Set(picked)))}</strong>
+            <span>Selected Total ({picked.length})</span>
+          </div>
+        )}
         {account && (
           <div className={styles.headActions}>
             {actions.accountAction && <IconButton icon="edit" label={`Edit ${account.name}`} onClick={() => { actions.accountAction?.(account.id, 'edit'); }} />}
@@ -703,19 +978,9 @@ export function RegisterScreen({ plan, today, accountId, actions, history }: Reg
           Redo
         </Button>
         <span className={styles.spacer} />
-        <MenuButton
-          label="View"
-          items={viewItems}
-          placement="bottom-end"
-          onSelect={(id) => {
-            if (id === 'balance') prefs.update({ showRunningBalance: !p.showRunningBalance });
-          }}
-          trigger={(t) => (
-            <Button {...t} variant="toolbar" iconEnd="chevronDown">
-              View
-            </Button>
-          )}
-        />
+        <Button ref={viewButton} variant="toolbar" iconEnd="chevronDown" aria-haspopup="dialog" aria-expanded={viewOpen} onClick={() => { setViewOpen(!viewOpen); }}>
+          View
+        </Button>
         <TextInput
           ref={searchRef}
           label="Search transactions"
@@ -724,12 +989,27 @@ export function RegisterScreen({ plan, today, accountId, actions, history }: Reg
           prefix="search"
           placeholder={account ? `Search ${account.name}` : 'Search all accounts'}
           className={cx(styles.search)}
-          value={query}
+          value={searchText}
+          aria-invalid={search.error !== null ? true : undefined}
+          title="Search: Payee:, Category:, Memo:, Account:, Outflow: >=30, Before:, After:, On:, Flag:, is:unapproved…"
           onChange={(e) => {
-            setQuery(e.target.value);
+            setSearchText(e.target.value);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape' && searchText !== '') {
+              e.preventDefault();
+              setSearchText('');
+            }
           }}
         />
       </div>
+      {search.error !== null && (
+        <p className={styles.searchError} role="status">
+          <Icon name="warning" className={styles.inline} />
+          {search.error}
+        </p>
+      )}
+      {viewOpen && <ViewOptions anchor={viewButton} view={view} firstMonth={firstMonth} today={today} singleAccount={accountId !== null} onApply={applyView} onClose={() => { setViewOpen(false); }} />}
 
       {unapproved.length > 0 && (
         <div className={styles.banner}>
@@ -759,8 +1039,32 @@ export function RegisterScreen({ plan, today, accountId, actions, history }: Reg
           </Notice>
         </div>
       )}
+      {counts.uncategorized > 0 && (
+        <div className={styles.banner}>
+          <Notice
+            actions={
+              <Button size="small" aria-pressed={onlyUncategorized} onClick={() => { setOnlyUncategorized(!onlyUncategorized); }}>
+                {onlyUncategorized ? 'Show all' : 'View'}
+              </Button>
+            }
+          >
+            <strong>
+              {counts.uncategorized} {counts.uncategorized === 1 ? 'transaction needs' : 'transactions need'} a category.
+            </strong>{' '}
+            Until then their money isn’t in any category.
+          </Notice>
+        </div>
+      )}
 
-      <div className={styles.gridWrap} onKeyDown={(e) => { onEditKeyDown(e); onGridKeyDown(e); }}>
+      {searching && (
+        <p className={styles.searchNote}>
+          Some transactions are hidden by your search for “<strong>{searchText.trim()}</strong>”.
+          <Button size="small" variant="toolbar" onClick={() => { setSearchText(''); }}>
+            View All
+          </Button>
+        </p>
+      )}
+      <div className={styles.gridWrap} onKeyDown={(e) => { onEditKeyDown(e); onGridKeyDown(e); }} onPointerDownCapture={onRowPointerDown} onClick={onRowClick}>
         <DataGrid<Row>
           label={account ? `${account.name} transactions` : 'All transactions'}
           rows={rows}
@@ -772,15 +1076,22 @@ export function RegisterScreen({ plan, today, accountId, actions, history }: Reg
           rowExtra={rowExtra}
           enterMoves="none"
           onSaveAndAddAnother={() => { startNew(); }}
-          onRowContextMenu={(rowId, point) => {
-            if (rowId === SCHEDULED || rowId === NEW) return;
-            setFlagMenu(null);
-            setRowMenu({ ids: targetIds(rowId), at: { top: point.y, left: point.x, width: 0, height: 0 } });
+          onSort={(id) => {
+            if (isSortable(id)) setSort(nextSort(sort, id));
           }}
-          empty={query.trim() !== '' ? `No transactions match “${query.trim()}”.` : 'No transactions yet. Add one, or import a bank file.'}
+          onRowContextMenu={(rowId, point) => {
+            if (rowId === SCHEDULED || rowId === NEW || edit !== null) return;
+            setFlagMenu(null);
+            // Right-click on a row outside the selection selects just that row (YNAB).
+            const ids = picked.includes(rowId) ? picked : [rowId];
+            if (!picked.includes(rowId)) setSelected(new Set([rowId]));
+            setRowMenu({ ids, at: { top: point.y, left: point.x, width: 0, height: 0 } });
+          }}
+          empty={searching ? `No transactions match “${searchText.trim()}”.` : onlyUncategorized ? 'Every transaction has a category.' : range !== null ? 'No transactions in these dates. View Options can show more.' : 'No transactions yet. Add one, or import a bank file.'}
           {...(request ? { request } : {})}
         />
       </div>
+      {picked.length > 0 && edit === null && actionBar()}
 
       {flagMenu && (
         <Popover open onClose={() => { setFlagMenu(null); }} anchor={flagMenu.at} role="presentation">
@@ -806,6 +1117,48 @@ export function RegisterScreen({ plan, today, accountId, actions, history }: Reg
         </Popover>
       )}
       {rowMenuNode()}
+      {moreMenuNode()}
+      {categorizeFor && (
+        <Popover open onClose={() => { setCategorizeFor(null); }} anchor={categorizeFor.at} role="dialog" label="Categorize" className={styles.categorize}>
+          <CategoryPicker
+            groups={categories.groups}
+            available={categories.available}
+            format={fmt}
+            size="medium"
+            value={null}
+            autoFocus
+            initialQuery=""
+            onChange={(id) => {
+              const ids = categorizeFor.ids;
+              setCategorizeFor(null);
+              bulk(ids, { categoryId: id });
+            }}
+          />
+        </Popover>
+      )}
+      {moveFor && (
+        <Popover open onClose={() => { setMoveFor(null); }} anchor={moveFor.at} role="presentation">
+          <MenuList
+            label="Move to Account"
+            items={openAccounts.map((a) => ({ id: a.id, label: a.name, icon: 'accounts' as const }))}
+            onClose={() => { setMoveFor(null); }}
+            onSelect={(id) => {
+              const target = openAccounts.find((a) => a.id === id);
+              bulk(moveFor.ids, { accountId: id }, `Moved ${plural(moveFor.ids.length).toLowerCase()} to ${target?.name ?? 'the account'}.`);
+            }}
+          />
+        </Popover>
+      )}
+      {memoFor && (
+        <MemoDialog
+          count={memoFor.length}
+          initial={memoFor.length === 1 ? (byId.get(memoFor[0] ?? '')?.memo ?? '') : ''}
+          onClose={() => { setMemoFor(null); }}
+          onSave={(memo) => {
+            bulk(memoFor, { memo: memo.trim() === '' ? null : memo.trim() });
+          }}
+        />
+      )}
       {renamingFlags && (
         <FlagNamesDialog
           plan={plan}
@@ -830,34 +1183,150 @@ export function RegisterScreen({ plan, today, accountId, actions, history }: Reg
     </div>
   );
 
+  // ---- selection: action bar, right-click menu, More --------------------------------------------
+  function bulkItems(ids: string[], where: 'menu' | 'more'): MenuItem[] {
+    const rows = ids.map((id) => byId.get(id)).filter((t) => t !== undefined);
+    const anyUnapproved = rows.some((t) => t.approved === false);
+    const n = ids.length;
+    const items: MenuItem[] = [];
+    if (where === 'menu') {
+      items.push(
+        { id: 'approve', label: 'Approve', icon: 'checkmark', shortcut: 'A', disabled: !anyUnapproved },
+        { id: 'reject', label: 'Reject', icon: 'dismiss', shortcut: 'Shift+R', disabled: true },
+        { id: 'sep1', label: '', separator: true },
+        { id: 'markCleared', label: 'Mark as Cleared', icon: 'cleared', shortcut: 'C', disabled: !rows.some((t) => t.cleared === 'uncleared') },
+        { id: 'markUncleared', label: 'Mark as Uncleared', icon: 'uncleared', shortcut: 'C', disabled: !rows.some((t) => t.cleared === 'cleared') },
+        { id: 'sep2', label: '', separator: true },
+      );
+    }
+    items.push(
+      { id: 'match', label: 'Match', icon: 'link', shortcut: 'M', disabled: true },
+      { id: 'unmatch', label: 'Unmatch', icon: 'link', shortcut: 'Shift+U', disabled: true },
+      { id: 'sep3', label: '', separator: true },
+      { id: 'duplicate', label: 'Duplicate', icon: 'copy', shortcut: 'Shift+D' },
+    );
+    if (where === 'menu') items.push({ id: 'repeat', label: 'Make Repeating', icon: 'history', shortcut: 'Shift+T', disabled: true }, { id: 'sep4', label: '', separator: true }, { id: 'flag', label: 'Flag…', icon: 'flag', shortcut: 'Shift+F' });
+    else items.push({ id: 'sep4', label: '', separator: true });
+    items.push({ id: 'memo', label: 'Memo…', icon: 'note' });
+    if (where === 'menu') items.push({ id: 'categorize', label: 'Categorize…', icon: 'tag', shortcut: 'K' });
+    items.push(
+      { id: 'move', label: 'Move to Account…', icon: 'transfer' },
+      { id: 'sep5', label: '', separator: true },
+      { id: 'export', label: `Export ${plural(n)}`, icon: 'export', disabled: true },
+      { id: 'sep6', label: '', separator: true },
+      { id: 'delete', label: 'Delete', icon: 'dismiss', danger: true, shortcut: 'Del' },
+    );
+    return items;
+  }
+
+  function onBulk(id: string, ids: string[], at: Rect): void {
+    if (id === 'approve') approve(ids);
+    else if (id === 'markCleared') setClearedTo(ids, 'cleared');
+    else if (id === 'markUncleared') setClearedTo(ids, 'uncleared');
+    else if (id === 'duplicate') duplicate(ids);
+    else if (id === 'flag') setFlagMenu({ ids, at });
+    else if (id === 'memo') setMemoFor(ids);
+    else if (id === 'categorize') setCategorizeFor({ ids, at });
+    else if (id === 'move') setMoveFor({ ids, at });
+    else if (id === 'delete') remove(ids);
+  }
+
   function rowMenuNode(): ReactNode {
     if (!rowMenu) return null;
     const ids = rowMenu.ids;
-    const one = ids.length === 1 ? byId.get(ids[0] ?? '') : undefined;
     return (
       <Popover open onClose={() => { setRowMenu(null); }} anchor={rowMenu.at} role="presentation">
         <MenuList
           label="Transaction"
-          items={[
-            ...(one ? [{ id: 'edit', label: 'Edit', icon: 'edit' as const, shortcut: 'Enter' }] : []),
-            { id: 'cleared', label: 'Toggle cleared', icon: 'cleared', shortcut: 'C' },
-            { id: 'flag', label: 'Flag…', icon: 'flag', shortcut: 'Shift+F' },
-            ...(ids.some((id) => byId.get(id)?.approved === false) ? [{ id: 'approve', label: 'Approve', icon: 'checkmark' as const }] : []),
-            { id: 'sep', label: '', separator: true },
-            { id: 'delete', label: ids.length === 1 ? 'Delete' : `Delete ${String(ids.length)} transactions`, icon: 'dismiss', danger: true, shortcut: 'Del' },
-          ]}
+          items={bulkItems(ids, 'menu')}
           onClose={() => { setRowMenu(null); }}
-          onSelect={(id) => {
-            if (id === 'edit' && one) startEdit(one.id);
-            else if (id === 'cleared') toggleCleared(ids);
-            else if (id === 'flag') setFlagMenu({ ids, at: rowMenu.at });
-            else if (id === 'approve') actions.run((pl, ctx) => approveTransactions(pl, ctx, { transactionIds: ids }));
-            else if (id === 'delete') remove(ids);
-          }}
+          onSelect={(id) => { onBulk(id, ids, rowMenu.at); }}
         />
       </Popover>
     );
   }
+
+  function moreMenuNode(): ReactNode {
+    if (!moreFor) return null;
+    const ids = moreFor.ids;
+    return (
+      <Popover open onClose={() => { setMoreFor(null); }} anchor={moreFor.at} placement="top-end" role="presentation">
+        <MenuList label="More" items={bulkItems(ids, 'more')} onClose={() => { setMoreFor(null); }} onSelect={(id) => { onBulk(id, ids, moreFor.at); }} />
+      </Popover>
+    );
+  }
+
+  function actionBar(): ReactNode {
+    const ids = picked;
+    const rows = ids.map((id) => byId.get(id)).filter((t) => t !== undefined);
+    const at = (e: { currentTarget: HTMLElement }): Rect => {
+      const r = e.currentTarget.getBoundingClientRect();
+      return { top: r.top, left: r.left, width: r.width, height: r.height };
+    };
+    return (
+      <ActionBar label={plural(ids.length)} onClear={() => { setSelected(new Set()); }}>
+        {rows.some((t) => t.approved === false) && <ActionBarButton icon="checkmark" label="Approve" title="Approve (A)" onClick={() => { approve(ids); }} />}
+        <ActionBarButton icon="tag" label="Categorize" title="Categorize (K)" aria-haspopup="dialog" onClick={(e) => { setCategorizeFor({ ids, at: { ...at(e), top: at(e).top - 8 } }); }} />
+        <ActionBarButton icon="flag" label="Flag" title="Flag (Shift+F)" aria-haspopup="menu" onClick={(e) => { setFlagMenu({ ids, at: at(e) }); }} />
+        {rows.some((t) => t.cleared === 'uncleared') && <ActionBarButton icon="cleared" label="Clear" title="Mark as cleared (C)" onClick={() => { setClearedTo(ids, 'cleared'); }} />}
+        <ActionBarRule />
+        <ActionBarButton icon="more" label="More" aria-haspopup="menu" onClick={(e) => { setMoreFor({ ids, at: at(e) }); }} />
+      </ActionBar>
+    );
+  }
+
+  // A click on the only selected row edits it (YNAB); the first click just selects.
+  function onRowPointerDown(e: React.PointerEvent<HTMLDivElement>): void {
+    const row = e.target instanceof Element ? e.target.closest<HTMLElement>('[role=row][data-row-id]') : null;
+    const id = row?.dataset.rowId;
+    clickEdits.current = id !== undefined && edit === null && selected.size === 1 && selected.has(id) && !e.shiftKey && !e.ctrlKey && !e.metaKey && e.button === 0 ? id : null;
+  }
+  function onRowClick(e: React.MouseEvent<HTMLDivElement>): void {
+    const id = clickEdits.current;
+    clickEdits.current = null;
+    if (id === null || !(e.target instanceof Element) || e.target.closest('input, button, [role=combobox], [data-interactive], [data-select]')) return;
+    const col = e.target.closest<HTMLElement>('[data-col]')?.dataset.col;
+    if (id !== SCHEDULED && id !== NEW) startEdit(id, col === undefined || col === '__select__' || col === 'flag' || col === 'cleared' ? 'payee' : col);
+  }
+}
+
+function MemoDialog({ count, initial, onClose, onSave }: { count: number; initial: string; onClose: () => void; onSave: (memo: string) => void }) {
+  const [memo, setMemo] = useState(initial);
+  const save = (): void => {
+    onClose();
+    onSave(memo);
+  };
+  return (
+    <Dialog
+      open
+      onClose={onClose}
+      title="Memo"
+      description={count === 1 ? 'The memo for this transaction.' : `One memo for all ${String(count)} transactions; it replaces theirs.`}
+      footer={
+        <>
+          <Button onClick={onClose}>Cancel</Button>
+          <Button variant="primary" onClick={save}>
+            Save
+          </Button>
+        </>
+      }
+    >
+      <TextInput
+        label="Memo"
+        autoFocus
+        value={memo}
+        onChange={(e) => {
+          setMemo(e.target.value);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            save();
+          }
+        }}
+      />
+    </Dialog>
+  );
 }
 
 function FlagNamesDialog({ plan, onClose, onSave }: { plan: PlanData; onClose: () => void; onSave: (names: Record<FlagColor, string>) => void }) {

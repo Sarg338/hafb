@@ -112,15 +112,15 @@ A row is `done` only after Sarg validates it on hardware. Rows whose engine half
 | R-07 | Memo; date picker with YNAB keys (+/−, T, M, Shift+M, Y, Shift+Y) | — | S4.5 | done |
 | R-08 | Amount math in outflow/inflow (+ − × ÷) | S1.1 | S3.2 | done |
 | R-09 | Optional running balance column | S1.6 | S4.5 | done |
-| R-10 | Split transactions (S) with amount remaining, add another split, transfer in split | S1.6 | S4.6 | in-progress |
-| R-11 | Multi-select with checkboxes; floating action bar; right-click menu | — | S4.6 | todo |
-| R-12 | Bulk categorize (K), memo, flag, date, payee, move account, delete | S1.6 | S4.6 | in-progress |
-| R-13 | Duplicate transaction (Shift+D) | — | S4.6 | todo |
-| R-14 | Search with criteria syntax (`Category:`, `Payee:`, `Memo:`, `Outflow: >=`, Before/After/On, flag, Split, Matched, Approved, `is:`), Ctrl+Shift+F | S1.6 | S4.6 | in-progress |
-| R-15 | Column sort | — | S4.6 | todo |
-| R-16 | View options: date presets (incl. Last Month), show/hide reconciled | — | S4.6 | todo |
-| R-17 | All Accounts register | — | S4.6 | todo |
-| R-18 | Banners: "N new transactions to approve or categorize", uncategorized filter | S1.6 | S4.6 | in-progress |
+| R-10 | Split transactions (S) with amount remaining, add another split, transfer in split | S1.6 | S4.6 | done |
+| R-11 | Multi-select with checkboxes; floating action bar; right-click menu | — | S4.6 | done |
+| R-12 | Bulk Categorize (K), Memo…, Flag, Clear, Approve, Move to Account, Duplicate, Delete (YNAB has no bulk date or payee edit; verified in the trial 2026-10-08) | S1.6 | S4.6 | done |
+| R-13 | Duplicate transaction (Shift+D) | — | S4.6 | done |
+| R-14 | Search with criteria syntax (`Category:`, `Payee:`, `Memo:`, `Outflow: >=`, Before/After/On, flag, Split, Matched, Approved, `is:`), Ctrl+Shift+F | S1.6 | S4.6 | done (live suggestions while typing: S7.4) |
+| R-15 | Column sort | — | S4.6 | done |
+| R-16 | View options: date presets (incl. Last Month), show/hide reconciled | — | S4.6 | done |
+| R-17 | All Accounts register | — | S4.6 | done |
+| R-18 | Banners: "N new transactions to approve or categorize", uncategorized filter | S1.6 | S4.6 | done |
 | R-19 | Approve (A) / reject (Shift+R) / unapproved state | S1.6 | S6.5 | in-progress |
 | R-20 | Match (M) / unmatch (Shift+U) | S1.6 | S6.5 | in-progress |
 | R-21 | Photo attachments (thumbnail, viewer) stored in the .hafb | — | S7.6 | todo |

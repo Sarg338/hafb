@@ -2,8 +2,22 @@
 // They live in the webview's localStorage, not in the plan file (they describe this PC, not the
 // budget). Every access is guarded: blocked or broken storage falls back to memory, never throws.
 import { useSyncExternalStore } from 'react';
+import { isMonth, type Month } from '@hafb/shared';
 
 export type ThemePref = 'system' | 'light' | 'dark' | 'high-contrast';
+
+/** A register's View Options (YNAB keeps them per register). */
+export interface RegisterViewPref {
+  /** A date preset id, or 'custom' for the From/To months. */
+  preset: string;
+  from?: Month;
+  to?: Month;
+  showReconciled: boolean;
+  showFlags: boolean;
+  runningBalance: boolean;
+}
+
+export const DEFAULT_REGISTER_VIEW: RegisterViewPref = { preset: 'all', showReconciled: true, showFlags: true, runningBalance: false };
 
 export interface Prefs {
   version: 1;
@@ -22,8 +36,8 @@ export interface Prefs {
   showProgressBars: boolean;
   /** Hide Amounts: money is masked everywhere until turned off. */
   hideAmounts: boolean;
-  /** Register View → Show running balance (single-account registers). */
-  showRunningBalance: boolean;
+  /** View Options per register: account id, or 'all' for All Accounts. */
+  registerViews: Record<string, RegisterViewPref>;
   /** Collapsed category groups per plan file path (absent = only Hidden Categories collapsed). */
   collapsedGroups: Record<string, string[]>;
   /** Last route per plan file path, to reopen where the user left off. */
@@ -46,7 +60,7 @@ export const DEFAULT_PREFS: Prefs = {
   shortcutsOn: true,
   showProgressBars: true,
   hideAmounts: false,
-  showRunningBalance: false,
+  registerViews: {},
   collapsedGroups: {},
   lastRoute: {},
 };
@@ -72,6 +86,20 @@ export function parsePrefs(text: string | null): Prefs {
   if (isRecord(raw.lastRoute)) for (const [k, v] of Object.entries(raw.lastRoute)) if (typeof v === 'string') lastRoute[k] = v;
   const collapsedGroups: Record<string, string[]> = {};
   if (isRecord(raw.collapsedGroups)) for (const [k, v] of Object.entries(raw.collapsedGroups)) if (Array.isArray(v)) collapsedGroups[k] = strings(v);
+  const registerViews: Record<string, RegisterViewPref> = {};
+  if (isRecord(raw.registerViews)) {
+    for (const [k, v] of Object.entries(raw.registerViews)) {
+      if (!isRecord(v)) continue;
+      registerViews[k] = {
+        preset: typeof v.preset === 'string' ? v.preset : DEFAULT_REGISTER_VIEW.preset,
+        ...(typeof v.from === 'string' && isMonth(v.from) ? { from: v.from } : {}),
+        ...(typeof v.to === 'string' && isMonth(v.to) ? { to: v.to } : {}),
+        showReconciled: v.showReconciled !== false,
+        showFlags: v.showFlags !== false,
+        runningBalance: v.runningBalance === true,
+      };
+    }
+  }
   return {
     version: 1,
     theme,
@@ -83,7 +111,7 @@ export function parsePrefs(text: string | null): Prefs {
     shortcutsOn: raw.shortcutsOn !== false,
     showProgressBars: raw.showProgressBars !== false,
     hideAmounts: raw.hideAmounts === true,
-    showRunningBalance: raw.showRunningBalance === true,
+    registerViews,
     collapsedGroups,
     lastRoute,
   };

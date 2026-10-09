@@ -59,6 +59,11 @@ describe('parsePrefs', () => {
     expect(p.hideAmounts).toBe(true);
     expect(p.collapsedGroups).toEqual({ 'C:\\a.hafb': ['g1'] });
   });
+
+  it('reads View Options per register, dropping bad months', () => {
+    const p = parsePrefs(JSON.stringify({ version: 1, registerViews: { acc1: { preset: 'custom', from: '2026-01', to: 'nope', showReconciled: false, runningBalance: true }, bad: 3 } }));
+    expect(p.registerViews).toEqual({ acc1: { preset: 'custom', from: '2026-01', showReconciled: false, showFlags: true, runningBalance: true } });
+  });
 });
 
 describe('prefs store', () => {

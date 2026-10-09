@@ -226,6 +226,35 @@ The 2026-10-08 research (YNAB What's New and help center) found that CLAUDE.md w
   - View menu: Show running balance (engine `runningBalances`: oldest first, entry order within a day).
   - Bug found by the smoke test: money and date fields selected their text a frame after focus. A fast keystroke was overwritten, and tabbing on quickly pulled focus back to the previous field. Both fields now skip the late select once the user types or focus moves on.
   - Exit check: a smoke test in the release app enters a month of transactions with the keyboard only, adds a transfer, edits, clears, flags, deletes and undoes; balances tie out and survive a relaunch.
+- **S4.6 done (2026-10-08).** Checked against YNAB in the trial plan (only selections and menus; one duplicate made and deleted).
+  - Selection:
+    - Checkboxes, Shift/Ctrl-click; the header shows **Selected Total (n)**.
+    - A floating bar: "n Transactions", Categorize, Flag, Clear (only when something is uncleared), Approve (when something is unapproved), More.
+    - More: Match, Unmatch, Duplicate, Memo…, Move to Account, Export, Delete.
+    - Right-click selects just that row unless it is already selected. Its menu follows YNAB: Approve, Reject, Mark as Cleared/Uncleared, Match, Unmatch, Duplicate, Make Repeating, Flag, Memo…, Categorize, Move to Account, Export, Delete. Items for later sprints show disabled.
+    - A click on the only selected row edits it (YNAB).
+  - Store:
+    - `editTransactions`: one command for many rows. A field skips rows it does not apply to.
+    - `duplicateTransactions`: the copy keeps date, amount, payee, category, memo, flag and cleared state. A reconciled row's copy is cleared; a starting balance copies with no payee. Verified in YNAB.
+    - Bulk categorize of 1,000 rows on a 20,000-row plan is well under 200 ms (store test).
+  - Splits:
+    - S, or "Split (Multiple Categories)…" at the end of the category picker, starts two empty lines.
+    - Each line has payee or transfer, category, memo, outflow and inflow, plus a remove button.
+    - "Add another split" and "Amount remaining to assign" sit under the amount columns. Saving needs the remainder at $0.00.
+  - Shortcuts: A, Shift+L (approve all), K (categorize), S (split), Shift+D (duplicate).
+  - Search:
+    - YNAB's criteria syntax through the engine parser. A bad criterion shows its error instead of an empty list.
+    - A search shows only the split lines it matched and hides the Scheduled section.
+    - The "Some transactions are hidden by your search" note with View All sits above the grid, so the floating bar never covers it.
+  - Sort: a header click sorts descending first; the sorted column flips (YNAB).
+  - View Options (per register, kept in prefs): This Month, Last Month, Latest 3 Months, This Year, Last Year, All Dates, From/To months, Show Reconciled Transactions, Show Flags, Show Running Balance (single account).
+    - Assumption: YNAB's default for Show Reconciled could not be confirmed, so HAFB shows reconciled rows by default.
+  - Banners: unapproved (Review / Approve all) and "n transactions need a category" (View filters to them).
+  - Bugs found and fixed:
+    - The grid ignored clicks on its own row checkboxes (a regression from the S4.5 change that lets controls in cells keep their clicks).
+    - Only a sort header's words were clickable; the whole header cell now sorts.
+    - Starting a split by keyboard could leave focus on the parent row in the release build.
+  - Exit check: smoke tests in the release app cover bulk categorize with one undo, duplicate selecting the copies, a keyboard split that survives a relaunch, the search syntax table, header sort and the Last Month preset.
 
 ## Phase 5: Planning power → **M2**
 

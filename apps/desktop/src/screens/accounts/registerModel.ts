@@ -5,9 +5,24 @@
 // - A transfer between two budget accounts needs no category; a card payment's category column
 //   shows the card's payment category.
 // - Starting balances on cards and off-budget accounts read "Category not needed".
-import { CREDIT_ACCOUNT_TYPES, READY_TO_ASSIGN, runningBalances, type CategoryRef, type ClearedState, type FlagColor, type Id } from '@hafb/engine';
-import { minor, neg, ZERO, type ISODate, type Minor } from '@hafb/shared';
-import type { AccountRecord, PlanData, SubtransactionRecord, TransactionInput, TransactionPatch, TransactionRecord } from '@hafb/store';
+import {
+  CREDIT_ACCOUNT_TYPES,
+  matchesSearch,
+  parseSearch,
+  READY_TO_ASSIGN,
+  runningBalances,
+  ValidationError,
+  type CategoryRef,
+  type ClearedState,
+  type DateOrder,
+  type FlagColor,
+  type Id,
+  type SearchableTransaction,
+  type SearchContext,
+  type SearchQuery,
+} from '@hafb/engine';
+import { addMonths, minor, monthOf, neg, ZERO, type ISODate, type Minor, type Month } from '@hafb/shared';
+import type { AccountRecord, PlanData, SplitLineInput, SubtransactionRecord, TransactionInput, TransactionPatch, TransactionRecord } from '@hafb/store';
 
 export interface CategoryLabel {
   text: string;
@@ -101,15 +116,108 @@ function splitLines(subs: readonly SubtransactionRecord[] | undefined, account: 
   }));
 }
 
+// ---- search, view options, sort (S4.6) ---------------------------------------------------------------
+
+/** The plan's date format as a field order ('MM/DD/YYYY' → 'MDY'), for Before/After/On. */
+export function dateOrderOf(format: string): DateOrder {
+  const letters = [...format.toUpperCase().matchAll(/Y+|M+|D+/g)].map((m) => m[0].charAt(0)).join('');
+  return letters === 'DMY' || letters === 'YMD' ? letters : 'MDY';
+}
+
+export interface ParsedSearch {
+  query: SearchQuery | null;
+  /** Why the text is not a valid search (an unknown key, a bad amount or date…). */
+  error: string | null;
+}
+
+/** YNAB's criteria search (`Category: Dining Out, Outflow: >=30`, `is:` keywords…; roadmap D9). */
+export function parseRegisterSearch(plan: PlanData, text: string): ParsedSearch {
+  if (text.trim() === '') return { query: null, error: null };
+  const flagNames: Partial<Record<FlagColor, string>> = {};
+  for (const f of plan.flagNames) flagNames[f.color] = f.name;
+  try {
+    return { query: parseSearch(text, { decimals: plan.settings.currencyDecimals, dateOrder: dateOrderOf(plan.settings.dateFormat), flagNames }), error: null };
+  } catch (e) {
+    if (e instanceof ValidationError) return { query: null, error: e.message };
+    throw e;
+  }
+}
+
+/** YNAB's View Options presets. */
+export type DatePreset = 'thisMonth' | 'lastMonth' | 'latest3' | 'thisYear' | 'lastYear' | 'all';
+export const DATE_PRESETS: readonly { id: DatePreset; label: string }[] = [
+  { id: 'thisMonth', label: 'This Month' },
+  { id: 'lastMonth', label: 'Last Month' },
+  { id: 'latest3', label: 'Latest 3 Months' },
+  { id: 'thisYear', label: 'This Year' },
+  { id: 'lastYear', label: 'Last Year' },
+  { id: 'all', label: 'All Dates' },
+];
+
+export interface MonthRange {
+  from: Month;
+  to: Month;
+}
+
+/** The months a preset shows (null = all dates). */
+export function presetRange(preset: DatePreset, today: ISODate): MonthRange | null {
+  const m = monthOf(today);
+  const january = addMonths(m, 1 - Number(m.slice(5, 7)));
+  switch (preset) {
+    case 'thisMonth':
+      return { from: m, to: m };
+    case 'lastMonth':
+      return { from: addMonths(m, -1), to: addMonths(m, -1) };
+    case 'latest3':
+      return { from: addMonths(m, -2), to: m };
+    case 'thisYear':
+      return { from: january, to: addMonths(january, 11) };
+    case 'lastYear':
+      return { from: addMonths(january, -12), to: addMonths(january, -1) };
+    case 'all':
+      return null;
+  }
+}
+
+export type SortColumn = 'account' | 'date' | 'payee' | 'category' | 'memo' | 'outflow' | 'inflow';
+export interface RegisterSort {
+  column: SortColumn;
+  dir: 'asc' | 'desc';
+}
+export const DEFAULT_SORT: RegisterSort = { column: 'date', dir: 'desc' };
+
+/** A header click: the sorted column flips; another column starts descending (YNAB trial). */
+export function nextSort(current: RegisterSort, column: SortColumn): RegisterSort {
+  return current.column === column ? { column, dir: current.dir === 'desc' ? 'asc' : 'desc' } : { column, dir: 'desc' };
+}
+
 export interface RegisterOptions {
   /** One account, or null for All Accounts. */
   accountId: Id | null;
-  /** Plain text filter (S4.6 adds YNAB's criteria search). */
-  query?: string;
+  /** A parsed criteria search (`parseRegisterSearch`). */
+  search?: SearchQuery | null;
   onlyUnapproved?: boolean;
+  /** Only rows that need a category (the banner's View). */
+  onlyUncategorized?: boolean;
+  /** View Options date range (null or absent = all dates). */
+  range?: MonthRange | null;
+  /** View Options: Show Reconciled Transactions (default on). */
+  showReconciled?: boolean;
+  sort?: RegisterSort;
 }
 
-/** Newest first; within a day, the latest entered first (YNAB's register order). */
+function searchContext(plan: PlanData, look: Lookups): SearchContext {
+  return {
+    payeeName: (id) => look.payees.get(id),
+    categoryName: (id) => look.categories.get(id)?.name,
+    accountName: (id) => look.accounts.get(id)?.name,
+    decimals: plan.settings.currencyDecimals,
+  };
+}
+
+const textKey = (r: RegisterRow, c: SortColumn): string => (c === 'account' ? r.accountName : c === 'payee' ? r.payee : c === 'category' ? r.category.text : r.memo).toLowerCase();
+
+/** Newest first by default; within a day, the latest entered first (YNAB's register order). */
 export function registerRows(plan: PlanData, options: RegisterOptions): RegisterRow[] {
   const look = lookups(plan);
   const liveAccounts = new Set(plan.accounts.filter((a) => a.deletedAt === undefined).map((a) => a.id));
@@ -122,16 +230,48 @@ export function registerRows(plan: PlanData, options: RegisterOptions): Register
             .toSorted((a, b) => (a.createdAt < b.createdAt ? -1 : a.createdAt > b.createdAt ? 1 : a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
             .map((t) => ({ id: t.id, date: t.date, amount: t.amount })),
         );
-  const q = (options.query ?? '').trim().toLowerCase();
+  const search = options.search && options.search.criteria.length > 0 ? options.search : null;
+  const ctx = searchContext(plan, look);
+  const range = options.range ?? null;
   const rows: RegisterRow[] = [];
   for (const t of inView) {
     if (options.onlyUnapproved === true && t.approved !== false) continue;
+    if (options.showReconciled === false && t.cleared === 'reconciled') continue;
+    if (range && (monthOf(t.date) < range.from || monthOf(t.date) > range.to)) continue;
+    if (search && !matchesSearch(search, t, ctx)) continue;
     const account = look.accounts.get(t.accountId);
     const other = t.transferAccountId === undefined ? undefined : look.accounts.get(t.transferAccountId);
-    const splits = splitLines(t.subtransactions, account, look);
+    let splits = splitLines(t.subtransactions, account, look);
+    if (search && splits.length > 0) {
+      // A search shows only the split lines it matched (YNAB); a whole-row match shows them all.
+      const subs = t.subtransactions ?? [];
+      const keep = new Set(
+        subs
+          .filter((sub) => {
+            const payeeId = sub.payeeId ?? t.payeeId;
+            const line: SearchableTransaction = {
+              id: sub.id,
+              accountId: t.accountId,
+              date: t.date,
+              amount: sub.amount,
+              categoryId: sub.categoryId,
+              cleared: t.cleared,
+              ...(t.approved === undefined ? {} : { approved: t.approved }),
+              ...(t.flag === undefined ? {} : { flag: t.flag }),
+              ...(payeeId === undefined ? {} : { payeeId }),
+              ...(sub.memo === undefined ? {} : { memo: sub.memo }),
+              ...(sub.transferAccountId === undefined ? {} : { transferAccountId: sub.transferAccountId }),
+            };
+            return matchesSearch(search, line, ctx);
+          })
+          .map((sub) => sub.id),
+      );
+      if (keep.size > 0) splits = splits.filter((l) => keep.has(l.id));
+    }
     const payee = t.transferAccountId !== undefined ? transferLabel(account, other) : t.payeeId === undefined ? '' : (look.payees.get(t.payeeId) ?? '');
-    const category: CategoryLabel = splits.length > 0 ? { text: `Split (${String(splits.length)})`, tone: 'plain' } : categoryLabel(t, account, look);
-    const row: RegisterRow = {
+    const category: CategoryLabel = (t.subtransactions?.length ?? 0) > 0 ? { text: `Split (${String(t.subtransactions?.length ?? 0)})`, tone: 'plain' } : categoryLabel(t, account, look);
+    if (options.onlyUncategorized === true && category.tone !== 'warn') continue;
+    rows.push({
       id: t.id,
       accountId: t.accountId,
       accountName: account?.name ?? '',
@@ -147,20 +287,66 @@ export function registerRows(plan: PlanData, options: RegisterOptions): Register
       splits,
       ...(balances ? { balance: balances.get(t.id) ?? ZERO } : {}),
       locks: {
-        category: splits.length > 0 || (t.transferAccountId !== undefined && account?.onBudget === true && other?.onBudget === true) || account?.onBudget !== true,
-        amount: splits.length > 0,
+        category: (t.subtransactions?.length ?? 0) > 0 || (t.transferAccountId !== undefined && account?.onBudget === true && other?.onBudget === true) || account?.onBudget !== true,
+        amount: (t.subtransactions?.length ?? 0) > 0,
         payee: false,
       },
-    };
-    if (q !== '' && ![row.payee, row.memo, row.category.text, row.accountName, ...splits.flatMap((s) => [s.payee, s.memo, s.category.text])].join(' ').toLowerCase().includes(q)) continue;
-    rows.push(row);
+    });
   }
   const created = new Map(inView.map((t) => [t.id, t.createdAt]));
   const entered = (x: RegisterRow): string => `${created.get(x.id) ?? ''}|${x.id}`;
-  return rows.sort((a, b) => (a.date !== b.date ? (a.date < b.date ? 1 : -1) : entered(a) < entered(b) ? 1 : entered(a) > entered(b) ? -1 : 0));
+  const byDate = (a: RegisterRow, b: RegisterRow): number => (a.date !== b.date ? (a.date < b.date ? 1 : -1) : entered(a) < entered(b) ? 1 : entered(a) > entered(b) ? -1 : 0);
+  const sort = options.sort ?? DEFAULT_SORT;
+  const sign = sort.dir === 'desc' ? 1 : -1;
+  const compare = (a: RegisterRow, b: RegisterRow): number => {
+    if (sort.column === 'date') return sign * byDate(a, b);
+    const c =
+      sort.column === 'outflow'
+        ? Math.max(0, 0 - b.amount) - Math.max(0, 0 - a.amount)
+        : sort.column === 'inflow'
+          ? Math.max(0, b.amount) - Math.max(0, a.amount)
+          : textKey(b, sort.column).localeCompare(textKey(a, sort.column));
+    return c !== 0 ? sign * c : byDate(a, b);
+  };
+  return rows.sort(compare);
+}
+
+/** The banners' counts for a register, over all its rows (not the filtered view). */
+export function registerCounts(plan: PlanData, accountId: Id | null): { unapproved: number; uncategorized: number } {
+  const look = lookups(plan);
+  let unapproved = 0;
+  let uncategorized = 0;
+  for (const t of plan.transactions) {
+    if (t.deletedAt !== undefined || (accountId !== null && t.accountId !== accountId)) continue;
+    const account = look.accounts.get(t.accountId);
+    if (!account || account.deletedAt !== undefined) continue;
+    if (t.approved === false) unapproved += 1;
+    if ((t.subtransactions?.length ?? 0) === 0 && categoryLabel(t, account, look).tone === 'warn') uncategorized += 1;
+  }
+  return { unapproved, uncategorized };
+}
+
+/** Sum of the selected rows (YNAB's "Selected Total (n)"). */
+export function selectedTotal(rows: readonly RegisterRow[], selected: ReadonlySet<Id>): Minor {
+  let total = 0;
+  for (const r of rows) if (selected.has(r.id)) total += r.amount;
+  return minor(total);
 }
 
 // ---- editing ---------------------------------------------------------------------------------------
+
+/** One split line being edited. Lines take a saved payee or a transfer, not a new payee name. */
+export interface SplitLineDraft {
+  /** Stable React key; an existing line's id. */
+  key: string;
+  id?: Id;
+  payeeId: Id | null;
+  transferAccountId: Id | null;
+  categoryId: CategoryRef;
+  memo: string;
+  outflow: Minor;
+  inflow: Minor;
+}
 
 /** A row being edited (or the new-transaction row). Amounts are entered positive, as YNAB does. */
 export interface TxDraft {
@@ -176,11 +362,24 @@ export interface TxDraft {
   inflow: Minor;
   cleared: ClearedState;
   flag: FlagColor | null;
+  /** Split lines, or null when the transaction is not split. */
+  splits: SplitLineDraft[] | null;
 }
+
+const lineDraft = (s: SubtransactionRecord): SplitLineDraft => ({
+  key: s.id,
+  id: s.id,
+  payeeId: s.transferAccountId === undefined ? (s.payeeId ?? null) : null,
+  transferAccountId: s.transferAccountId ?? null,
+  categoryId: s.categoryId,
+  memo: s.memo ?? '',
+  outflow: s.amount < 0 ? neg(s.amount) : ZERO,
+  inflow: s.amount > 0 ? s.amount : ZERO,
+});
 
 export function draftFor(t: TransactionRecord | null, defaults: { accountId: Id; date: ISODate; cleared?: ClearedState }): TxDraft {
   if (!t) {
-    return { accountId: defaults.accountId, date: defaults.date, payeeId: null, payeeName: '', transferAccountId: null, categoryId: null, memo: '', outflow: ZERO, inflow: ZERO, cleared: defaults.cleared ?? 'uncleared', flag: null };
+    return { accountId: defaults.accountId, date: defaults.date, payeeId: null, payeeName: '', transferAccountId: null, categoryId: null, memo: '', outflow: ZERO, inflow: ZERO, cleared: defaults.cleared ?? 'uncleared', flag: null, splits: null };
   }
   return {
     accountId: t.accountId,
@@ -194,8 +393,63 @@ export function draftFor(t: TransactionRecord | null, defaults: { accountId: Id;
     inflow: t.amount > 0 ? t.amount : ZERO,
     cleared: t.cleared,
     flag: t.flag ?? null,
+    splits: t.subtransactions?.length ? t.subtransactions.map(lineDraft) : null,
   };
 }
+
+// ---- splits (YNAB: two empty lines, "Add another split", "Amount remaining to assign") -------------
+
+const emptyLine = (key: string): SplitLineDraft => ({ key, payeeId: null, transferAccountId: null, categoryId: null, memo: '', outflow: ZERO, inflow: ZERO });
+
+function nextKey(lines: readonly SplitLineDraft[]): string {
+  let n = lines.length + 1;
+  while (lines.some((l) => l.key === `line-${String(n)}`)) n += 1;
+  return `line-${String(n)}`;
+}
+
+/** Start splitting: a split can't itself be a transfer, so the row loses its transfer and category. */
+export function startSplit(d: TxDraft): TxDraft {
+  if (d.splits !== null) return d;
+  return { ...d, transferAccountId: null, categoryId: null, splits: [emptyLine('line-1'), emptyLine('line-2')] };
+}
+
+export function addSplitLine(d: TxDraft): TxDraft {
+  const lines = d.splits ?? [];
+  return { ...d, splits: [...lines, emptyLine(nextKey(lines))] };
+}
+
+/** Remove a line; removing the last one ends the split. */
+export function removeSplitLine(d: TxDraft, key: string): TxDraft {
+  const lines = (d.splits ?? []).filter((l) => l.key !== key);
+  return { ...d, splits: lines.length === 0 ? null : lines };
+}
+
+export function patchSplitLine(d: TxDraft, key: string, patch: Partial<Omit<SplitLineDraft, 'key' | 'id'>>): TxDraft {
+  return { ...d, splits: (d.splits ?? []).map((l) => (l.key === key ? { ...l, ...patch } : l)) };
+}
+
+const lineAmount = (l: SplitLineDraft): Minor => minor(l.inflow - l.outflow);
+
+/** What the lines still have to cover: the row's amount minus the lines (YNAB "Amount remaining to assign"). */
+export function splitRemaining(d: TxDraft): Minor {
+  let sum = 0;
+  for (const l of d.splits ?? []) sum += lineAmount(l);
+  return minor(draftAmount(d) - sum);
+}
+
+function lineInput(plan: PlanData, accountId: Id, l: SplitLineDraft): SplitLineInput {
+  const account = plan.accounts.find((a) => a.id === accountId);
+  const takesCategory = account?.onBudget === true && (l.transferAccountId === null || transferNeedsCategory(plan, accountId, l.transferAccountId));
+  return {
+    ...(l.id === undefined ? {} : { id: l.id }),
+    amount: lineAmount(l),
+    categoryId: takesCategory ? l.categoryId : null,
+    ...(l.transferAccountId !== null ? { transferAccountId: l.transferAccountId } : l.payeeId !== null ? { payeeId: l.payeeId } : {}),
+    ...(l.memo.trim() === '' ? {} : { memo: l.memo.trim() }),
+  };
+}
+
+const sameLines = (a: readonly SplitLineInput[], b: readonly SplitLineInput[]): boolean => JSON.stringify(a) === JSON.stringify(b);
 
 /** Whether a transfer between these two accounts takes a category (§5.9): only budget ↔ tracking. */
 export function transferNeedsCategory(plan: PlanData, accountId: Id, otherId: Id | null): boolean {
@@ -208,7 +462,7 @@ export function transferNeedsCategory(plan: PlanData, accountId: Id, otherId: Id
 /** The category the draft may carry: none where the transfer or the account takes none. */
 function effectiveCategory(plan: PlanData, d: TxDraft): CategoryRef {
   const account = plan.accounts.find((a) => a.id === d.accountId);
-  if (account?.onBudget !== true) return null;
+  if (account?.onBudget !== true || d.splits !== null) return null;
   if (d.transferAccountId !== null && !transferNeedsCategory(plan, d.accountId, d.transferAccountId)) return null;
   return d.categoryId;
 }
@@ -216,7 +470,7 @@ function effectiveCategory(plan: PlanData, d: TxDraft): CategoryRef {
 export const draftAmount = (d: TxDraft): Minor => minor(d.inflow - d.outflow);
 
 export function toInput(plan: PlanData, d: TxDraft): TransactionInput {
-  const payee = d.transferAccountId !== null ? { transferAccountId: d.transferAccountId } : d.payeeId !== null ? { payeeId: d.payeeId } : d.payeeName.trim() !== '' ? { payeeName: d.payeeName.trim() } : {};
+  const payee = d.transferAccountId !== null && d.splits === null ? { transferAccountId: d.transferAccountId } : d.payeeId !== null ? { payeeId: d.payeeId } : d.payeeName.trim() !== '' ? { payeeName: d.payeeName.trim() } : {};
   return {
     accountId: d.accountId,
     date: d.date,
@@ -226,6 +480,7 @@ export function toInput(plan: PlanData, d: TxDraft): TransactionInput {
     ...(d.memo.trim() === '' ? {} : { memo: d.memo.trim() }),
     ...(d.flag === null ? {} : { flag: d.flag }),
     cleared: d.cleared,
+    ...(d.splits === null ? {} : { subtransactions: d.splits.map((l) => lineInput(plan, d.accountId, l)) }),
   };
 }
 
@@ -238,22 +493,31 @@ export function defaultCleared(plan: PlanData, accountId: Id): ClearedState {
 export function toPatch(plan: PlanData, t: TransactionRecord, d: TxDraft): TransactionPatch {
   const before = draftFor(t, { accountId: t.accountId, date: t.date });
   const patch: TransactionPatch = {};
+  const wasSplit = (t.subtransactions?.length ?? 0) > 0;
   if (d.date !== before.date) patch.date = d.date;
   if (d.accountId !== before.accountId) patch.accountId = d.accountId;
-  if (draftAmount(d) !== t.amount && (t.subtransactions?.length ?? 0) === 0) patch.amount = draftAmount(d);
-  if (d.transferAccountId !== before.transferAccountId) {
-    patch.transferAccountId = d.transferAccountId;
-    if (d.transferAccountId === null) {
+  if (draftAmount(d) !== t.amount) patch.amount = draftAmount(d);
+  const transferAccountId = d.splits === null ? d.transferAccountId : null;
+  if (transferAccountId !== before.transferAccountId) {
+    patch.transferAccountId = transferAccountId;
+    if (transferAccountId === null) {
       if (d.payeeId !== null) patch.payeeId = d.payeeId;
       else if (d.payeeName.trim() !== '') patch.payeeName = d.payeeName.trim();
     }
-  } else if (d.transferAccountId === null && (d.payeeId !== before.payeeId || d.payeeName.trim() !== '')) {
+  } else if (transferAccountId === null && (d.payeeId !== before.payeeId || d.payeeName.trim() !== '')) {
     if (d.payeeId !== null) patch.payeeId = d.payeeId;
     else if (d.payeeName.trim() !== '') patch.payeeName = d.payeeName.trim();
     else patch.payeeId = null;
   }
-  const category = effectiveCategory(plan, d);
-  if ((t.subtransactions?.length ?? 0) === 0 && category !== t.categoryId) patch.categoryId = category;
+  if (d.splits !== null) {
+    const lines = d.splits.map((l) => lineInput(plan, d.accountId, l));
+    const old = (before.splits ?? []).map((l) => lineInput(plan, t.accountId, l));
+    if (!wasSplit || !sameLines(lines, old) || patch.accountId !== undefined) patch.subtransactions = lines;
+  } else {
+    if (wasSplit) patch.subtransactions = null;
+    const category = effectiveCategory(plan, d);
+    if (wasSplit || category !== t.categoryId) patch.categoryId = category;
+  }
   if (d.memo.trim() !== (t.memo ?? '')) patch.memo = d.memo.trim() === '' ? null : d.memo.trim();
   if (d.flag !== before.flag) patch.flag = d.flag;
   if (d.cleared !== t.cleared && t.cleared !== 'reconciled') patch.cleared = d.cleared;

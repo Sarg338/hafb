@@ -732,6 +732,9 @@ void describe('register', () => {
     await page.keyboard.press('Enter');
     const cake = grid.locator('[role=row][data-row-id]', { hasText: 'birthday cake' });
     await cake.waitFor();
+    // The edited row stays selected, and a click on the selected row edits it (YNAB): Esc deselects first.
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(150);
     await cake.locator('[data-col=date]').click();
     await page.keyboard.press('c');
     await page.keyboard.press('Shift+F');
@@ -747,7 +750,9 @@ void describe('register', () => {
 
     // The newest row's running balance is the working balance.
     await page.getByRole('button', { name: 'View', exact: true }).click();
-    await page.getByRole('menuitemcheckbox', { name: 'Show running balance' }).click();
+    const view = page.getByRole('dialog', { name: 'View Options' });
+    await view.getByRole('checkbox', { name: 'Show Running Balance' }).check();
+    await view.getByRole('button', { name: 'Apply' }).click();
     const top = grid.locator('[role=row][data-row-id]').nth(1).locator('[data-col=balance]'); // under the Scheduled header
     await top.waitFor();
     assert.equal(cents(await top.innerText()), expected);
@@ -764,5 +769,169 @@ void describe('register', () => {
     await cake2.waitFor();
     assert.match((await cake2.locator('[data-col=cleared] button').getAttribute('aria-label')) ?? '', /^Uncleared/);
     await again.close();
+  });
+});
+
+// ---- S4.6 exit: multi-select, bulk edit, splits, search syntax, sort, View Options ----------------
+void describe('register power', () => {
+  let box: Sandbox;
+  const running: App[] = [];
+  const open = async (): Promise<App> => {
+    // A failed test can leave its app running; one plan file opens in one window only.
+    for (const a of running.splice(0)) await a.close().catch(() => undefined);
+    const a = await launch(box, ['--open', box.planPath]);
+    running.push(a);
+    return a;
+  };
+  before(() => {
+    box = makeSandbox();
+  });
+  after(async () => {
+    for (const a of running) await a.close().catch(() => undefined);
+    box.cleanup();
+  });
+  const cents = (s: string): number => {
+    const m = /(-?)\$([\d,]+)\.(\d\d)/.exec(s);
+    return m ? (m[1] === '-' ? -1 : 1) * (Number((m[2] ?? '0').replace(/,/g, '')) * 100 + Number(m[3])) : 0;
+  };
+
+  void test('select, bulk categorize and duplicate with undo; split by keyboard survives a relaunch', { timeout: 300_000 }, async () => {
+    const app = await open();
+    const { page } = app;
+    await page.getByRole('treegrid', { name: 'Categories' }).waitFor();
+    await page.getByRole('navigation', { name: 'Plan navigation' }).getByRole('link', { name: 'All Accounts' }).click();
+    // A treegrid while the Scheduled section shows; a plain grid while searching.
+    const grid = page.locator('[aria-label="All transactions"]');
+    await grid.waitFor();
+    // The grid is virtualized: count what the store did (Undo's label), not rendered rows.
+    const txRows = grid.locator('[role=row][data-row-id]:not([data-row-id="__scheduled__"])');
+    const undoButton = page.getByRole('button', { name: 'Undo', exact: true });
+    const row = (id: string | null) => grid.locator(`[role=row][data-row-id="${id ?? ''}"]`);
+    const categoryOf = async (id: string | null): Promise<string> => norm(await row(id).locator('[data-col=category]').innerText());
+
+    // Two checkboxes: the floating bar and the selected total.
+    const first = await txRows.nth(1).getAttribute('data-row-id');
+    const second = await txRows.nth(2).getAttribute('data-row-id');
+    const before = [await categoryOf(first), await categoryOf(second)];
+    await row(first).locator('[data-select]').click();
+    await row(second).locator('[data-select]').click();
+    const bar = page.getByRole('toolbar', { name: /Selection/ });
+    assert.match(norm(await bar.innerText()), /^2 Transactions Categorize Flag/);
+    await page.getByText(/Selected Total \(2\)/).waitFor();
+
+    await bar.getByRole('button', { name: 'Categorize' }).click();
+    await page.keyboard.type('Dining Out');
+    await page.waitForTimeout(150);
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(300);
+    assert.deepEqual([await categoryOf(first), await categoryOf(second)], ['Dining Out', 'Dining Out']);
+    await page.keyboard.press('Control+z');
+    await page.waitForTimeout(300);
+    assert.deepEqual([await categoryOf(first), await categoryOf(second)], before, 'one undo restores both rows');
+
+    // Shift+D duplicates the selection and selects the copies; undo removes them.
+    await bar.getByRole('button', { name: 'More' }).focus();
+    await page.keyboard.press('Shift+D');
+    await page.waitForTimeout(300);
+    assert.match((await undoButton.getAttribute('title')) ?? '', /Undo Duplicate 2 transactions/);
+    assert.match(norm(await bar.innerText()), /^2 Transactions/);
+    assert.equal(await row(first).getAttribute('aria-selected'), 'false', 'the copies are selected, not the originals');
+    await page.keyboard.press('Control+z');
+    await page.waitForTimeout(300);
+    assert.match((await undoButton.getAttribute('title')) ?? '', /Undo Categorize|Nothing to undo/);
+    // The selected copies are gone, so the bar goes too.
+    await bar.waitFor({ state: 'detached' });
+
+    // S splits the focused row; two lines by keyboard; the remaining amount reaches $0.00.
+    const fuel = grid.locator('[role=row][data-row-id]', { hasText: 'QuickFuel' }).first();
+    const fuelId = await fuel.getAttribute('data-row-id');
+    const amount = cents(await fuel.locator('[data-col=outflow]').innerText());
+    await fuel.locator('[data-col=date]').click();
+    await page.keyboard.press('s');
+    await grid.locator('[data-split-line="2"]').waitFor();
+    await page.keyboard.type('QuickFuel');
+    await page.waitForTimeout(150);
+    await page.keyboard.press('Enter');
+    await page.keyboard.press('Tab');
+    await page.keyboard.type('Gas & Transit');
+    await page.waitForTimeout(150);
+    await page.keyboard.press('Enter');
+    await page.keyboard.press('Tab');
+    await page.keyboard.type('fuel');
+    await page.keyboard.press('Tab');
+    await page.keyboard.type('40');
+    await page.keyboard.press('Tab');
+    const line2 = grid.locator('[data-split-line="2"]');
+    await line2.getByRole('combobox', { name: /Category/ }).click();
+    await page.keyboard.type('Groceries');
+    await page.waitForTimeout(150);
+    await page.keyboard.press('Enter');
+    await line2.getByRole('textbox', { name: /Outflow, split line 2/ }).click();
+    const rest = amount - 4000;
+    await page.keyboard.type(`${String(Math.floor(rest / 100))}.${String(rest % 100).padStart(2, '0')}`);
+    await page.keyboard.press('Tab');
+    assert.equal(norm(await grid.locator('[data-part=split-remaining-outflow]').innerText()), '$0.00');
+    await page.keyboard.press('Enter');
+    await grid.locator('[data-split-line]').first().waitFor({ state: 'detached' });
+    assert.match(norm(await row(fuelId).innerText()), /Split \(2\)/);
+    await page.waitForTimeout(800);
+    await app.close();
+
+    const again = await open();
+    const grid2 = again.page.locator('[aria-label="All transactions"]');
+    await grid2.waitFor();
+    assert.match(norm(await grid2.locator(`[role=row][data-row-id="${fuelId ?? ''}"]`).innerText()), /Split \(2\)/);
+    await again.page.getByText('fuel', { exact: true }).first().waitFor();
+    await again.close();
+  });
+
+  void test('search syntax, sort and View Options in the real app', { timeout: 300_000 }, async () => {
+    const app = await open();
+    const { page } = app;
+    const grid = page.locator('[aria-label="All transactions"]');
+    await grid.waitFor();
+    const search = page.getByRole('textbox', { name: 'Search transactions' });
+    const cells = async (col: string): Promise<string[]> => (await grid.locator(`[role=row][data-row-id]:not([data-row-id="__scheduled__"]) [data-col=${col}]`).allInnerTexts()).map(norm);
+    const table: [string, string, (v: string) => boolean][] = [
+      ['Payee: Taco', 'payee', (v) => v.includes('Taco')],
+      ['Category: Dining Out', 'category', (v) => v === 'Dining Out'],
+      ['Account: Wallet', 'account', (v) => v === 'Wallet'],
+      ['Outflow: >=100', 'outflow', (v) => cents(v) >= 10000],
+      ['Inflow: >0', 'inflow', (v) => cents(v) > 0],
+      ['After: 10/10/2026', 'date', (v) => v >= '10/10/2026' && v.endsWith('2026')],
+      ['Category: Dining Out, Outflow: >=90', 'outflow', (v) => cents(v) >= 9000],
+    ];
+    for (const [text, col, ok] of table) {
+      await search.fill(text);
+      await page.waitForTimeout(250);
+      const values = await cells(col);
+      assert.ok(values.length > 0, `${text}: some rows`);
+      assert.ok(values.every(ok), `${text}: ${values.join(', ')}`);
+      await page.getByText(/Some transactions are hidden by your search/).waitFor();
+    }
+    await search.fill('Outflow: >=abc');
+    await page.getByText(/Not an amount in search/).waitFor();
+    await search.fill('');
+
+    // A header click sorts descending first (YNAB).
+    await grid.getByRole('columnheader', { name: /Payee/ }).click();
+    await page.waitForTimeout(250);
+    const payees = (await cells('payee')).map((v) => v.toLowerCase());
+    for (let i = 1; i < payees.length; i++) assert.ok((payees[i - 1] ?? '').localeCompare(payees[i] ?? '') >= 0, `${payees[i - 1] ?? ''} before ${payees[i] ?? ''}`);
+    await grid.getByRole('columnheader', { name: /Date/ }).click();
+
+    // View Options: Last Month shows only last month.
+    await page.getByRole('button', { name: 'View', exact: true }).click();
+    const dlg = page.getByRole('dialog', { name: 'View Options' });
+    await dlg.getByRole('button', { name: 'Last Month' }).click();
+    await dlg.getByRole('button', { name: 'Apply' }).click();
+    await page.waitForTimeout(250);
+    const last = addMonths(monthOf(todayLocal()), -1);
+    const dates = await cells('date');
+    assert.ok(dates.length > 0 && dates.every((d) => d.startsWith(`${last.slice(5, 7)}/`) && d.endsWith(last.slice(0, 4))), dates.join(', '));
+    await page.getByRole('button', { name: 'View', exact: true }).click();
+    await dlg.getByRole('button', { name: 'All Dates' }).click();
+    await dlg.getByRole('button', { name: 'Apply' }).click();
+    await app.close();
   });
 });

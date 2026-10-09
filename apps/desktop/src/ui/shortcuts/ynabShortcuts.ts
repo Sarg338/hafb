@@ -77,7 +77,7 @@ export const YNAB_SHORTCUTS: readonly PlannedShortcut[] = [
 ];
 
 /** Sprints already delivered: in-component keys from these are live today. */
-const DELIVERED = new Set(['S3.2', 'S3.4', 'S3.5', 'S4.1']);
+const DELIVERED = new Set(['S3.2', 'S3.4', 'S3.5', 'S4.1', 'S4.5', 'S4.6']);
 
 export function isDelivered(p: PlannedShortcut): boolean {
   return DELIVERED.has(p.sprint);
