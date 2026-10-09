@@ -107,6 +107,24 @@ Payment category: `activity = Σ funded spending − payments`, where a payment 
 - **Positive balance:** a card that starts with a credit in your favour is cash-like (YNAB: "the positive balance is treated like cash and added to Ready to Assign"), so its starting balance is an inflow.
 - **Tests:** `budget.test.ts` 3.12 and 3.13. *Correction:* earlier rules (and CLAUDE.md §5.2) said a negative card starting balance was an outflow from Ready to Assign.
 
+### 3.14 The payment category's activity breakdown (verified in the YNAB trial, 2026-10-08)
+
+YNAB's Activity popover on a payment category, and HAFB's `CreditCardMonth`:
+
+| YNAB label | HAFB | amex | visa |
+|---|---|---|---|
+| Spending | `spending`: gross categorized outflows on the card | −50.00 | −80.00 |
+| Returns | `returns`: gross categorized inflows (not Ready to Assign) | 0.00 | +20.00 |
+| Total Spending | spending + returns | −50.00 | −60.00 |
+| Funded Spending | `fundedSpending`: covered spending, net of returns | +40.00 | +60.00 |
+| Payments & Returns | −`payments` (returns are already in Funded Spending) | 0.00 | −50.00 |
+| Total Activity | the payment category's activity | +40.00 | +10.00 |
+
+amex spent $50 in a category holding $40: $10 is credit overspending, and the payment category shows
+$40, yellow, because the card owes $50 (the pay-in-full gap). visa spent $80, got $20 back and was paid
+$50 from checking. The inspector's Current Balance is Prior Balance + Spending and Outflows (−80) +
+Payments and Inflows (returns + payments, +70).
+
 ## 4. Transfers (CLAUDE.md §5.9)
 
 | Ex. | Transfer | Effect |

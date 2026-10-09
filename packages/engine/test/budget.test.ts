@@ -291,6 +291,27 @@ describe('§3 credit cards', () => {
     expect(cat(s, '2026-01', 'pay:loc').activity).toBe(4_000);
   });
 
+  it("3.14: the payment category's activity breakdown: gross spending and returns on the card (YNAB activity popover)", () => {
+    // YNAB trial, 2026-10-08: amex spent $50 in a category holding $40 → Spending −$50.00, Returns
+    // $0.00, Funded Spending +$40.00, Payments & Returns $0.00, Total Activity +$40.00.
+    const ynab = plan().account('checking').card('amex').category('dining').income('2026-10-01', 100_000).assign('2026-10', 'dining', 4_000).spend('2026-10-05', 5_000, 'dining', 'amex').build();
+    expect(monthState(computeBudget(ynab, { today: TODAY }), '2026-10').categories['pay:amex']).toMatchObject({
+      activity: 4_000,
+      creditCard: { spending: -5_000, returns: 0, fundedSpending: 4_000, payments: 0, unfundedSpending: 1_000 },
+    });
+    // A refund and a payment: transfers and Ready to Assign inflows are neither spending nor returns.
+    const s = base()
+      .spend('2026-01-05', 6_000, 'dining', 'visa')
+      .txn('2026-01-09', 'visa', 1_500, 'dining')
+      .transfer('2026-01-20', 2_000, 'checking', 'visa')
+      .txn('2026-01-21', 'visa', 700, READY_TO_ASSIGN)
+      .build();
+    expect(cat(s, '2026-01', 'pay:visa')).toMatchObject({
+      activity: 2_500,
+      creditCard: { spending: -6_000, returns: 1_500, fundedSpending: 4_500, payments: 2_000 },
+    });
+  });
+
   it('example 3.10: Ready to Assign inflows on a card go to Ready to Assign, not the payment category', () => {
     const s = base().txn('2026-01-10', 'visa', 2_500, READY_TO_ASSIGN).build();
     expect(cat(s, '2026-01', 'pay:visa').activity).toBe(0);

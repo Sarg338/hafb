@@ -48,6 +48,10 @@ export interface CreditCardMonth {
   balance: Minor;
   /** Card spending this month that category money did not cover (this month's credit overspending on this card). */
   unfundedSpending: Minor;
+  /** Gross categorized outflows on the card this month (negative); YNAB's activity popover "Spending". */
+  spending: Minor;
+  /** Gross categorized inflows (refunds) on the card this month, not Ready to Assign; "Returns". */
+  returns: Minor;
 }
 
 export interface CategoryMonth {
@@ -149,10 +153,13 @@ interface MonthBucket {
   cash: Map<Id, number>;
   credit: Map<Id, Map<Id, CardSpend>>;
   payments: Map<Id, number>;
+  /** Card account → gross categorized outflows (negative) and inflows this month. */
+  cardSpending: Map<Id, number>;
+  cardReturns: Map<Id, number>;
 }
 
 function emptyBucket(): MonthBucket {
-  return { inflows: 0, cash: new Map(), credit: new Map(), payments: new Map() };
+  return { inflows: 0, cash: new Map(), credit: new Map(), payments: new Map(), cardSpending: new Map(), cardReturns: new Map() };
 }
 
 function addTo(map: Map<Id, number>, key: Id, amount: number): void {
@@ -326,6 +333,7 @@ export function computeBudget(snapshot: BudgetSnapshot, options: ComputeOptions)
           perCard.set(account.id, spend);
         }
         spend.net += line.amount;
+        addTo(line.amount < 0 ? bucket.cardSpending : bucket.cardReturns, account.id, line.amount);
         if (compareDates(line.date, spend.lastDate) > 0) spend.lastDate = line.date;
         if (line.amount < 0) spend.outflows.push({ date: line.date, amount: 0 - line.amount, seq: lineSeq });
       } else {
@@ -450,6 +458,8 @@ export function computeBudget(snapshot: BudgetSnapshot, options: ComputeOptions)
           payments: minor(payments),
           balance: minor(cardBalance.get(cardId) ?? 0),
           unfundedSpending: minor(unfundedByCard.get(cardId) ?? 0),
+          spending: minor(bucket.cardSpending.get(cardId) ?? 0),
+          returns: minor(bucket.cardReturns.get(cardId) ?? 0),
         },
       };
     }
