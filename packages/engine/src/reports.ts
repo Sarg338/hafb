@@ -4,10 +4,10 @@
 // https://support.ynab.com/en_us/reflect-in-ynab-B1GJsrWkj,
 // https://support.ynab.com/en_us/spending-breakdown-H1H7YxmD0,
 // https://support.ynab.com/en_us/income-v-expense-Byu1BYWRq
-import { compareMonths, divRound, minor, monthOf, monthRange, type Minor, type Month } from '@hafb/shared';
+import { compareDates, compareMonths, divRound, minor, monthOf, monthRange, type ISODate, type Minor, type Month } from '@hafb/shared';
 import { defaultStartingBalanceIds } from './ageOfMoney.ts';
 import { transactionLines } from './budget.ts';
-import { READY_TO_ASSIGN, UNCATEGORIZED, type Account, type BudgetSnapshot, type Id } from './model.ts';
+import { READY_TO_ASSIGN, UNCATEGORIZED, type Account, type BudgetSnapshot, type Id, type Subtransaction, type Transaction } from './model.ts';
 
 export interface ReportFilters {
   from: Month;
@@ -20,10 +20,50 @@ export interface ReportFilters {
 
 const UNCATEGORIZED_NAME = 'Uncategorized';
 
-interface CategoryLine {
+/** One categorized line behind a report figure: a whole transaction, or one line of a split. */
+export interface ReportLine {
+  transactionId: Id;
+  /** Set when the line is one part of a split. */
+  subtransactionId?: Id;
+  accountId: Id;
+  date: ISODate;
   month: Month;
+  payeeId?: Id;
+  memo?: string;
+  /** `UNCATEGORIZED` for on-budget money with no category; `READY_TO_ASSIGN` for income lines. */
   categoryId: Id;
-  amount: number;
+  amount: Minor;
+}
+
+/** Narrows drill-down lines to one figure: a category or group (or payee, for income), optionally one month. */
+export interface LineSelector {
+  categoryId?: Id;
+  groupId?: Id;
+  /** Income only: `null` = no payee. */
+  payeeId?: Id | null;
+  month?: Month;
+}
+
+function lineOf(tx: Transaction, sub: Subtransaction | undefined, categoryId: Id, amount: number): ReportLine {
+  const memo = sub?.memo ?? tx.memo;
+  return {
+    transactionId: tx.id,
+    ...(sub ? { subtransactionId: sub.id } : {}),
+    accountId: tx.accountId,
+    date: tx.date,
+    month: monthOf(tx.date),
+    ...(tx.payeeId === undefined ? {} : { payeeId: tx.payeeId }),
+    ...(memo === undefined || memo === '' ? {} : { memo }),
+    categoryId,
+    amount: minor(amount),
+  };
+}
+
+/** Newest first; a split keeps its lines in order. */
+const newestFirst = (a: ReportLine, b: ReportLine): number => compareDates(b.date, a.date) || (a.transactionId === b.transactionId ? 0 : a.transactionId < b.transactionId ? 1 : -1);
+
+function subtransactionFor(tx: Transaction, index: number): Subtransaction | undefined {
+  return tx.subtransactions && tx.subtransactions.length > 0 ? tx.subtransactions[index] : undefined;
 }
 
 interface Catalog {
@@ -71,25 +111,59 @@ const inRange = (month: Month, filters: ReportFilters): boolean =>
  * on-budget accounts carry no category and never appear; Ready to Assign lines are income, not
  * spending. Categorized transfers to off-budget accounts (a mortgage payment) are spending.
  */
-function categoryLines(snapshot: BudgetSnapshot, filters: ReportFilters, skip: ReadonlySet<Id> = new Set()): CategoryLine[] {
+function categoryLines(snapshot: BudgetSnapshot, filters: ReportFilters, skip: ReadonlySet<Id> = new Set()): ReportLine[] {
   const accounts = selectedAccounts(snapshot, filters, true);
   const allAccounts = new Map(snapshot.accounts.map((a) => [a.id, a]));
   const categories = filters.categoryIds === undefined ? undefined : new Set(filters.categoryIds);
-  const out: CategoryLine[] = [];
+  const out: ReportLine[] = [];
   for (const tx of snapshot.transactions) {
     if (tx.deleted || skip.has(tx.id) || !accounts.has(tx.accountId)) continue;
-    const month = monthOf(tx.date);
-    if (!inRange(month, filters)) continue;
-    for (const line of transactionLines(tx)) {
-      if (line.categoryId === READY_TO_ASSIGN) continue;
+    if (!inRange(monthOf(tx.date), filters)) continue;
+    transactionLines(tx).forEach((line, i) => {
+      if (line.categoryId === READY_TO_ASSIGN) return;
+      // A card's starting debt needs no category (budget-math §3.12): it isn't spending.
+      if (line.categoryId === null && tx.isStartingBalance) return;
       const counterpart = line.transferAccountId === undefined ? undefined : allAccounts.get(line.transferAccountId);
-      if (counterpart?.onBudget) continue;
+      if (counterpart?.onBudget) return;
       const categoryId = line.categoryId ?? UNCATEGORIZED;
-      if (categories && !categories.has(categoryId)) continue;
-      out.push({ month, categoryId, amount: line.amount });
-    }
+      if (categories && !categories.has(categoryId)) return;
+      out.push(lineOf(tx, subtransactionFor(tx, i), categoryId, line.amount));
+    });
   }
   return out;
+}
+
+/**
+ * The transactions behind a spending figure (Spending Breakdown, Spending Trends, Income v Expense
+ * expenses), newest first. They are exactly the lines the totals are built from.
+ */
+export function spendingLines(snapshot: BudgetSnapshot, filters: ReportFilters, select: LineSelector = {}): ReportLine[] {
+  const groupOf = new Map(snapshot.categories.map((c) => [c.id, c.groupId]));
+  return categoryLines(snapshot, filters)
+    .filter(
+      (l) =>
+        (select.categoryId === undefined || l.categoryId === select.categoryId) &&
+        (select.groupId === undefined || (groupOf.get(l.categoryId) ?? UNCATEGORIZED) === select.groupId) &&
+        (select.month === undefined || l.month === select.month),
+    )
+    .sort(newestFirst);
+}
+
+/** The income lines (inflows to Ready to Assign) behind an Income v Expense figure, newest first. */
+export function incomeLines(snapshot: BudgetSnapshot, filters: ReportFilters, select: LineSelector = {}, startingBalanceIds?: ReadonlySet<Id>): ReportLine[] {
+  const accounts = selectedAccounts(snapshot, filters, true);
+  const starting = startingBalanceIds ?? defaultStartingBalanceIds(snapshot);
+  const out: ReportLine[] = [];
+  for (const tx of snapshot.transactions) {
+    if (tx.deleted || starting.has(tx.id) || !accounts.has(tx.accountId)) continue;
+    const month = monthOf(tx.date);
+    if (!inRange(month, filters) || (select.month !== undefined && month !== select.month)) continue;
+    if (select.payeeId !== undefined && (tx.payeeId ?? null) !== select.payeeId) continue;
+    transactionLines(tx).forEach((line, i) => {
+      if (line.categoryId === READY_TO_ASSIGN) out.push(lineOf(tx, subtransactionFor(tx, i), READY_TO_ASSIGN, line.amount));
+    });
+  }
+  return out.sort(newestFirst);
 }
 
 // ---- Spending Breakdown -------------------------------------------------------------------------
@@ -182,10 +256,20 @@ export interface TrendCategory {
   average: Minor;
 }
 
+export interface TrendGroup {
+  groupId: Id;
+  name: string;
+  byMonth: Minor[];
+  total: Minor;
+  average: Minor;
+}
+
 export interface SpendingTrends {
   months: Month[];
   /** Categories with activity in the range, in plan order. */
   categories: TrendCategory[];
+  /** The same spending rolled up by category group (YNAB's stacked bars), in plan order. */
+  groups: TrendGroup[];
   totalsByMonth: Minor[];
   total: Minor;
   averagePerMonth: Minor;
@@ -226,9 +310,18 @@ export function spendingTrends(snapshot: BudgetSnapshot, filters: ReportFilters)
     });
   }
   const total = totals.reduce((s, v) => s + v, 0);
+  const groups: TrendGroup[] = [];
+  for (const groupId of cat.groupOrder) {
+    const members = categories.filter((c) => c.groupId === groupId);
+    if (members.length === 0) continue;
+    const byMonth = months.map((_, i) => members.reduce((s, c) => s + (c.byMonth[i] ?? 0), 0));
+    const sum = byMonth.reduce((s, v) => s + v, 0);
+    groups.push({ groupId, name: cat.groupName.get(groupId) ?? groupId, byMonth: byMonth.map((v) => minor(v)), total: minor(sum), average: divRound(minor(sum), n) });
+  }
   return {
     months,
     categories,
+    groups,
     totalsByMonth: totals.map((v) => minor(v)),
     total: minor(total),
     averagePerMonth: n > 0 ? divRound(minor(total), n) : minor(0),
@@ -248,38 +341,72 @@ export interface NetWorthRow {
   change: Minor;
 }
 
-/** Month-end balances of every account (on- and off-budget unless filtered). */
-export function netWorth(snapshot: BudgetSnapshot, filters: Pick<ReportFilters, 'from' | 'to' | 'accountIds'>): NetWorthRow[] {
+export interface AccountBalanceRow {
+  accountId: Id;
+  name: string;
+  /** Balance at each month end (YNAB's Net Worth export lists one row per account). */
+  byMonth: Minor[];
+}
+
+type NetWorthFilters = Pick<ReportFilters, 'from' | 'to' | 'accountIds'>;
+
+/** Every account's month-end balance over the range, in account order (all accounts unless filtered). */
+export function accountBalances(snapshot: BudgetSnapshot, filters: NetWorthFilters): AccountBalanceRow[] {
+  return balancesWithStart(snapshot, filters).rows;
+}
+
+function balancesWithStart(snapshot: BudgetSnapshot, filters: NetWorthFilters): { rows: AccountBalanceRow[]; opening: number; firstMonth: Month | undefined } {
   const wanted = filters.accountIds === undefined ? undefined : new Set(filters.accountIds);
   const months = monthRange(filters.from, filters.to);
-  const balanceBefore = new Map<Id, number>();
-  const deltas = new Map<Id, Map<Month, number>>();
+  const col = new Map(months.map((m, i) => [m, i]));
+  const before = new Map<Id, number>();
+  const deltas = new Map<Id, number[]>();
   let firstMonth: Month | undefined;
   for (const tx of snapshot.transactions) {
     if (tx.deleted || (wanted && !wanted.has(tx.accountId))) continue;
     const month = monthOf(tx.date);
     if (firstMonth === undefined || compareMonths(month, firstMonth) < 0) firstMonth = month;
     if (compareMonths(month, filters.from) < 0) {
-      balanceBefore.set(tx.accountId, (balanceBefore.get(tx.accountId) ?? 0) + tx.amount);
-    } else if (compareMonths(month, filters.to) <= 0) {
-      let d = deltas.get(tx.accountId);
-      if (!d) {
-        d = new Map();
-        deltas.set(tx.accountId, d);
-      }
-      d.set(month, (d.get(month) ?? 0) + tx.amount);
+      before.set(tx.accountId, (before.get(tx.accountId) ?? 0) + tx.amount);
+      continue;
     }
+    const i = col.get(month);
+    if (i === undefined) continue;
+    let d = deltas.get(tx.accountId);
+    if (!d) {
+      d = months.map(() => 0);
+      deltas.set(tx.accountId, d);
+    }
+    d[i] = (d[i] ?? 0) + tx.amount;
   }
-  const accountIds = snapshot.accounts.map((a) => a.id).filter((id) => !wanted || wanted.has(id));
-  const balance = new Map(accountIds.map((id) => [id, balanceBefore.get(id) ?? 0]));
-  let previous = 0;
-  for (const b of balance.values()) previous += b;
-  return months.map((month) => {
+  let opening = 0;
+  const rows = snapshot.accounts
+    .filter((a) => !wanted || wanted.has(a.id))
+    .map((a) => {
+      let b = before.get(a.id) ?? 0;
+      opening += b;
+      const d = deltas.get(a.id);
+      return {
+        accountId: a.id,
+        name: a.name,
+        byMonth: months.map((_, i) => {
+          b += d?.[i] ?? 0;
+          return minor(b);
+        }),
+      };
+    });
+  return { rows, opening, firstMonth };
+}
+
+/** Month-end balances of every account (on- and off-budget unless filtered). */
+export function netWorth(snapshot: BudgetSnapshot, filters: NetWorthFilters): NetWorthRow[] {
+  const { rows, opening, firstMonth } = balancesWithStart(snapshot, filters);
+  let previous = opening;
+  return monthRange(filters.from, filters.to).map((month, i) => {
     let assets = 0;
     let debts = 0;
-    for (const id of accountIds) {
-      const b = (balance.get(id) ?? 0) + (deltas.get(id)?.get(month) ?? 0);
-      balance.set(id, b);
+    for (const r of rows) {
+      const b = r.byMonth[i] ?? 0;
       if (b > 0) assets += b;
       else debts += b;
     }

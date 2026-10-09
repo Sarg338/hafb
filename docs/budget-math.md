@@ -463,7 +463,8 @@ Source articles: [Reflect](https://support.ynab.com/en_us/reflect-in-ynab-B1GJsr
   - Transfers between on-budget accounts (including card payments) carry no category, so they never appear.
   - Inflows to Ready to Assign are income, not spending.
   - A categorized transfer to an off-budget account (a mortgage payment from checking) *is* spending.
-- **ASSUMPTION:** refunds net against spending in their category. A category whose refunds exceed its spending over the range is listed in a separate **positive-inflow** section rather than reducing the total. YNAB shows such a section; whether its total nets them is unverified.
+- Refunds net against spending in their category. A category whose refunds exceed its spending over the range is listed in YNAB's **Positive Inflow Categories** section ([Spending Breakdown help](https://support.ynab.com/en_us/spending-breakdown-H1H7YxmD0)) and lowers the headline total instead of adding a slice (YNAB trial, 2026-10).
+- A card's starting debt needs no category (§3.12), so it is not spending.
 
 The example plan for §11.1–§11.4:
 - Checking has a $1,000 starting balance on Dec 31.
@@ -522,6 +523,13 @@ Spending is outflows net of refunds; it's negative when refunds win.
   - Wants: 0 | +20.
 - **Net income:** 750 | 1,220 (total 1,970).
 - **Exclusions (YNAB):** tracking-account activity and starting balances are left out, so net income doesn't match the change in net worth. A December-only report of checking + house shows $0 income: the Dec 31 starting balance is excluded, and the house is off-budget.
+
+### 11.5 Drill-down and exports (S6.1)
+
+- **Drill-down lines** (`spendingLines`, `incomeLines`) are exactly the lines the totals add up: in §11.1, the Groceries lines for January are +$50 (refund, Jan 20), −$100 (Visa, Jan 6) and −$200 (Jan 5), newest first, and they sum to −$250. A split contributes one line per part, with that part's memo.
+- **Spending Trends by group** (`groups`): Needs 2,750 | 1,800; Wants 0 | −20.
+- **Net Worth by account** (`accountBalances`): month-end balances per account. February: checking 2,470, savings 500, Visa 0, house 400,000, mortgage −299,000; they add up to the net worth row.
+- **Exports** follow YNAB's own files (trial, 2026-10-09): spending is written negative ("-1200.00"), money in transaction rows carries the symbol with no grouping ("$1200.00"), dates use the plan's date format, and a split writes "Split (k/n) memo".
 
 ## 12. Golden tests against real YNAB data
 
