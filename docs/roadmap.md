@@ -350,7 +350,7 @@ Progress (YNAB used as the reference throughout, 2026-10-09; it was put back as 
   - **Empty states:** a plan without categories offers Use a template or Add a category group; a register with no accounts offers Add Account; Net Worth without accounts says so. Reflect's empty states became the shared `EmptyState` component.
   - **Help (plan menu):** ten short topics in YNAB's vocabulary, bundled with the app so they work offline, with a button to the shortcut list.
   - **Copy review:** every store error and app notification was reviewed. Fixes: a split mismatch now says "$12.34, not $15.00" rather than minor units, apostrophes are consistent, and every message ends with a full stop.
-  - **Smoke test:** from the welcome screen, a new user makes a plan from a template, adds an account, records a transaction and assigns money, in under 10 minutes, and the card reads "You're all set". The roadmap's human check, a fresh user other than Sarg, is still to do.
+  - **Smoke test:** from the welcome screen, a new user makes a plan from a template, adds an account, records a transaction and assigns money, in under 10 minutes, and the card reads "You're all set". Sarg waived the human check (a fresh user other than Sarg) on 2026-10-09 in favour of this smoke test.
 - **S7.6 done in code.**
   - **Transaction photos (ADR 0009),** as in YNAB's trial (2026-10-09):
     - A photo column after the flag; one image per transaction.
@@ -364,7 +364,7 @@ Progress (YNAB used as the reference throughout, 2026-10-09; it was put back as 
   - **Available pills (P-09):** checked complete and marked done.
   - **Exit check:** the parity checklist has no `todo` left outside Phase 8, apart from X-02 (high DPI), which is S7.7's.
   - **Smoke tests:** photo, and Credit Card Interest end to end in the release app.
-- **S7.7 done in code; Sarg's design sign-off is pending.** It was an audit, not a restyle: the approved look is unchanged.
+- **S7.7 done, design signed off by Sarg 2026-10-09.** It was an audit, not a restyle: the approved look is unchanged.
   - **Consistency:** colours, sizes, radii and durations were already token-only (`sourceScan`). Every UI icon goes through `Icon`; the only inline SVGs are charts. Plan rows are ~34 px and register rows ~30 px.
   - **Photo column:** an empty cell now shows its button only on row hover or keyboard focus, like the flag column; attached thumbnails always show. Button size 26 px, matching the flag button.
   - **Motion:** two durations in use, 120 ms and 180 ms, both tokens. Under reduced motion, nothing transitions or animates (checked in the browser).
