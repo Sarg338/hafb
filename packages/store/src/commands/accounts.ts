@@ -170,7 +170,9 @@ export function closeAccount(plan: PlanData, ctx: CommandContext, args: { accoun
     if (args.zeroOut !== true) throw new ValidationError(`${a.name} must have a zero balance before it can be closed`);
     addAdjustment(d, ctx, a, minor(0));
   }
-  d.put('accounts', { ...a, closed: true });
+  // A closed loan's paired category becomes unpaired (YNAB, Loan Accounts guide).
+  const loan = a.loan?.pairedCategoryId === undefined ? {} : { loan: omit(a.loan, 'pairedCategoryId') };
+  d.put('accounts', { ...a, closed: true, ...loan });
   return { label: `Close account: ${a.name}`, changes: d.build() };
 }
 
