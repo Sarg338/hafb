@@ -99,6 +99,12 @@ export interface AccountBalance {
 export interface BudgetState {
   currentMonth: Month;
   months: Month[];
+  /**
+   * The last month the plain computation (no `throughMonth`) covers: the current month or the last
+   * month with transactions or assignments, whichever is later. Months after it only carry
+   * balances forward, so this state cut at any month from here on equals that month's computation.
+   */
+  dataThrough: Month;
   byMonth: Partial<Record<Month, MonthState>>;
   accountBalances: Record<Id, AccountBalance>;
 }
@@ -113,16 +119,38 @@ export interface Line {
   transferAccountId?: Id;
 }
 
+/** What a transaction books to the plan: its split lines, or the transaction itself. */
+interface BookedPart {
+  amount: Minor;
+  categoryId: CategoryRef;
+  transferAccountId?: Id;
+}
+
+/** A split's lines must add up to the transaction (CLAUDE.md §4). */
+function checkSplit(tx: Transaction): void {
+  const subs = tx.subtransactions;
+  if (!subs || subs.length === 0) return;
+  let total = 0;
+  for (const s of subs) total += s.amount;
+  if (total !== tx.amount) {
+    throw new InvariantViolation(
+      `Split ${tx.id}: subtransactions sum to ${String(total)} but the transaction is ${String(tx.amount)}`,
+    );
+  }
+}
+
+/** The parts `tx` books, without copying (the hot loop's view of `transactionLines`). */
+function bookedParts(tx: Transaction): readonly BookedPart[] {
+  const subs = tx.subtransactions;
+  if (!subs || subs.length === 0) return [tx];
+  checkSplit(tx);
+  return subs;
+}
+
 export function transactionLines(tx: Transaction): Line[] {
   const subs = tx.subtransactions;
   if (subs && subs.length > 0) {
-    let total = 0;
-    for (const s of subs) total += s.amount;
-    if (total !== tx.amount) {
-      throw new InvariantViolation(
-        `Split ${tx.id}: subtransactions sum to ${String(total)} but the transaction is ${String(tx.amount)}`,
-      );
-    }
+    checkSplit(tx);
     return subs.map((s) => ({
       transactionId: tx.id,
       accountId: tx.accountId,
@@ -146,7 +174,6 @@ export function transactionLines(tx: Transaction): Line[] {
 
 interface CardSpend {
   net: number;
-  lastDate: ISODate;
   /** Outflow lines in order of arrival, for last-in-first-out unfunding. */
   outflows: { date: ISODate; amount: number; seq: number }[];
 }
@@ -262,21 +289,31 @@ export function computeBudget(snapshot: BudgetSnapshot, options: ComputeOptions)
   const cardMonthNet = new Map<Month, Map<Id, number>>();
   let hasUncategorized = false;
   let lineSeq = 0;
+  // A plan has a few thousand distinct dates and tens of thousands of transactions.
+  const monthCache = new Map<ISODate, Month>();
 
   for (const tx of snapshot.transactions) {
     if (tx.deleted) continue;
     const account = accounts.get(tx.accountId);
     if (!account) throw new ValidationError(`Transaction ${tx.id} has unknown account ${tx.accountId}`);
-    const bal = balances.get(account.id) ?? { cleared: 0, working: 0 };
+    let bal = balances.get(account.id);
+    if (!bal) {
+      bal = { cleared: 0, working: 0 };
+      balances.set(account.id, bal);
+    }
     bal.working += tx.amount;
     if (tx.cleared !== 'uncleared') bal.cleared += tx.amount;
-    balances.set(account.id, bal);
-    if (account.onBudget && isCreditAccountType(account.type)) {
-      const m = monthOf(tx.date);
-      let byCard = cardMonthNet.get(m);
+    let month = monthCache.get(tx.date);
+    if (month === undefined) {
+      month = monthOf(tx.date);
+      monthCache.set(tx.date, month);
+    }
+    const isCard = isCreditAccountType(account.type);
+    if (account.onBudget && isCard) {
+      let byCard = cardMonthNet.get(month);
       if (!byCard) {
         byCard = new Map();
-        cardMonthNet.set(m, byCard);
+        cardMonthNet.set(month, byCard);
       }
       byCard.set(account.id, (byCard.get(account.id) ?? 0) + tx.amount);
     }
@@ -284,9 +321,10 @@ export function computeBudget(snapshot: BudgetSnapshot, options: ComputeOptions)
     // A card's starting debt is carried as debt only: no category, not Ready to Assign. The payment
     // category shows it as underfunded (YNAB trial, 2026-10-08; budget-math §3.12). Whatever the
     // export says its category is, it stays off the plan. A credit in your favour is cash-like.
-    if (account.onBudget && isCreditAccountType(account.type) && tx.isStartingBalance === true && tx.amount < 0) continue;
+    if (account.onBudget && isCard && tx.isStartingBalance === true && tx.amount < 0) continue;
 
-    for (const line of transactionLines(tx)) {
+    const date = tx.date;
+    for (const line of bookedParts(tx)) {
       lineSeq += 1;
       const counterpart = line.transferAccountId === undefined ? undefined : accounts.get(line.transferAccountId);
       if (line.transferAccountId !== undefined && !counterpart) {
@@ -298,8 +336,7 @@ export function computeBudget(snapshot: BudgetSnapshot, options: ComputeOptions)
         }
         continue;
       }
-      const bucket = bucketFor(monthOf(line.date));
-      const isCard = isCreditAccountType(account.type);
+      const bucket = bucketFor(month);
 
       // Transfer between two on-budget accounts: no category; a card leg is a payment (§5.3, §5.9).
       if (counterpart?.onBudget) {
@@ -341,13 +378,12 @@ export function computeBudget(snapshot: BudgetSnapshot, options: ComputeOptions)
         }
         let spend = perCard.get(account.id);
         if (!spend) {
-          spend = { net: 0, lastDate: line.date, outflows: [] };
+          spend = { net: 0, outflows: [] };
           perCard.set(account.id, spend);
         }
         spend.net += line.amount;
         addTo(line.amount < 0 ? bucket.cardSpending : bucket.cardReturns, account.id, line.amount);
-        if (compareDates(line.date, spend.lastDate) > 0) spend.lastDate = line.date;
-        if (line.amount < 0) spend.outflows.push({ date: line.date, amount: 0 - line.amount, seq: lineSeq });
+        if (line.amount < 0) spend.outflows.push({ date, amount: 0 - line.amount, seq: lineSeq });
       } else {
         addTo(bucket.cash, categoryId, line.amount);
       }
@@ -357,11 +393,16 @@ export function computeBudget(snapshot: BudgetSnapshot, options: ComputeOptions)
   // ---- month range -----------------------------------------------------------------------------
   const currentMonth = monthOf(options.today);
   let first: Month = snapshot.settings.firstMonth ?? currentMonth;
-  let last: Month = currentMonth;
-  const extra = options.throughMonth === undefined ? [] : [options.throughMonth];
-  for (const m of [...buckets.keys(), ...assigned.keys(), ...extra]) {
+  let dataThrough: Month = currentMonth;
+  for (const m of [...buckets.keys(), ...assigned.keys()]) {
     if (compareMonths(m, first) < 0) first = m;
-    if (compareMonths(m, last) > 0) last = m;
+    if (compareMonths(m, dataThrough) > 0) dataThrough = m;
+  }
+  let last = dataThrough;
+  const through = options.throughMonth;
+  if (through !== undefined) {
+    if (compareMonths(through, first) < 0) first = through;
+    if (compareMonths(through, last) > 0) last = through;
   }
   const months = monthRange(first, last);
 
@@ -387,6 +428,8 @@ export function computeBudget(snapshot: BudgetSnapshot, options: ComputeOptions)
     const unfundedByCard = new Map<Id, number>();
     for (const [cardId, net] of cardMonthNet.get(month) ?? []) cardBalance.set(cardId, (cardBalance.get(cardId) ?? 0) + net);
     let cashOverspending = 0;
+    let totalActivity = 0;
+    let totalAvailable = 0;
 
     for (const id of regularIds) {
       const carriedIn = Math.max(prevAvailable.get(id) ?? 0, 0);
@@ -395,14 +438,10 @@ export function computeBudget(snapshot: BudgetSnapshot, options: ComputeOptions)
       const perCard = bucket.credit.get(id);
       let credit = 0;
       let creditSpending = 0;
-      const cards = new Map<Id, { net: number; funded: number }>();
-      const outflows: { accountId: Id; date: ISODate; amount: number; seq: number }[] = [];
       if (perCard) {
-        for (const [accountId, s] of perCard) {
+        for (const s of perCard.values()) {
           credit += s.net;
           if (s.net < 0) creditSpending += -s.net;
-          cards.set(accountId, { net: s.net, funded: -s.net });
-          for (const o of s.outflows) outflows.push({ accountId, ...o });
         }
       }
       const activity = cash + credit;
@@ -412,25 +451,35 @@ export function computeBudget(snapshot: BudgetSnapshot, options: ComputeOptions)
       if (available < 0) {
         creditOver = Math.min(-available, creditSpending);
         cashOver = -available - creditOver;
-        // Unfunded card spending is the most recent card spending: walk card outflows newest
-        // first (inferred from YNAB data; docs/budget-math.md §3.3).
-        let unfunded = creditOver;
-        outflows.sort((a, b) => compareDates(b.date, a.date) || b.seq - a.seq);
-        for (const o of outflows) {
-          if (unfunded === 0) break;
-          const card = cards.get(o.accountId);
-          if (!card || card.funded <= 0) continue;
-          const take = Math.min(unfunded, o.amount, card.funded);
-          card.funded -= take;
-          unfunded -= take;
-        }
       }
-      for (const [accountId, c] of cards) {
-        funded.set(accountId, (funded.get(accountId) ?? 0) + c.funded);
-        if (c.net < 0) unfundedByCard.set(accountId, (unfundedByCard.get(accountId) ?? 0) + (0 - c.net - c.funded));
+      if (perCard) {
+        const cards = new Map<Id, { net: number; funded: number }>();
+        for (const [accountId, s] of perCard) cards.set(accountId, { net: s.net, funded: -s.net });
+        if (creditOver > 0) {
+          // Unfunded card spending is the most recent card spending: walk card outflows newest
+          // first (inferred from YNAB data; docs/budget-math.md §3.3).
+          const outflows: { accountId: Id; date: ISODate; amount: number; seq: number }[] = [];
+          for (const [accountId, s] of perCard) for (const o of s.outflows) outflows.push({ accountId, ...o });
+          outflows.sort((a, b) => compareDates(b.date, a.date) || b.seq - a.seq);
+          let unfunded = creditOver;
+          for (const o of outflows) {
+            if (unfunded === 0) break;
+            const card = cards.get(o.accountId);
+            if (!card || card.funded <= 0) continue;
+            const take = Math.min(unfunded, o.amount, card.funded);
+            card.funded -= take;
+            unfunded -= take;
+          }
+        }
+        for (const [accountId, c] of cards) {
+          funded.set(accountId, (funded.get(accountId) ?? 0) + c.funded);
+          if (c.net < 0) unfundedByCard.set(accountId, (unfundedByCard.get(accountId) ?? 0) + (0 - c.net - c.funded));
+        }
       }
       cashOverspending += cashOver;
       prevAvailable.set(id, available);
+      totalActivity += activity;
+      totalAvailable += available;
       categories[id] = {
         categoryId: id,
         assigned: minor(asg),
@@ -455,6 +504,8 @@ export function computeBudget(snapshot: BudgetSnapshot, options: ComputeOptions)
       const cashOver = available < 0 ? -available : 0;
       cashOverspending += cashOver;
       prevAvailable.set(id, available);
+      totalActivity += activity;
+      totalAvailable += available;
       categories[id] = {
         categoryId: id,
         assigned: minor(asg),
@@ -485,12 +536,6 @@ export function computeBudget(snapshot: BudgetSnapshot, options: ComputeOptions)
     // zero: YNAB shows the shortfall in the future month itself (verified in the YNAB trial, budget-math §2).
     const assignedInFuture = Math.min(totalAssigned - cumulativeAssigned, Math.max(0, rtaCore));
 
-    let totalActivity = 0;
-    let totalAvailable = 0;
-    for (const c of Object.values(categories)) {
-      totalActivity += c.activity;
-      totalAvailable += c.available;
-    }
     byMonth[month] = {
       month,
       readyToAssign: minor(rtaCore - assignedInFuture),
@@ -518,7 +563,24 @@ export function computeBudget(snapshot: BudgetSnapshot, options: ComputeOptions)
     };
   }
 
-  return { currentMonth, months, byMonth, accountBalances };
+  return { currentMonth, months, dataThrough, byMonth, accountBalances };
+}
+
+/**
+ * `state` cut at `month`: exactly what computeBudget returns with `throughMonth: month` (or with
+ * none, for `state.dataThrough`). Months only carry forward, so later months never change earlier
+ * ones; one computation through next month serves the current month too. Null when the cut would
+ * not be exact (`month` before `dataThrough`) or `state` doesn't reach `month`.
+ */
+export function budgetThrough(state: BudgetState, month: Month): BudgetState | null {
+  if (compareMonths(month, state.dataThrough) < 0) return null;
+  const last = state.months[state.months.length - 1];
+  if (last === undefined || compareMonths(month, last) > 0) return null;
+  if (month === last) return state;
+  const months = state.months.filter((m) => compareMonths(m, month) <= 0);
+  const byMonth: Partial<Record<Month, MonthState>> = {};
+  for (const m of months) byMonth[m] = state.byMonth[m];
+  return { ...state, months, byMonth };
 }
 
 /** Month state lookup that throws instead of returning undefined. */

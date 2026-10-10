@@ -4,6 +4,7 @@ import { asISODate, type Month } from '@hafb/shared';
 import { describe, expect, it } from 'vitest';
 import {
   autoAssign,
+  budgetThrough,
   computeBudget,
   CREDIT_CARD_INTEREST,
   InvariantViolation,
@@ -129,6 +130,35 @@ describe('§2 Ready to Assign', () => {
     const extended = computeBudget(s, { today: TODAY, throughMonth: '2026-12' });
     expect(extended.months.at(-1)).toBe('2026-12');
     expect(monthState(extended, '2026-12').readyToAssign).toBe(45_000);
+  });
+
+  it('dataThrough marks where the plain range ends; a state cut there or later is exact (S8.1)', () => {
+    // Future assignment in April, card spending, an overspent category: carry-forward must not
+    // depend on how far the computation runs.
+    const s = plan()
+      .account('checking')
+      .card('visa')
+      .category('a', 'b')
+      .income('2026-01-01', 100_000)
+      .assign('2026-01', 'a', 30_000)
+      .spend('2026-02-10', 45_000, 'a', 'visa')
+      .spend('2026-03-02', 9_000, 'b')
+      .assign('2026-04', 'b', 25_000)
+      .build();
+    const plain = run(s);
+    expect(plain.dataThrough).toBe('2026-04');
+    const wide = computeBudget(s, { today: TODAY, throughMonth: '2026-09' });
+    expect(wide.dataThrough).toBe('2026-04');
+    expect(budgetThrough(wide, '2026-04')).toEqual(plain);
+    for (const m of ['2026-05', '2026-06', '2026-09'] as const) {
+      expect(budgetThrough(wide, m)).toEqual(computeBudget(s, { today: TODAY, throughMonth: m }));
+    }
+    expect(budgetThrough(wide, '2026-09')).toBe(wide);
+    // Not exact before dataThrough, and nothing past the state's end.
+    expect(budgetThrough(wide, '2026-03')).toBeNull();
+    expect(budgetThrough(wide, '2026-10')).toBeNull();
+    // With no data past today, the current month ends the plain range.
+    expect(run(plan().account('checking').income('2026-01-01', 100).build()).dataThrough).toBe('2026-03');
   });
 
   it('example 2.5: assigning ahead never takes this month below zero (YNAB trial, 2026-10-08)', () => {
