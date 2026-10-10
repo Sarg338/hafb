@@ -11,6 +11,8 @@ pub enum ErrorKind {
     NewerVersion,
     /// The file is not a plan (not SQLite, or not ours, or missing).
     NotAPlan,
+    /// The plan file failed SQLite's integrity check (S8.2): its backups can replace it.
+    Damaged,
     /// The request was malformed (unknown table or column, a float, a missing plan row, ...).
     Invalid,
     /// No plan is open.
@@ -26,6 +28,9 @@ pub struct StoreError {
 }
 
 pub type Result<T> = std::result::Result<T, StoreError>;
+
+/// What a damaged plan says; the app offers to restore its newest good backup.
+pub const DAMAGED: &str = "This plan file is damaged and can't be opened safely.";
 
 impl StoreError {
     pub fn new(kind: ErrorKind, message: impl Into<String>) -> Self {
@@ -51,11 +56,13 @@ impl From<rusqlite::Error> for StoreError {
         let kind = match e.sqlite_error_code() {
             Some(ErrorCode::DatabaseBusy | ErrorCode::DatabaseLocked) => ErrorKind::AlreadyOpen,
             Some(ErrorCode::NotADatabase) => ErrorKind::NotAPlan,
+            Some(ErrorCode::DatabaseCorrupt) => ErrorKind::Damaged,
             _ => ErrorKind::Sqlite,
         };
         let message = match kind {
             ErrorKind::AlreadyOpen => "This plan is already open in another window.".to_owned(),
             ErrorKind::NotAPlan => "This file is not a plan.".to_owned(),
+            ErrorKind::Damaged => DAMAGED.to_owned(),
             _ => e.to_string(),
         };
         Self { kind, message }

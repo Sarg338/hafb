@@ -103,7 +103,15 @@ pub fn make_backup(conn: &Connection, dir: &Path, kind: BackupKind, migration_fr
         _ => format!("{}{stamp}", kind.prefix()),
     };
     let dest = unique_path(dir, &name);
-    vacuum_into(conn, &dest)?;
+    // Written under a name the list ignores, then renamed: a backup cut short (the app killed,
+    // the disk full) never looks like a good one (S8.2).
+    let partial = dest.with_extension("hafb.partial");
+    remove_partials(dir);
+    if let Err(e) = vacuum_into(conn, &partial) {
+        let _ = std::fs::remove_file(&partial);
+        return Err(e);
+    }
+    std::fs::rename(&partial, &dest)?;
     if kind != BackupKind::BeforeMigration {
         prune(dir, kind, keep.max(1))?;
     }
@@ -123,6 +131,16 @@ fn stamp_of(file_name: &str) -> String {
         .and_then(|i| stem.get(i.saturating_sub(19)..=i))
         .unwrap_or("")
         .to_owned()
+}
+
+/// Remove backups an earlier run didn't finish (`*.hafb.partial`). Best effort.
+fn remove_partials(dir: &Path) {
+    let Ok(entries) = std::fs::read_dir(dir) else { return };
+    for entry in entries.flatten() {
+        if entry.file_name().to_string_lossy().ends_with(".hafb.partial") {
+            let _ = std::fs::remove_file(entry.path());
+        }
+    }
 }
 
 /// Every backup in `dir`, newest first.

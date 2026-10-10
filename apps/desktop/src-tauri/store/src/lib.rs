@@ -14,7 +14,7 @@ pub mod app_settings;
 pub mod attachments;
 pub mod wire;
 
-use backup::{BackupKind, make_backup};
+use backup::{BackupInfo, BackupKind, make_backup};
 use error::{ErrorKind, Result, StoreError};
 use rusqlite::{Connection, OpenFlags, params_from_iter, types::Value as SqlValue};
 use schema::{APPLICATION_ID, MIGRATIONS, SNAPSHOT_TABLES};
@@ -99,6 +99,18 @@ fn connect(path: &Path) -> Result<Connection> {
     Ok(conn)
 }
 
+/// SQLite's quick check (structure, pages, constraints; ~35 ms for 20k transactions), so a damaged
+/// file is caught on open instead of failing part-way through, and is never backed up over the
+/// good backups (S8.2).
+pub fn check_integrity(conn: &Connection) -> Result<()> {
+    let first: String = conn.query_row("PRAGMA quick_check(1)", [], |r| r.get(0))?;
+    if first == "ok" {
+        Ok(())
+    } else {
+        Err(StoreError::new(ErrorKind::Damaged, error::DAMAGED))
+    }
+}
+
 fn read_columns(conn: &Connection) -> Result<HashMap<&'static str, TableColumns>> {
     let mut out = HashMap::new();
     for &table in SNAPSHOT_TABLES {
@@ -126,6 +138,7 @@ impl Plan {
     #[doc(hidden)]
     pub fn open_with(path: &Path, options: &OpenOptions, migrations: &[&str]) -> Result<(Plan, OpenReport)> {
         let conn = connect(path)?;
+        check_integrity(&conn)?;
         let mut report = OpenReport::default();
         let found = schema::user_version(&conn)?;
         schema::check_version(found, migrations)?;
@@ -185,8 +198,9 @@ impl Plan {
             return Err(e);
         }
         if replace_existing {
-            remove_with_sidecars(path)?;
+            remove_sidecars(path)?;
         }
+        // Rename replaces the old file in one step: there is never a moment without a plan file.
         std::fs::rename(&tmp, path)?;
         Ok(())
     }
@@ -418,12 +432,43 @@ impl Plan {
         let tmp = sibling(&path, "restoring");
         remove_with_sidecars(&tmp)?;
         std::fs::copy(backup_file, &tmp)?;
-        // A stale -wal beside the replaced file would be replayed onto the restored one.
-        remove_with_sidecars(&path)?;
+        // A stale -wal beside the replaced file would be replayed onto the restored one. The plan
+        // file itself is replaced by the rename, so it never goes missing (S8.2).
+        remove_sidecars(&path)?;
         std::fs::rename(&tmp, &path)?;
         let options = OpenOptions { backup_dir: Some(backup_dir.to_path_buf()), backup_on_open: false, keep_backups: None };
         let (plan, report) = Plan::open(&path, &options)?;
         Ok((plan, report, saved))
+    }
+
+    /// Replace a damaged plan at `path` with its newest good backup in `backup_dir`, and open it
+    /// (S8.2). The damaged file is copied into `backup_dir` as `damaged-<stamp>.hafb` first (its
+    /// `-wal` too), so nothing is thrown away. Returns the plan, the backup used and the copy.
+    pub fn recover(path: &Path, backup_dir: &Path) -> Result<(Plan, OpenReport, BackupInfo, PathBuf)> {
+        let backup = newest_good_backup(backup_dir)?.ok_or_else(|| {
+            StoreError::new(ErrorKind::Damaged, "This plan file is damaged and there is no good backup of it to restore.")
+        })?;
+        std::fs::create_dir_all(backup_dir)?;
+        let stamp = time::file_stamp(std::time::SystemTime::now());
+        let kept = backup_dir.join(format!("damaged-{stamp}.hafb"));
+        if path.is_file() {
+            std::fs::copy(path, &kept)?;
+            let mut wal = path.as_os_str().to_owned();
+            wal.push("-wal");
+            let wal = PathBuf::from(wal);
+            if wal.is_file() {
+                let mut kept_wal = kept.as_os_str().to_owned();
+                kept_wal.push("-wal");
+                std::fs::copy(&wal, PathBuf::from(kept_wal))?;
+            }
+        }
+        let tmp = sibling(path, "recovering");
+        remove_with_sidecars(&tmp)?;
+        std::fs::copy(&backup.path, &tmp)?;
+        remove_sidecars(path)?;
+        std::fs::rename(&tmp, path)?;
+        let (plan, report) = Plan::open(path, &OpenOptions { backup_dir: Some(backup_dir.to_path_buf()), backup_on_open: false, keep_backups: None })?;
+        Ok((plan, report, backup, kept))
     }
 
     /// The backup on open (`open-<stamp>`), for an app that opened with `backup_on_open: false`
@@ -443,6 +488,11 @@ impl Plan {
     }
 }
 
+/// The newest backup in `dir` that passes the integrity check and this app can read (S8.2).
+pub fn newest_good_backup(dir: &Path) -> Result<Option<BackupInfo>> {
+    Ok(backup::list_backups(dir)?.into_iter().find(|b| check_restorable(Path::new(&b.path)).is_ok()))
+}
+
 /// A backup is restorable when it is one of our files at a version this app can read.
 fn check_restorable(file: &Path) -> Result<()> {
     if !file.is_file() {
@@ -452,6 +502,7 @@ fn check_restorable(file: &Path) -> Result<()> {
     if schema::application_id(&conn)? != APPLICATION_ID {
         return Err(not_a_plan("The backup is not a plan file."));
     }
+    check_integrity(&conn).map_err(|_| StoreError::new(ErrorKind::Damaged, "That backup is damaged too; choose another."))?;
     schema::check_version(schema::user_version(&conn)?, MIGRATIONS)
 }
 
@@ -461,16 +512,26 @@ fn sibling(path: &Path, what: &str) -> PathBuf {
 }
 
 fn remove_with_sidecars(path: &Path) -> Result<()> {
-    for suffix in ["", "-wal", "-shm", "-journal"] {
+    remove_file_if_present(path)?;
+    remove_sidecars(path)
+}
+
+/// SQLite's files beside `path` (not `path` itself).
+fn remove_sidecars(path: &Path) -> Result<()> {
+    for suffix in ["-wal", "-shm", "-journal"] {
         let mut p = path.as_os_str().to_owned();
         p.push(suffix);
-        match std::fs::remove_file(PathBuf::from(p)) {
-            Ok(()) => {}
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
-            Err(e) => return Err(e.into()),
-        }
+        remove_file_if_present(&PathBuf::from(p))?;
     }
     Ok(())
+}
+
+fn remove_file_if_present(path: &Path) -> Result<()> {
+    match std::fs::remove_file(path) {
+        Ok(()) => Ok(()),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(e) => Err(e.into()),
+    }
 }
 
 fn same_file(a: &Path, b: &Path) -> bool {
