@@ -6,7 +6,7 @@
 // are generated with a seeded PRNG so failures are reproducible.
 import { addMonths, asISODate, makeDate, monthOf, type Month } from '@hafb/shared';
 import { describe, expect, it } from 'vitest';
-import { computeBudget, monthState, READY_TO_ASSIGN, transactionLines, type BudgetSnapshot, type CategoryRef } from '../src/index.ts';
+import { budgetThrough, computeBudget, monthState, READY_TO_ASSIGN, transactionLines, type BudgetSnapshot, type CategoryRef } from '../src/index.ts';
 import { plan } from './helpers.ts';
 
 function mulberry32(seed: number): () => number {
@@ -89,6 +89,70 @@ describe('reconciliation identity (property, 400 random plans)', () => {
         const rtaCore = ms.readyToAssign + ms.breakdown.assignedInFuture;
         expect({ seed, month, lhs: rtaCore + ms.totals.available }).toEqual({ seed, month, lhs: cash + cardRta - creditOver });
       }
+    }
+  });
+});
+
+// More properties on the same random plans (roadmap S8.2).
+function cleanPlan(seed: number): BudgetSnapshot {
+  const raw = randomPlan(seed);
+  return { ...raw, transactions: raw.transactions.filter((t) => t.transferAccountId !== t.accountId) };
+}
+
+describe('budget properties (S8.2, 400 random plans)', () => {
+  const today = asISODate('2026-06-30');
+
+  it('each category carries forward per §5.1, and overspending splits into credit and cash', () => {
+    for (let seed = 1; seed <= 400; seed += 1) {
+      const state = computeBudget(cleanPlan(seed), { today });
+      const prev = new Map<string, number>();
+      for (const month of state.months) {
+        const ms = monthState(state, month);
+        let activity = 0;
+        let available = 0;
+        for (const c of Object.values(ms.categories)) {
+          const at = `${String(seed)} ${month} ${c.categoryId}`;
+          expect(c.carriedIn, at).toBe(Math.max(prev.get(c.categoryId) ?? 0, 0));
+          expect(c.available, at).toBe(c.carriedIn + c.assigned + c.activity);
+          expect(c.activity, at).toBe(c.cashActivity + c.creditActivity);
+          expect(c.overspending.cash + c.overspending.credit, at).toBe(Math.max(0, 0 - c.available));
+          expect(c.overspending.credit, at).toBeGreaterThanOrEqual(0);
+          expect(c.overspending.cash, at).toBeGreaterThanOrEqual(0);
+          prev.set(c.categoryId, c.available);
+          activity += c.activity;
+          available += c.available;
+        }
+        expect(ms.totals.activity).toBe(activity);
+        expect(ms.totals.available).toBe(available);
+        const b = ms.breakdown;
+        expect(ms.readyToAssign).toBe(b.leftOverFromLastMonth - b.cashOverspendingLastMonth + b.inflows - b.assignedThisMonth - b.assignedInFuture);
+      }
+    }
+  });
+
+  it('a card payment category reports the card balance at month end', () => {
+    for (let seed = 1; seed <= 400; seed += 1) {
+      const snapshot = cleanPlan(seed);
+      const state = computeBudget(snapshot, { today });
+      for (const month of state.months) {
+        for (const c of Object.values(monthState(state, month).categories)) {
+          const card = c.creditCard;
+          if (!card) continue;
+          const balance = snapshot.transactions.filter((t) => !t.deleted && t.accountId === card.accountId && monthOf(t.date) <= month).reduce((s, t) => s + t.amount, 0);
+          expect(card.balance, `${String(seed)} ${month} ${card.accountId}`).toBe(balance);
+        }
+      }
+    }
+  });
+
+  it('the order of assignments never matters, and a longer computation cut short is exact', () => {
+    for (let seed = 1; seed <= 400; seed += 1) {
+      const snapshot = cleanPlan(seed);
+      const state = computeBudget(snapshot, { today });
+      expect(computeBudget({ ...snapshot, assignments: [...snapshot.assignments].reverse() }, { today })).toEqual(state);
+      const wide = computeBudget(snapshot, { today, throughMonth: '2026-12' });
+      expect(budgetThrough(wide, state.dataThrough)).toEqual(state);
+      expect(budgetThrough(wide, '2026-10')).toEqual(computeBudget(snapshot, { today, throughMonth: '2026-10' }));
     }
   });
 });
