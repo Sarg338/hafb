@@ -22,11 +22,12 @@
         "center": true,
         "visible": false,
         "decorations": false,
-        "backgroundColor": "#f3f3f3"
+        "backgroundColor": "#f3f3f3",
+        "create": false
       }
     ],
     "security": {
-      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src ipc: http://ipc.localhost",
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src ipc: http://ipc.localhost; object-src 'none'; base-uri 'none'; form-action 'none'",
       "devCsp": null
     }
   },

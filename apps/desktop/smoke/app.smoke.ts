@@ -1,6 +1,7 @@
 // Smoke suite (S3.5, ADR 0005): the real release app, the real store, a real plan file.
 // Run: pnpm smoke (after pnpm build) or pnpm smoke:build.
 import assert from 'node:assert/strict';
+import { spawn } from 'node:child_process';
 import { after, before, describe, test } from 'node:test';
 import type { Page } from 'playwright-core';
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -187,6 +188,58 @@ void describe('persistence across a relaunch', () => {
     await second.page.getByRole('treegrid', { name: 'Categories' }).waitFor();
     assert.equal(await assignedText(second.page, 'Electric'), '$155.55');
     await second.close();
+  });
+});
+
+// ---- S8.3: nothing leaves the PC -------------------------------------------------------------------
+// HAFB has no network code; its WebView2 runs behind a closed proxy (src-tauri/src/webview_env.rs).
+// The one known exception is WebView2's own Microsoft-account library (OneAuth) in the WebView2
+// browser process, on PCs signed into a Microsoft account (docs/privacy.md). Anything else fails:
+// a connection from hafb.exe itself, from WebView2's network service (the proxy no longer
+// applied), or from the browser process to anything but HTTPS.
+void describe('privacy', () => {
+  let box: Sandbox;
+  before(() => {
+    box = makeSandbox();
+  });
+  after(() => {
+    box.cleanup();
+  });
+
+  void test('using the app makes no outside connection except WebView2’s documented account lookup', { timeout: 180_000 }, async () => {
+    const out = join(box.root, 'net.jsonl');
+    const stop = join(box.root, 'net.stop');
+    const app = await launch(box, ['--open', box.planPath]);
+    const watcher = spawn('powershell', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', join(import.meta.dirname, 'netwatch.ps1'), '-RootPid', String(app.process.pid), '-Out', out, '-Stop', stop], { stdio: 'ignore' });
+    try {
+      const { page } = app;
+      const nav = page.getByRole('navigation', { name: 'Plan navigation' });
+      await page.getByRole('treegrid', { name: 'Categories' }).waitFor();
+      await nav.getByRole('link', { name: 'All Accounts' }).click();
+      await page.waitForTimeout(1000);
+      await nav.getByRole('link', { name: 'Reflect', exact: true }).click();
+      await page.waitForTimeout(1000);
+      await nav.getByRole('link', { name: 'Plan', exact: true }).click();
+      // WebView2 asks for its experiment config at start and component updates about a minute in.
+      await page.waitForTimeout(75_000);
+    } finally {
+      writeFileSync(stop, 'stop');
+      await new Promise((r) => setTimeout(r, 1500));
+      watcher.kill();
+      await app.close();
+    }
+    interface Seen { process: string; type: string; remote: string; port: number }
+    const isSeen = (v: unknown): v is Seen => typeof v === 'object' && v !== null && 'process' in v && 'type' in v && 'port' in v;
+    const seen = readFileSync(out, 'utf8')
+      .split('\n')
+      .map((l) => l.trim()) // trim also drops '\r' and PowerShell's byte-order mark
+      .filter(Boolean)
+      .map((l): unknown => JSON.parse(l))
+      .filter(isSeen);
+    console.log(`outside connections: ${JSON.stringify(seen)}`);
+    const unexpected = seen.filter((c) => !(c.process === 'msedgewebview2.exe' && c.type === 'browser' && c.port === 443));
+    assert.deepEqual(unexpected, [], 'only WebView2’s account lookup may leave the PC');
+    assert.ok(seen.length <= 2, `at most one account lookup per launch (one per address family): ${JSON.stringify(seen)}`);
   });
 });
 

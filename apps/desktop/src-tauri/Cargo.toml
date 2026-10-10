@@ -40,7 +40,13 @@ windows-sys = { version = "0.61", features = [
   "Win32_Foundation",
   "Win32_System_SystemInformation",
   "Win32_System_Threading",
+  "Win32_System_Com",
 ] }
+# Already in the tree via Tauri/wry, pinned to the same versions so the types match. Used to create
+# the WebView2 environment with Microsoft's privacy options (S8.3, src/webview_env.rs). Bindings
+# only: no network code of their own.
+webview2-com = "=0.39.1"
+windows-core = "=0.62.2"
 
 [profile.release]
 codegen-units = 1

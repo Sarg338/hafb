@@ -5,6 +5,8 @@ mod paths;
 mod photos;
 mod startup;
 mod titlebar;
+#[cfg(windows)]
+mod webview_env;
 mod window_state;
 
 use tauri::{Manager, WindowEvent};
@@ -78,9 +80,24 @@ pub fn run() {
             if let Some(path) = preload_plan {
                 commands::preload(app.handle(), path);
             }
-            let window = app
-                .get_webview_window("main")
+            // The main window is built here, not from config, so its WebView2 environment carries
+            // HAFB's privacy options (S8.3, webview_env.rs).
+            let config = app
+                .config()
+                .app
+                .windows
+                .iter()
+                .find(|w| w.label == "main")
+                .cloned()
                 .ok_or("main window missing from tauri.conf.json")?;
+            #[allow(unused_mut)]
+            let mut builder = tauri::WebviewWindowBuilder::from_config(app.handle(), &config)?;
+            #[cfg(windows)]
+            {
+                let environment = webview_env::create(&app.path().app_local_data_dir()?)?;
+                builder = builder.with_environment(environment);
+            }
+            let window = builder.build()?;
             match titlebar::read_mode(app.handle()) {
                 titlebar::TitlebarMode::Custom => {
                     window.create_overlay_titlebar_with_height(TITLEBAR_HEIGHT)?;
