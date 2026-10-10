@@ -42,7 +42,7 @@
 | S1.7 (optional) | A **YNAB free-trial scenario**: we write a scripted month of transactions covering splits, targets, credit overspending, future assignments and loans. Sarg enters it in a YNAB trial, exports it, and screenshots the open items (D7, D11, D12). This is the only way to verify those items and to get splits and targets into a golden file; the public sample has neither. |
 | — | ~~Sample bank files from your banks~~: Sarg has none; 50 public sample exports from real banks were accepted instead (2026-10-09). |
 | S8.6 | A SimpleFIN Bridge subscription and a setup token for the Regions accounts. |
-| S8.1 | Access to a slower (2019-era) Windows laptop for the launch-time budget, or agreement to throttle the CPU instead. |
+| — | ~~S8.1: a slower (2019-era) laptop, or throttle the CPU~~: throttled instead (2026-10-10). The power plan's maximum processor state at 70% makes this PC's Ryzen 7 5700X about 1.65× slower per thread (measured on the engine recompute), roughly a 2019 Core i5-8265U laptop; the setting was put back afterwards. |
 
 ## Spec changes (approved by Sarg 2026-10-08; applied to CLAUDE.md §4–§7)
 
@@ -390,6 +390,31 @@ Progress (YNAB used as the reference throughout, 2026-10-09; it was put back as 
 | **S8.4 Packaging** | Versioning, MSI upgrade path (stable upgrade code), portable-mode data location, uninstall keeps data, ARM64 build (nice-to-have); document SmartScreen behavior for unsigned builds. | Upgrade from the previous build keeps every file intact. |
 | **S8.5 Docs & beta** | User guide, YNAB migration guide, shortcut reference; beta with a few YNAB users; final parity audit against `ynab-parity.md`. | Beta feedback triaged; the parity audit has only S8.6 rows open. |
 | **S8.6 Bank sync, optional** (ADR 0006; the very last item before v1.0) | SimpleFIN Bridge: paste a setup token, claim it, and keep the access URL in Windows Credential Manager (never in the plan). Map SimpleFIN accounts to HAFB accounts (new migration). Sync on open, about every 6 hours while open (random minute), and *Sync now*. Fetch window = last sync minus 5 days, capped at 90 days. Results feed the S6.5 pipeline (unapproved, auto-match, rename rules, RejectedImport). Unlink deletes the secret. One Rust HTTP client (rustls). | Sarg's Regions accounts sync with zero duplicates across repeated syncs and alongside file imports. A firewall log shows zero connections with sync off and only the SimpleFIN host with it on. Every non-server parity row is `done`; then **v1.0** is tagged. |
+
+Progress:
+- **S8.1 done in code (2026-10-10).** All measurements use the release app with a generated 20,000-transaction plan (`smoke/largePlan.ts`): five years, 100 categories, three cards, two loans, splits, transfers and targets.
+  - **Hardware:** this PC (Ryzen 7 5700X), plus an emulated 2019 laptop. For the laptop, the power plan's maximum processor state was set to 70%, about 1.65× slower per thread, and put back afterwards.
+
+  | Budget (CLAUDE.md §8) | Before | This PC | Emulated 2019 laptop |
+  |---|---|---|---|
+  | Launch to a usable plan < 1.5 s | 1.39–1.49 s | 0.77–0.98 s | 1.42–1.47 s (the very first launch, which builds the WebView2 profile, 1.76 s) |
+  | One recompute < 50 ms (5 years × 100 categories) | ~21 ms warm, ~40 ms cold | 13 ms warm, ~30 ms cold | 22 ms warm |
+  | Register scroll at 60 fps | 0 missed | 0 missed (3,000 px/s) | 0 missed |
+
+  - **120/144 Hz:** no high-refresh screen is available here. Scrolling the register costs 5.3 ms of main-thread work per frame on average (p95 task 5.6 ms, longest 7.8 ms). That fits 120 Hz (8.3 ms per frame) and just fits 144 Hz (6.9 ms).
+  - **Memory:** with the 20k plan open, the app (hafb.exe and its WebView2 processes) uses 470–515 MB working set, against 410–430 MB for the small sample plan. The plan adds under 100 MB; the JS heap is about 34 MB. Most of the rest is WebView2's own.
+  - **Interactions:** assigning a category takes about 70 ms from keypress to paint on this PC and about 100 ms on the emulated laptop.
+  - **Fixes:**
+    - The launch plan (`--open`) is opened and serialized by Rust on a worker thread while WebView2 starts, and the UI requests it before React's first render.
+    - The backup on open (VACUUM INTO, 330 ms on a 10 MB plan) no longer delays opening. It runs right after the first load and always before the first write (`OpenPlan::writable`). If it fails, nothing is written.
+    - Posting loan charges on open rescanned every transaction once per month of history (240 ms). Now it scans once.
+    - `keyOf` no longer copies each record to read its key. `Draft.all` uses the cached key index.
+    - `planBudget` makes one computation through next month. The plain state, this month's and next month's are exact cuts of it (`budgetThrough`, `BudgetState.dataThrough`), so an edit costs one computation where it used to cost three.
+    - The engine's hot loop: no per-transaction line copies, months cached per date, card outflows gathered only for overspent categories.
+    - The store returns rows in key order.
+  - **Smoke test:** a 20k-transaction plan opens at launch, ready to use, within 1.5 s, and its register scrolls with at most 2 missed frames. `window.hafbOpenTiming` gives the breakdown: open, load, decode, compute, ready.
+  - **Not done, by choice:** a smaller load format and decode or bundle rework. The budgets are met, and slow hardware is the uncommon case (Sarg, 2026-10-10).
+  - **For S8.2:** a process killed during the backup on open can leave a partial `open-…` file in the backups folder. This is unchanged from before; the plan itself is untouched.
 
 ## Out of scope (wontfix; server-dependent)
 

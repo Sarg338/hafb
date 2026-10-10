@@ -405,7 +405,7 @@ Mark phase status here when it changes:
   - S7.7 polish audit, with no change to the approved look.
   - Smoke tests cover each sprint in the release app.
   - Sarg signed off the design (S7.7) and waived the fresh-user first run (S7.5) in favour of the release-app smoke test that does the same flow.
-- Phase 8: todo
+- Phase 8: in progress. S8.1 performance at scale done in code 2026-10-10 (roadmap Phase 8 progress notes). On a 20,000-transaction plan, launch to a usable plan takes 0.77–0.98 s on this PC and 1.42–1.47 s on an emulated 2019 laptop (CPU capped to about 1.65× slower). A warm recompute takes 13 ms (22 ms emulated). The register scrolls with 0 missed frames. A smoke test guards the launch budget.
 
 ---
 
@@ -430,7 +430,7 @@ pnpm smoke            # end-to-end smoke tests on the release app (run pnpm buil
 - **Migrations are append-only.** New file, new number. Include a down migration only if trivial; otherwise document that the migration is irreversible and that the app backs up before applying.
 - **Keep the engine pure.** No `Date.now()`, no `Math.random()`, no I/O in `packages/engine`. Pass `today` in.
 - **Commit style:** `area: what changed` (e.g. `engine: credit overspending carries forward negative`). One logical change per commit.
-- **Performance budget:** app launch to usable budget sheet < 1.5 s on a 2019-era laptop with a 20k-transaction budget; register scroll at 60 fps; any single budget recompute < 50 ms for 5 years × 100 categories.
+- **Performance budget:** app launch to usable budget sheet < 1.5 s on a 2019-era laptop with a 20k-transaction budget; register scroll at 60 fps; any single budget recompute < 50 ms for 5 years × 100 categories. Checked by `packages/engine/test/perf.test.ts` and the "performance at scale" smoke test (`smoke/largePlan.ts`, `window.hafbOpenTiming`); the laptop is emulated by capping the CPU (roadmap S8.1).
 - **Validation step is mandatory:** after any UI or Rust change, run `pnpm build` and state explicitly what Sarg should click on the real machine to verify. Don't claim it works.
 
 ---
