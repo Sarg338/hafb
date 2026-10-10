@@ -121,8 +121,12 @@ interface RowChanges {
   - Refuse a file whose `user_version` is newer than the app.
   - If it's older, copy it to `before-migration-v<from>-<timestamp>.hafb` (never pruned), then migrate.
   - Take the exclusive lock.
-  - Make the on-open backup (keep the last 10).
+  - Run SQLite's `quick_check` (S8.2). A damaged file is refused untouched (`Damaged`) and is never backed up over the good backups. The app then offers its newest backup that passes the check: the damaged file is copied into the backups folder as `damaged-<stamp>.hafb`, and the backup replaces it.
+  - Make the on-open backup (keep the last 10). Since S8.1 this runs after the first load, always before the first write.
   - Add the file to the recent list.
+- **Atomic file changes (S8.2):**
+  - Backups are written as `*.hafb.partial` and renamed when complete. Unfinished ones are never listed, and the next backup removes them.
+  - Create-over and restore rename the new file over the old one, so a plan file is never missing.
 - **WAL with exclusive locking:** no `-shm` file. A crash leaves at most a `-wal` file that SQLite replays on the next open.
 - **Backups folder:** `%LOCALAPPDATA%\<app identifier>\backups\<plan stem>-<8 hex of the path hash>\`.
   - **Why not next to the plan:** plans often live in OneDrive or Syncthing folders, and syncing a new 5 MB copy on every open is waste and a source of sync conflicts.

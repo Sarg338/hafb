@@ -405,7 +405,13 @@ Mark phase status here when it changes:
   - S7.7 polish audit, with no change to the approved look.
   - Smoke tests cover each sprint in the release app.
   - Sarg signed off the design (S7.7) and waived the fresh-user first run (S7.5) in favour of the release-app smoke test that does the same flow.
-- Phase 8: in progress. S8.1 performance at scale done in code 2026-10-10 (roadmap Phase 8 progress notes). On a 20,000-transaction plan, launch to a usable plan takes 0.77–0.98 s on this PC and 1.42–1.47 s on an emulated 2019 laptop (CPU capped to about 1.65× slower). A warm recompute takes 13 ms (22 ms emulated). The register scrolls with 0 missed frames. A smoke test guards the launch budget.
+- Phase 8: in progress. S8.1 performance at scale done in code 2026-10-10 (roadmap Phase 8 progress notes). On a 20,000-transaction plan, launch to a usable plan takes 0.77–0.98 s on this PC and 1.42–1.47 s on an emulated 2019 laptop (CPU capped to about 1.65× slower). A warm recompute takes 13 ms (22 ms emulated). The register scrolls with 0 missed frames. A smoke test guards the launch budget. S8.2 reliability done in code 2026-10-10:
+  - Three data-loss paths fixed:
+    - A plan file could go missing during restore or create-over.
+    - A backup cut short looked like a good one.
+    - A damaged file was opened, and its backups rotated the good ones out.
+  - Every open runs `quick_check`. A damaged plan is refused untouched, and the app offers its newest good backup.
+  - Tests: upgrades from every older schema, a writer killed mid-commit, backup-restore drills, engine property tests, and plans of 100k transactions and 721 MB of photos (`store/tests/safety.rs`; roadmap notes).
 
 ---
 

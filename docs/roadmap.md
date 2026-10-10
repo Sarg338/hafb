@@ -414,7 +414,42 @@ Progress:
     - The store returns rows in key order.
   - **Smoke test:** a 20k-transaction plan opens at launch, ready to use, within 1.5 s, and its register scrolls with at most 2 missed frames. `window.hafbOpenTiming` gives the breakdown: open, load, decode, compute, ready.
   - **Not done, by choice:** a smaller load format and decode or bundle rework. The budgets are met, and slow hardware is the uncommon case (Sarg, 2026-10-10).
-  - **For S8.2:** a process killed during the backup on open can leave a partial `open-…` file in the backups folder. This is unchanged from before; the plan itself is untouched.
+  - **Handed to S8.2:** a process killed during the backup on open could leave a partial `open-…` file in the backups folder. Fixed in S8.2.
+- **S8.2 done in code (2026-10-10).** Every way to lose data that was found was fixed and is now under test.
+  - **Data-loss paths found and fixed:**
+    - Restore, and creating a plan over an existing file, deleted the old file and then renamed the new one into place. If the app died between those two steps, there was no plan file at all. The new file is now renamed over the old one, which replaces it in one step.
+    - A backup cut short (the app killed, the disk full) kept its final name and looked like a good backup. Backups are now written as `*.hafb.partial` and renamed when complete. Unfinished ones are never listed, and the next backup removes them.
+    - A damaged plan file was opened as if it were fine, and its backup on open went into the rotation. After ten opens the good backups would all have been pruned. Now every open runs SQLite's `quick_check` (about 35 ms for 20k transactions), and a damaged file is refused untouched.
+  - **Recovery:** opening a damaged plan offers its newest backup that passes the check: "Restore its newest good backup, from <date>?"
+    - The damaged file is copied into the backups folder as `damaged-<stamp>.hafb`, with its `-wal`, before the backup replaces it.
+    - A damaged backup is skipped. With no good backup, the app says so and changes nothing.
+    - A smoke test damages a real plan and recovers it in the release app.
+  - **Tests (`store/tests/safety.rs` unless noted):**
+    - **Upgrades:** a file at every older schema version (v1 to v5), built from the sample, opens in this app. Every value it held comes through unchanged, new columns take their defaults, and the pre-migration copy is the untouched old file. New migrations are covered automatically.
+    - **App killed mid-write:** a writer process commits batches of three transactions plus an assignment, and is killed at a different moment in each of six rounds. Every reopen passes the integrity check, no batch is ever half there, none is skipped, and every acknowledged commit is on disk.
+    - **Power loss:** that can't be tested here. It rests on SQLite's WAL with `synchronous = FULL`.
+    - **Backup-restore drill:** five rounds of edits, each followed by Back up now. Every backup restores exactly what it saved, and each restore keeps the replaced plan as a `restore-` backup.
+    - **Damaged files:** a damaged plan is refused untouched, gets no backup, and recovers from the newest good backup (the older one, if the newest is damaged too).
+    - **Engine properties** (`identity.test.ts`, 400 random plans, alongside the existing reconciliation identity):
+      - §5.1 carry-forward and the per-category identity.
+      - Overspending splits into credit and cash.
+      - Month totals and the Ready to Assign breakdown.
+      - Card balances.
+      - The order of assignments never matters.
+      - A longer computation cut short equals the direct one.
+    - The store's undo property test (S2.3) already covers random command sequences against SQLite.
+  - **Very large files (release app):**
+
+    | Plan | File | Launch to usable plan | Backup on open (background) | Notes |
+    |---|---|---|---|---|
+    | 100,000 transactions | 50 MB | 1.7–2.0 s | done about 2.4 s after launch | edit ~180 ms; scroll 0 missed frames; JS heap 149 MB |
+    | 20,000 transactions and 250 photos | 721 MB | ~1.3 s | ~6.5 s | edit ~110 ms; scroll 0 missed frames |
+
+    Two things to know about photo-heavy plans:
+    - **Disk use:** every backup is a full copy, so 10 backups of a 721 MB plan take about 7 GB. The "keep" setting (S6.6) is the control.
+    - **Crash window:** edits made while the backup on open runs wait in memory until it finishes. A crash in that window loses them: about 0.3 s on a normal plan, about 6.5 s here.
+
+    Neither was changed, to keep this simple.
 
 ## Out of scope (wontfix; server-dependent)
 
