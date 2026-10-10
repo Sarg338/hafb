@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { canonical, decodePlan, encodePlan, encodeRecord, keyRow, type LoadedTables } from '../src/codec.ts';
+import { normalizePlan } from '../src/changes.ts';
 import { ENTITY_KINDS } from '../src/records.ts';
 import { samplePlan } from './fixtures/samplePlan.ts';
 import { applyRows, loadTables, openMemoryPlan } from './helpers/sqliteStore.ts';
@@ -9,7 +10,7 @@ describe('codec against the real schema (0001_init.sql)', () => {
     const plan = samplePlan();
     const db = openMemoryPlan();
     applyRows(db, encodePlan(plan));
-    expect(decodePlan(loadTables(db))).toEqual(plan);
+    expect(normalizePlan(decodePlan(loadTables(db)))).toEqual(normalizePlan(plan));
   });
 
   it('the sample plan covers every entity kind', () => {

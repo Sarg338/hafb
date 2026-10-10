@@ -2,7 +2,7 @@
 // record writes over the current plan so a command can read its own earlier writes.
 import { ValidationError, type Id } from '@hafb/engine';
 import type { ISODate } from '@hafb/shared';
-import { findRecord, type ChangePuts, type ChangeRemoves, type ChangeSet } from '../changes.ts';
+import { findRecord, recordIndex, type ChangePuts, type ChangeRemoves, type ChangeSet } from '../changes.ts';
 import { ENTITY_KINDS, keyOf, type AccountRecord, type CategoryRecord, type EntityKind, type PlanData, type RecordOf, type Timestamp } from '../records.ts';
 
 export interface CommandContext {
@@ -85,17 +85,24 @@ export class Draft {
   all<K extends EntityKind>(kind: K): RecordOf<K>[] {
     const map: PutMaps[K] = this.puts[kind];
     const removed = this.removes.get(kind);
-    const out: RecordOf<K>[] = [];
-    const seen = new Set<string>();
     const list: readonly RecordOf<K>[] = this.plan[kind];
-    for (const r of list) {
-      const key = keyOf(kind, r);
-      seen.add(key);
-      if (removed?.has(key)) continue;
-      out.push(map.get(key) ?? r);
+    if (map.size === 0 && (removed === undefined || removed.size === 0)) return list.slice();
+    const out: (RecordOf<K> | undefined)[] = list.slice();
+    // Edits replace their record in place; new records go last. The key index is cached per array.
+    const index = recordIndex(kind, list);
+    const added: RecordOf<K>[] = [];
+    for (const [key, r] of map) {
+      const i = index.get(key);
+      if (i === undefined) added.push(r);
+      else out[i] = r;
     }
-    for (const [key, r] of map) if (!seen.has(key)) out.push(r);
-    return out;
+    for (const key of removed ?? []) {
+      const i = index.get(key);
+      if (i !== undefined) out[i] = undefined;
+    }
+    const kept: RecordOf<K>[] = [];
+    for (const r of out) if (r !== undefined) kept.push(r);
+    return kept.concat(added);
   }
 
   build(): ChangeSet {

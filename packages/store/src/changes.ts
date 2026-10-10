@@ -83,10 +83,10 @@ function pickCollections(f: <K extends EntityKind>(kind: K) => readonly RecordOf
   };
 }
 
-// Key → index per collection array, cached by array identity (collections are never mutated).
 const indexCache = new WeakMap<readonly unknown[], Map<string, number>>();
 
-function indexOf<K extends EntityKind>(kind: K, list: readonly RecordOf<K>[]): Map<string, number> {
+/** Key → position in `list`, built once per array (collections are never mutated). */
+export function recordIndex<K extends EntityKind>(kind: K, list: readonly RecordOf<K>[]): ReadonlyMap<string, number> {
   let index = indexCache.get(list);
   if (!index) {
     index = new Map();
@@ -102,7 +102,7 @@ function indexOf<K extends EntityKind>(kind: K, list: readonly RecordOf<K>[]): M
 /** The current record with `key`, if any. */
 export function findRecord<K extends EntityKind>(plan: PlanCollections, kind: K, key: string): RecordOf<K> | undefined {
   const list: readonly RecordOf<K>[] = plan[kind];
-  const i = indexOf(kind, list).get(key);
+  const i = recordIndex(kind, list).get(key);
   return i === undefined ? undefined : list[i];
 }
 
@@ -127,7 +127,7 @@ function applyKind<K extends EntityKind>(
   puts: readonly RecordOf<K>[],
   removes: readonly string[],
 ): KindResult<K> {
-  const index = indexOf(kind, current);
+  const index = recordIndex(kind, current);
   const replaced = new Map<number, RecordOf<K>>();
   const removed = new Set<number>();
   const inserted: { key: string; record: RecordOf<K> }[] = [];

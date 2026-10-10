@@ -1,4 +1,5 @@
 import { minor } from '@hafb/shared';
+import { computeBudget } from '@hafb/engine';
 import { describe, expect, it } from 'vitest';
 import { normalizePlan } from '../src/changes.ts';
 import { setAssigned, setMonthNote } from '../src/commands/index.ts';
@@ -65,5 +66,21 @@ describe('snapshot', () => {
     expect(budgetSnapshot(plan)).toBe(s);
     expect(planBudget(plan, { today: '2026-10-08' })).toBe(planBudget(plan, { today: '2026-10-08' }));
     expect(budgetSnapshot({ ...plan })).not.toBe(s);
+  });
+
+  it('shares one computation for any month the plain one already covers (S8.1)', () => {
+    const plan = normalizePlan(samplePlan());
+    const today = '2026-10-08';
+    const plain = planBudget(plan, { today });
+    expect(plain).toEqual(computeBudget(budgetSnapshot(plan), { today }));
+    expect(plain.months).toEqual(['2026-09', '2026-10']);
+    expect(planBudget(plan, { today, throughMonth: '2026-10' })).toBe(plain);
+    expect(planBudget(plan, { today, throughMonth: '2026-09' })).toBe(plain);
+    // Next month is cut from the same computation; later or earlier months compute on their own.
+    expect(planBudget(plan, { today, throughMonth: '2026-11' })).toEqual(computeBudget(budgetSnapshot(plan), { today, throughMonth: '2026-11' }));
+    const later = planBudget(plan, { today, throughMonth: '2026-12' });
+    expect(later).not.toBe(plain);
+    expect(later).toEqual(computeBudget(budgetSnapshot(plan), { today, throughMonth: '2026-12' }));
+    expect(planBudget(plan, { today, throughMonth: '2026-08' })).toEqual(computeBudget(budgetSnapshot(plan), { today, throughMonth: '2026-08' }));
   });
 });

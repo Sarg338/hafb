@@ -58,7 +58,7 @@ export function postLoanCharges(plan: PlanData, ctx: CommandContext): Command | 
       escrow: (balance) => (balance < 0 ? (loan.escrow ?? 0) : 0),
       fees: (balance) => (balance < 0 ? (loan.fees ?? 0) : 0),
     };
-    let txs = loanTransactions(d, a.id);
+    const txs = loanTransactions(d, a.id);
     const live = txs.filter((t) => t.deletedAt === undefined);
     if (live.length === 0) continue;
     const first = live.reduce((m, t) => (compareMonths(monthOf(t.date), m) < 0 ? monthOf(t.date) : m), monthOf(live[0]?.date ?? ctx.today));
@@ -83,9 +83,9 @@ export function postLoanCharges(plan: PlanData, ctx: CommandContext): Command | 
           createdAt: ctx.now,
         };
         d.put('transactions', t);
+        txs.push(t); // later months' balances include this month's charges
         posted += 1;
       }
-      txs = loanTransactions(d, a.id);
     }
   }
   if (posted === 0) return null;

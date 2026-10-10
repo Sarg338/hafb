@@ -16,6 +16,7 @@ import {
 import { asISODate, compareMonths, type Month } from '@hafb/shared';
 import { describe, expect, it } from 'vitest';
 import { decodePlan, encodePlan } from '../src/codec.ts';
+import { normalizePlan } from '../src/changes.ts';
 import { exportDateFromName, findExportFiles, importYnabExport, importYnabRows } from '../src/import/ynab.ts';
 import { readZip } from '../src/import/zip.ts';
 import type { PlanData } from '../src/records.ts';
@@ -34,7 +35,7 @@ function counterIds(): () => string {
 function throughSqlite(plan: PlanData): PlanData {
   const db = openMemoryPlan();
   applyRows(db, encodePlan(plan));
-  return decodePlan(loadTables(db));
+  return normalizePlan(decodePlan(loadTables(db)));
 }
 
 /** "Group: Category" → category id in an imported plan. */
@@ -100,7 +101,7 @@ describe.skipIf(!publicPresent)('import golden: public YNAB export (local only)'
       { today, now: NOW, newId: counterIds(), planName: 'Public sample', accountTypes: types },
     );
     const opened = throughSqlite(plan);
-    expect(opened).toEqual(plan);
+    expect(opened).toEqual(normalizePlan(plan));
 
     const state = computeBudget(budgetSnapshot(opened), { today });
     const direct = ynabExportToSnapshot(planRows, rows, { today, accountTypes: types });
@@ -168,7 +169,7 @@ describe.skipIf(!trialPresent)('import golden: Sarg’s YNAB trial export (local
       { today: asISODate(obs.today), now: NOW, newId: counterIds(), planName: files.planName, accountTypes: { house: 'mortgage' } },
     );
     const opened = throughSqlite(plan);
-    expect(opened).toEqual(plan);
+    expect(opened).toEqual(normalizePlan(plan));
 
     const state: BudgetState = computeBudget(budgetSnapshot(opened), { today: asISODate(obs.today), throughMonth: '2026-11' });
     const ids = keyIndex(opened);

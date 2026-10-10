@@ -55,8 +55,9 @@ export function applyRows(db: DatabaseSync, changes: RowChanges): void {
 
 export function loadTables(db: DatabaseSync): LoadedTables {
   const out: Record<string, TableData> = {};
-  for (const table of Object.keys(KEY_COLUMNS)) {
-    const stmt = db.prepare(`SELECT * FROM ${q(table)}`);
+  for (const [table, keys] of Object.entries(KEY_COLUMNS)) {
+    // Key order, as the Rust store returns rows (S8.1).
+    const stmt = db.prepare(`SELECT * FROM ${q(table)} ORDER BY ${keys.map(q).join(', ')}`);
     const columns = stmt.columns().map((c) => c.name);
     const rows = stmt.all().map((r) => columns.map((c): SqlValue => {
       const v: unknown = r[c];

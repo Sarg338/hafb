@@ -235,24 +235,28 @@ export const ENTITY_KINDS: readonly EntityKind[] = [
   'importProfiles',
 ];
 
+/** One field as text, read in place: keyOf runs for every record when sorting and indexing. */
+function field(record: object, name: string): string {
+  return String(Reflect.get(record, name));
+}
+
 /** A record's identity within its collection. */
 export function keyOf<K extends EntityKind>(kind: K, record: RecordOf<K>): string {
-  const r: Partial<Record<string, unknown>> = { ...record };
   switch (kind) {
     case 'targets':
-      return String(r.categoryId);
+      return field(record, 'categoryId');
     case 'assignments':
-      return `${String(r.month)}|${String(r.categoryId)}`;
+      return `${field(record, 'month')}|${field(record, 'categoryId')}`;
     case 'monthNotes':
-      return String(r.month);
+      return field(record, 'month');
     case 'flagNames':
-      return String(r.color);
+      return field(record, 'color');
     case 'rejectedImports':
-      return `${String(r.accountId)}|${String(r.importId)}`;
+      return `${field(record, 'accountId')}|${field(record, 'importId')}`;
     case 'importProfiles':
-      return String(r.accountId);
+      return field(record, 'accountId');
     default:
-      return String(r.id);
+      return field(record, 'id');
   }
 }
 
