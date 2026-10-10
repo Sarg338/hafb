@@ -55,15 +55,15 @@
   ],
   "rows": [
    [
-    "a-chk",
-    "Checking",
-    "checking",
+    "a-cc",
+    "Visa",
+    "creditCard",
     1,
     0,
-    1,
-    "main",
     0,
     null,
+    1,
+    "2026-10-08T12:00:00.000Z",
     null,
     null,
     null,
@@ -74,15 +74,15 @@
     null
    ],
    [
-    "a-cc",
-    "Visa",
-    "creditCard",
+    "a-chk",
+    "Checking",
+    "checking",
     1,
     0,
+    1,
+    "main",
     0,
     null,
-    1,
-    "2026-10-08T12:00:00.000Z",
     null,
     null,
     null,
@@ -143,11 +143,11 @@
   ],
   "rows": [
    [
-    "inflow",
-    "Inflow",
+    "g-bills",
+    "Bills",
     0,
-    -1,
-    "inflow",
+    1,
+    null,
     null
    ],
    [
@@ -159,12 +159,12 @@
     null
    ],
    [
-    "g-bills",
-    "Bills",
+    "g-gone",
+    "Gone",
     0,
-    1,
+    3,
     null,
-    null
+    "2026-10-08T12:00:00.000Z"
    ],
    [
     "g-hidden",
@@ -175,12 +175,12 @@
     null
    ],
    [
-    "g-gone",
-    "Gone",
+    "inflow",
+    "Inflow",
     0,
-    3,
-    null,
-    "2026-10-08T12:00:00.000Z"
+    -1,
+    "inflow",
+    null
    ]
   ]
  },
@@ -197,19 +197,9 @@
   ],
   "rows": [
    [
-    "ready-to-assign",
-    "inflow",
-    "Ready to Assign",
-    0,
-    null,
-    0,
-    null,
-    null
-   ],
-   [
-    "credit-card-interest",
-    "inflow",
-    "Credit Card Interest",
+    "c-food",
+    "g-bills",
+    "Groceries",
     0,
     null,
     1,
@@ -217,14 +207,14 @@
     null
    ],
    [
-    "c-visa",
-    "g-cc",
-    "Visa",
-    0,
+    "c-old",
+    "g-hidden",
+    "Old stuff",
+    1,
     null,
     0,
-    "a-cc",
-    null
+    null,
+    "2026-10-08T12:00:00.000Z"
    ],
    [
     "c-rent",
@@ -237,13 +227,13 @@
     null
    ],
    [
-    "c-food",
-    "g-bills",
-    "Groceries",
+    "c-visa",
+    "g-cc",
+    "Visa",
     0,
     null,
-    1,
-    null,
+    0,
+    "a-cc",
     null
    ],
    [
@@ -267,14 +257,24 @@
     null
    ],
    [
-    "c-old",
-    "g-hidden",
-    "Old stuff",
+    "credit-card-interest",
+    "inflow",
+    "Credit Card Interest",
+    0,
+    null,
     1,
+    null,
+    null
+   ],
+   [
+    "ready-to-assign",
+    "inflow",
+    "Ready to Assign",
+    0,
     null,
     0,
     null,
-    "2026-10-08T12:00:00.000Z"
+    null
    ]
   ]
  },
@@ -295,20 +295,6 @@
   ],
   "rows": [
    [
-    "c-rent",
-    150000,
-    "monthly",
-    null,
-    1,
-    null,
-    null,
-    "refill",
-    "2026-09",
-    null,
-    "[]",
-    null
-   ],
-   [
     "c-food",
     60000,
     "monthly",
@@ -321,6 +307,34 @@
     null,
     "[\"2026-10\"]",
     "2026-10-08T12:00:00.000Z"
+   ],
+   [
+    "c-old",
+    100000,
+    "custom",
+    null,
+    null,
+    "2027-06-01",
+    3,
+    "setAside",
+    "2026-09",
+    null,
+    "[]",
+    null
+   ],
+   [
+    "c-rent",
+    150000,
+    "monthly",
+    null,
+    1,
+    null,
+    null,
+    "refill",
+    "2026-09",
+    null,
+    "[]",
+    null
    ],
    [
     "c-wk",
@@ -349,20 +363,6 @@
     null,
     "[]",
     null
-   ],
-   [
-    "c-old",
-    100000,
-    "custom",
-    null,
-    null,
-    "2027-06-01",
-    3,
-    "setAside",
-    "2026-09",
-    null,
-    "[]",
-    null
    ]
   ]
  },
@@ -380,17 +380,6 @@
   ],
   "rows": [
    [
-    "p-store",
-    "Grocery Store",
-    null,
-    "c-food",
-    1,
-    1,
-    "weekly",
-    null,
-    0
-   ],
-   [
     "p-boss",
     "Employer",
     null,
@@ -402,13 +391,24 @@
     0
    ],
    [
-    "p-t-chk",
-    "Transfer : Checking",
-    "a-chk",
+    "p-gone",
+    "Gone",
+    null,
     null,
     0,
     1,
     null,
+    "2026-10-08T12:00:00.000Z",
+    0
+   ],
+   [
+    "p-store",
+    "Grocery Store",
+    null,
+    "c-food",
+    1,
+    1,
+    "weekly",
     null,
     0
    ],
@@ -424,14 +424,14 @@
     0
    ],
    [
-    "p-gone",
-    "Gone",
-    null,
+    "p-t-chk",
+    "Transfer : Checking",
+    "a-chk",
     null,
     0,
     1,
     null,
-    "2026-10-08T12:00:00.000Z",
+    null,
     0
    ]
   ]
@@ -562,25 +562,25 @@
   ],
   "rows": [
    [
-    "t-sb",
+    "t-del",
     "a-chk",
-    "2026-09-01",
-    250000,
+    "2026-10-06",
+    -1,
     null,
-    "ready-to-assign",
     null,
-    "reconciled",
+    null,
+    "uncleared",
     1,
     null,
     null,
     null,
     null,
-    1,
+    0,
     null,
     null,
     null,
     "2026-10-08T12:00:00.000Z",
-    null,
+    "2026-10-08T12:00:00.000Z",
     null,
     null,
     null,
@@ -610,6 +610,56 @@
     null,
     null,
     null
+   ],
+   [
+    "t-sb",
+    "a-chk",
+    "2026-09-01",
+    250000,
+    null,
+    "ready-to-assign",
+    null,
+    "reconciled",
+    1,
+    null,
+    null,
+    null,
+    null,
+    1,
+    null,
+    null,
+    null,
+    "2026-10-08T12:00:00.000Z",
+    null,
+    null,
+    null,
+    null,
+    null
+   ],
+   [
+    "t-sched",
+    "a-chk",
+    "2026-10-01",
+    -150000,
+    "p-store",
+    "c-rent",
+    null,
+    "cleared",
+    1,
+    null,
+    null,
+    null,
+    "s-rent",
+    0,
+    "F-RENT",
+    "LANDLORD LLC",
+    null,
+    "2026-10-08T12:00:00.000Z",
+    null,
+    "2026-10-02",
+    -150000,
+    -149900,
+    "2026-10-08T12:00:00.000Z"
    ],
    [
     "t-split",
@@ -681,56 +731,6 @@
     null,
     "2026-10-08T12:00:00.000Z",
     null,
-    null,
-    null,
-    null,
-    null
-   ],
-   [
-    "t-sched",
-    "a-chk",
-    "2026-10-01",
-    -150000,
-    "p-store",
-    "c-rent",
-    null,
-    "cleared",
-    1,
-    null,
-    null,
-    null,
-    "s-rent",
-    0,
-    "F-RENT",
-    "LANDLORD LLC",
-    null,
-    "2026-10-08T12:00:00.000Z",
-    null,
-    "2026-10-02",
-    -150000,
-    -149900,
-    "2026-10-08T12:00:00.000Z"
-   ],
-   [
-    "t-del",
-    "a-chk",
-    "2026-10-06",
-    -1,
-    null,
-    null,
-    null,
-    "uncleared",
-    1,
-    null,
-    null,
-    null,
-    null,
-    0,
-    null,
-    null,
-    null,
-    "2026-10-08T12:00:00.000Z",
-    "2026-10-08T12:00:00.000Z",
     null,
     null,
     null,

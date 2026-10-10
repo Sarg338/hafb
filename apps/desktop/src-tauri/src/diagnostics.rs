@@ -8,6 +8,7 @@ use tauri::State;
 pub struct LaunchTiming {
     main_started_ms: Option<f64>,
     first_paint_ms: Mutex<Option<f64>>,
+    plan_ready_ms: Mutex<Option<f64>>,
 }
 
 impl LaunchTiming {
@@ -15,6 +16,7 @@ impl LaunchTiming {
         Self {
             main_started_ms,
             first_paint_ms: Mutex::new(None),
+            plan_ready_ms: Mutex::new(None),
         }
     }
 }
@@ -37,6 +39,17 @@ pub async fn launch_timing(timing: State<'_, LaunchTiming>) -> Result<LaunchInfo
         process_to_main_ms: timing.main_started_ms,
         process_to_first_paint_ms: *first_paint,
     })
+}
+
+/// Called by the UI once the first plan of this run has painted, ready to use (S8.1: launch to a
+/// usable plan). Returns milliseconds since process start; later calls return the first value.
+#[tauri::command]
+pub async fn mark_plan_ready(timing: State<'_, LaunchTiming>) -> Result<Option<f64>, String> {
+    let mut ready = timing.plan_ready_ms.lock().map_err(|e| e.to_string())?;
+    if ready.is_none() {
+        *ready = ms_since_process_start();
+    }
+    Ok(*ready)
 }
 
 /// Milliseconds since the OS created this process (not since `main`), so the number

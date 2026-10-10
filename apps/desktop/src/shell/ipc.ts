@@ -110,4 +110,6 @@ export const appIpc = {
   setTitlebarMode: (mode: TitlebarMode) => invoke<null>('set_titlebar_mode', { mode }),
   /** Marks first paint (first call wins) and returns the launch timings. */
   launchTiming: () => invoke<LaunchTiming>('launch_timing'),
+  /** Marks the first plan painted and ready (first call wins): ms since the process started. */
+  markPlanReady: () => invoke<number | null>('mark_plan_ready'),
 };

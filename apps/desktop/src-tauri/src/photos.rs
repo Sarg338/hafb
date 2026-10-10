@@ -42,7 +42,7 @@ pub async fn attachment_pick_add(window: WebviewWindow, state: State<'_, PlanSta
     let name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_else(|| "photo".to_owned());
     let mut slot = state.open.lock().map_err(lock_err)?;
     let open = slot.as_mut().ok_or_else(not_open)?;
-    Ok(Some(open.plan.attachment_add(&id, &transaction_id, &name, &bytes, &created_at)?))
+    Ok(Some(open.writable()?.attachment_add(&id, &transaction_id, &name, &bytes, &created_at)?))
 }
 
 /// The photo's bytes (an ArrayBuffer in JS).
@@ -72,11 +72,11 @@ pub async fn attachment_set_thumbnail(state: State<'_, PlanState>, request: Requ
         .ok_or_else(|| StoreError::invalid("The thumbnail has no photo id."))?
         .to_owned();
     let mut slot = state.open.lock().map_err(lock_err)?;
-    slot.as_mut().ok_or_else(not_open)?.plan.attachment_set_thumbnail(&id, bytes)
+    slot.as_mut().ok_or_else(not_open)?.writable()?.attachment_set_thumbnail(&id, bytes)
 }
 
 #[tauri::command]
 pub async fn attachment_delete(state: State<'_, PlanState>, id: String) -> Result<()> {
     let mut slot = state.open.lock().map_err(lock_err)?;
-    slot.as_mut().ok_or_else(not_open)?.plan.attachment_delete(&id)
+    slot.as_mut().ok_or_else(not_open)?.writable()?.attachment_delete(&id)
 }

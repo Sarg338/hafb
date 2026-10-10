@@ -36,10 +36,14 @@ import {
 } from '@hafb/store';
 import { isTauri } from '@tauri-apps/api/core';
 import { makeDate, monthOf, uuidv7Generator, type ISODate, type Month } from '@hafb/shared';
-import { errorMessage, planIpc, type BackupInfo, type PlanInfo, type RecentPlan } from './ipc.ts';
+import { appIpc, errorMessage, planIpc, type BackupInfo, type PlanInfo, type RecentPlan } from './ipc.ts';
 import { photos } from './photos.ts';
 
 export interface LoadTimings {
+  /** `performance.now()` when opening began (the "Open" click, or the launch's open request). */
+  startedAt: number;
+  /** plan_open: the lock, backup on open and any migration, before reading. */
+  openMs: number;
   /** plan_load: SQLite read + JSON + IPC. */
   loadMs: number;
   decodeMs: number;
@@ -172,7 +176,7 @@ class PlanSession {
   }
 
   /** Read the open file into memory and compute the current month. */
-  private async loadOpened(info: PlanInfo, importReport?: ImportReport): Promise<void> {
+  private async loadOpened(info: PlanInfo, importReport?: ImportReport, startedAt?: number): Promise<void> {
     const t0 = performance.now();
     const tables = await planIpc.load();
     const t1 = performance.now();
@@ -188,7 +192,7 @@ class PlanSession {
         plan,
         history: emptyHistory(),
         month: monthOf(today),
-        timings: { loadMs: t1 - t0, decodeMs: t2 - t1, computeMs: t3 - t2, transactions: plan.transactions.length },
+        timings: { startedAt: startedAt ?? t0, openMs: t0 - (startedAt ?? t0), loadMs: t1 - t0, decodeMs: t2 - t1, computeMs: t3 - t2, transactions: plan.transactions.length },
         ...(importReport ? { importReport } : {}),
       },
     });
@@ -198,16 +202,33 @@ class PlanSession {
     this.enterDue();
   }
 
+  /**
+   * Open the plan named at launch (`--open`, or a .hafb opened from Explorer). Called before the UI
+   * first renders, so reading it overlaps React starting up (S8.1); Rust began reading the file
+   * while the webview started.
+   */
+  openAtLaunch(): void {
+    if (!isTauri()) return;
+    appIpc.startupPlanPath().then(
+      (path) => {
+        if (path !== null) void this.openPath(path);
+      },
+      () => undefined,
+    );
+  }
+
   openPath(path: string): Promise<void> {
     return this.task('Opening…', async () => {
-      await this.loadOpened(await planIpc.open(path));
+      const startedAt = performance.now();
+      await this.loadOpened(await planIpc.open(path), undefined, startedAt);
     });
   }
 
   openDialog(): Promise<void> {
     return this.task('Opening…', async () => {
       const path = await planIpc.pickPlanPath('open');
-      if (path !== null) await this.loadOpened(await planIpc.open(path));
+      const startedAt = performance.now();
+      if (path !== null) await this.loadOpened(await planIpc.open(path), undefined, startedAt);
     });
   }
 
@@ -275,7 +296,7 @@ class PlanSession {
         plan,
         history: emptyHistory(),
         month: monthOf(today),
-        timings: { loadMs: 0, decodeMs: 0, computeMs: 0, transactions: plan.transactions.length },
+        timings: { startedAt: performance.now(), openMs: 0, loadMs: 0, decodeMs: 0, computeMs: 0, transactions: plan.transactions.length },
         inMemory: true,
       },
     });

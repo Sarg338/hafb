@@ -10,6 +10,7 @@ import { addDays, addMonths, addMonthsToDate, compareMonths, formatMoney, minor,
 import { addScheduled, applyChanges, budgetSnapshot, postLoanCharges, readZip, type PlanData } from '@hafb/store';
 import { buildSamplePlan } from '../src/design/sample.ts';
 import { launch, makeSandbox, type App, type Sandbox } from './harness.ts';
+import { buildLargePlan, LARGE_PLAN_TRANSACTIONS } from './largePlan.ts';
 import { expectedReadyToAssign, expectedRows, importExport, norm, readGrid, todayLocal } from './planCheck.ts';
 
 const MONEY = /^-?\$[\d,]+\.\d\d$/;
@@ -24,6 +25,8 @@ declare global {
 declare global {
   interface Window {
     hafbLaunchTiming?: { processToMainMs: number | null; processToFirstPaintMs: number | null };
+    /** Set once an opened plan has painted (Shell.tsx, S8.1). */
+    hafbOpenTiming?: { transactions: number; readyMs: number; processToReadyMs: number | null };
   }
 }
 
@@ -183,6 +186,67 @@ void describe('persistence across a relaunch', () => {
     await second.page.getByRole('treegrid', { name: 'Categories' }).waitFor();
     assert.equal(await assignedText(second.page, 'Electric'), '$155.55');
     await second.close();
+  });
+});
+
+// ---- S8.1: the CLAUDE.md §8 budget on a 20,000-transaction plan --------------------------------
+void describe('performance at scale', () => {
+  let box: Sandbox;
+  before(() => {
+    box = makeSandbox(buildLargePlan(todayLocal()).plan);
+  });
+  after(() => {
+    box.cleanup();
+  });
+
+  void test('a 20k-transaction plan opens at launch, ready to use, within 1.5 s; the register scrolls smoothly', { timeout: 300_000 }, async () => {
+    // The first launch builds the WebView2 profile (a one-time cost) and posts the loan charges.
+    const warm = await launch(box, ['--open', box.planPath]);
+    await warm.page.waitForFunction(() => window.hafbOpenTiming ?? null, null, { timeout: 30_000 });
+    await warm.page.waitForTimeout(3000); // the backup on open and the first writes
+    await warm.close();
+
+    const app = await launch(box, ['--open', box.planPath]);
+    try {
+      const { page } = app;
+      const t = await page.waitForFunction(() => window.hafbOpenTiming ?? null, null, { timeout: 30_000 }).then((h) => h.jsonValue());
+      console.log(`20k plan: ${JSON.stringify(t)}`);
+      assert.ok(t !== null && t.transactions >= LARGE_PLAN_TRANSACTIONS, `plan size ${String(t?.transactions)}`);
+      assert.ok(t.processToReadyMs !== null && t.processToReadyMs < 1500, `process start → usable plan ${String(t.processToReadyMs)} ms`);
+      await page.getByRole('treegrid', { name: 'Categories' }).waitFor();
+
+      await page.getByRole('navigation', { name: 'Plan navigation' }).getByRole('link', { name: 'All Accounts' }).click();
+      await page.locator('[aria-label="All transactions"]').waitFor();
+      const scroll = await page.evaluate(async () => {
+        const el = document.querySelector<HTMLElement>('[aria-label="All transactions"]');
+        if (!el) return null;
+        const frame = () => new Promise<number>((resolve) => requestAnimationFrame(resolve));
+        const idle: number[] = [];
+        let prev = await frame();
+        for (let i = 0; i < 60; i++) {
+          const now = await frame();
+          idle.push(now - prev);
+          prev = now;
+        }
+        idle.sort((a, b) => a - b);
+        const refresh = idle[30] ?? 16.7;
+        const max = el.scrollHeight - el.clientHeight;
+        const deltas: number[] = [];
+        const start = await frame();
+        prev = start;
+        while (prev - start < 4000) {
+          el.scrollTop = Math.min(max, (prev - start) * 3); // 3000 px/s, about 100 rows a second
+          const now = await frame();
+          deltas.push(now - prev);
+          prev = now;
+        }
+        return { refreshHz: Math.round(1000 / refresh), frames: deltas.length, missed: deltas.filter((d) => d > refresh * 1.5).length };
+      });
+      console.log(`20k register scroll: ${JSON.stringify(scroll)}`);
+      assert.ok(scroll !== null && scroll.missed <= 2, `missed frames ${JSON.stringify(scroll)}`);
+    } finally {
+      await app.close();
+    }
   });
 });
 
@@ -1690,7 +1754,11 @@ void describe('settings, templates and Fresh Start (Phase 7)', () => {
       await page.keyboard.type('600');
       await page.keyboard.press('Enter');
       // Assigning selected Groceries; Escape deselects so the inspector shows the plan again (YNAB).
-      await page.keyboard.press('Escape');
+      // An Escape that lands before the commit has rendered closes the editor instead: repeat it.
+      for (let i = 0; i < 5 && (await page.locator('[role=row][aria-selected=true]').count()) > 0; i++) {
+        await page.keyboard.press('Escape');
+        await page.waitForTimeout(200);
+      }
       await card.getByText('You’re all set: your plan is up and running.').waitFor();
       await card.getByRole('button', { name: 'Hide this card' }).click();
       await card.waitFor({ state: 'detached' });

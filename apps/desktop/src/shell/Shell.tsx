@@ -61,7 +61,7 @@ import { fileName } from './format.ts';
 import { appIpc, errorMessage, planIpc, type RecentPlan, type TitlebarMode } from './ipc.ts';
 import { INSPECTOR_DEFAULT, INSPECTOR_MAX, INSPECTOR_MIN, prefs, TEXT_SCALES, usePrefs, type ThemePref } from './prefs.ts';
 import { navigate, useRoute, type Route } from './router.ts';
-import { localStamp, session, todayLocal, type OpenPlan } from './session.ts';
+import { localStamp, session, todayLocal, type LoadTimings, type OpenPlan } from './session.ts';
 import styles from './Shell.module.css';
 import { Sidebar, type AccountAction } from './Sidebar.tsx';
 import { useAppliedTheme } from './theme.ts';
@@ -110,6 +110,32 @@ function useWindowTitle(planName: string | null): void {
     document.title = title;
     if (isTauri()) void getCurrentWindow().setTitle(title).catch(() => undefined);
   }, [planName]);
+}
+
+export interface OpenTiming extends LoadTimings {
+  /** Opening began → the plan's first painted frame. */
+  readyMs: number;
+  /** Process start → the first plan of this run painted (launch to a usable plan, S8.1). */
+  processToReadyMs: number | null;
+}
+
+/** Once an opened plan has painted, record how long it took (perf checks read it, S8.1). */
+function useReadyMark(timings: LoadTimings): void {
+  useEffect(() => {
+    let frame = requestAnimationFrame(() => {
+      frame = requestAnimationFrame(() => {
+        const readyMs = performance.now() - timings.startedAt;
+        const record = (processToReadyMs: number | null): void => {
+          window.hafbOpenTiming = { ...timings, readyMs, processToReadyMs };
+        };
+        if (isTauri()) appIpc.markPlanReady().then(record, () => { record(null); });
+        else record(null);
+      });
+    });
+    return () => {
+      cancelAnimationFrame(frame);
+    };
+  }, [timings]);
 }
 
 /** Session notices become toasts; undo/redo notices carry the opposite action. */
@@ -163,6 +189,7 @@ function PlanFrame({ open, system, recent }: { open: OpenPlan; /** A Windows-col
   const [titlebarMode, setTitlebarMode] = useState<TitlebarMode>('custom');
   const content = useRef<HTMLDivElement>(null);
   const path = open.info.path;
+  useReadyMark(open.timings);
 
   // Reopen where the user left off in this plan, then remember every move.
   useEffect(() => {

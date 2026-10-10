@@ -4,7 +4,7 @@ import { buildBlankPlan, buildSamplePlan } from './design/sample.ts';
 import { appIpc, type LaunchTiming } from './shell/ipc.ts';
 import { useRoute } from './shell/router.ts';
 import { session } from './shell/session.ts';
-import { Shell } from './shell/Shell.tsx';
+import { Shell, type OpenTiming } from './shell/Shell.tsx';
 import { prefs, usePrefs } from './shell/prefs.ts';
 import { ConfirmProvider } from './ui/Dialog.tsx';
 import { ErrorBoundary } from './ui/ErrorBoundary.tsx';
@@ -21,10 +21,12 @@ declare global {
   interface Window {
     /** Launch timings once the first frame is painted (perf checks and the smoke suite read it). */
     hafbLaunchTiming?: LaunchTiming;
+    /** The last plan opened, once its first frame painted (S8.1). */
+    hafbOpenTiming?: OpenTiming;
   }
 }
 
-/** Once per app start: title bar mode, first-paint timing, and the plan to open. */
+/** Once per app start: title bar mode and first-paint timing (or the browser preview's sample plan). */
 function useStartup(): void {
   useEffect(() => {
     if (!isTauri()) {
@@ -51,12 +53,7 @@ function useStartup(): void {
         );
       });
     });
-    appIpc.startupPlanPath().then(
-      (path) => {
-        if (path !== null) void session.openPath(path);
-      },
-      () => undefined,
-    );
+    // The plan named at launch is already opening (main.tsx, session.openAtLaunch).
   }, []);
 }
 

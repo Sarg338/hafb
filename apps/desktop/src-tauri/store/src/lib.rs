@@ -223,7 +223,10 @@ impl Plan {
     pub fn load(&self) -> Result<LoadedTables> {
         let mut out = LoadedTables::new();
         for &table in SNAPSHOT_TABLES {
-            let mut stmt = self.conn.prepare_cached(&format!("SELECT * FROM {}", quote(table)))?;
+            // Key order: the UI keeps collections sorted by key, and sorting sorted rows is cheap.
+            let order = self.tables.get(table).map(|t| t.keys.iter().map(|k| quote(k)).collect::<Vec<_>>().join(", ")).unwrap_or_default();
+            let sql = if order.is_empty() { format!("SELECT * FROM {}", quote(table)) } else { format!("SELECT * FROM {} ORDER BY {order}", quote(table)) };
+            let mut stmt = self.conn.prepare_cached(&sql)?;
             let columns: Vec<String> = stmt.column_names().into_iter().map(str::to_owned).collect();
             let n = columns.len();
             let mut rows = Vec::new();
@@ -238,6 +241,11 @@ impl Plan {
             out.insert(table.to_owned(), TableData { columns, rows });
         }
         Ok(out)
+    }
+
+    /// `load()` as JSON text, ready to hand to the webview without another conversion.
+    pub fn load_json(&self) -> Result<String> {
+        serde_json::to_string(&self.load()?).map_err(|e| StoreError::new(ErrorKind::Io, e.to_string()))
     }
 
     fn table(&self, table: &str) -> Result<(&'static str, &TableColumns)> {
@@ -416,6 +424,12 @@ impl Plan {
         let options = OpenOptions { backup_dir: Some(backup_dir.to_path_buf()), backup_on_open: false, keep_backups: None };
         let (plan, report) = Plan::open(&path, &options)?;
         Ok((plan, report, saved))
+    }
+
+    /// The backup on open (`open-<stamp>`), for an app that opened with `backup_on_open: false`
+    /// so the file could be read first (S8.1). Make it before the first write.
+    pub fn backup_open(&self, dir: &Path, keep: usize) -> Result<PathBuf> {
+        make_backup(&self.conn, dir, BackupKind::Open, None, keep)
     }
 
     /// Back up now (S6.6): a `manual-<stamp>` copy in `dir`, keeping the newest `keep`.

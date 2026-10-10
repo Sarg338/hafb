@@ -19,6 +19,7 @@ pub fn run() {
     let main_started_ms = diagnostics::ms_since_process_start();
     paths::redirect_webview_profile();
     let startup_plan = startup::plan_path_from_args(std::env::args_os().skip(1));
+    let preload_plan = startup_plan.clone();
 
     tauri::Builder::default()
         .plugin(
@@ -64,11 +65,17 @@ pub fn run() {
             photos::attachment_set_thumbnail,
             photos::attachment_delete,
             diagnostics::launch_timing,
+            diagnostics::mark_plan_ready,
             startup::startup_plan_path,
             titlebar::get_titlebar_mode,
             titlebar::set_titlebar_mode,
         ])
-        .setup(|app| {
+        .setup(move |app| {
+            // Read the plan named at launch while the webview starts (S8.1). Before this returns, no
+            // IPC is served, so the UI's plan_open always finds the preload.
+            if let Some(path) = preload_plan {
+                commands::preload(app.handle(), path);
+            }
             let window = app
                 .get_webview_window("main")
                 .ok_or("main window missing from tauri.conf.json")?;

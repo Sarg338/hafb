@@ -6,12 +6,14 @@ use hafb_store::app_settings::{self, AppSettings};
 use hafb_store::backup_settings::{self, BackupSettings};
 use hafb_store::error::{ErrorKind, Result, StoreError};
 use hafb_store::recent::{self, RecentPlan};
-use hafb_store::wire::{LoadedTables, LogEntry, RowChanges};
+use hafb_store::wire::{LogEntry, RowChanges};
 use hafb_store::{OpenOptions, OpenReport, Plan, PlanInfo};
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
-use tauri::{AppHandle, State, WebviewWindow};
+use std::thread::JoinHandle;
+use tauri::ipc::{InvokeResponseBody, Response};
+use tauri::{AppHandle, Manager, State, WebviewWindow};
 
 /// Imports larger than this are refused (a YNAB export of a decade of data is a few MB).
 const MAX_IMPORT_BYTES: u64 = 200 * 1024 * 1024;
@@ -21,6 +23,10 @@ pub struct PlanState {
     pub(crate) open: Mutex<Option<OpenPlan>>,
     /// The files the user last picked in an import dialog: the only files `read_import_file` reads.
     picked_import: Mutex<Vec<PathBuf>>,
+    /// The plan named at launch, being opened while the webview starts (S8.1). Taken by `plan_open`.
+    preload: Mutex<Option<(PathBuf, JoinHandle<Result<PlanInfo>>)>>,
+    /// The open plan's tables as JSON, read by the preload; the next `plan_load` returns them.
+    preloaded_tables: Mutex<Option<String>>,
 }
 
 impl PlanState {
@@ -37,6 +43,32 @@ pub struct OpenPlan {
     pub(crate) plan: Plan,
     report: OpenReport,
     backup_dir: PathBuf,
+    /// The backup on open, still to make (how many to keep). It runs in the background once the
+    /// plan has loaded, and always before the first write (S8.1: it no longer delays opening).
+    open_backup: Option<usize>,
+}
+
+impl OpenPlan {
+    fn new(plan: Plan, report: OpenReport, backup_dir: PathBuf, open_backup: Option<usize>) -> Self {
+        Self { plan, report, backup_dir, open_backup }
+    }
+
+    /// Make the backup on open if it is still due. A failure leaves it due, so nothing is written
+    /// until a backup exists.
+    fn make_open_backup(&mut self) -> Result<()> {
+        if let Some(keep) = self.open_backup {
+            let copy = self.plan.backup_open(&self.backup_dir, keep)?;
+            self.report.backup_path = Some(path_string(&copy));
+            self.open_backup = None;
+        }
+        Ok(())
+    }
+
+    /// The plan, for a command that writes to it: the backup on open comes first.
+    pub(crate) fn writable(&mut self) -> Result<&mut Plan> {
+        self.make_open_backup()?;
+        Ok(&mut self.plan)
+    }
 }
 
 fn lock_err<T>(_: T) -> StoreError {
@@ -64,18 +96,52 @@ fn path_string(p: &Path) -> String {
     p.to_string_lossy().into_owned()
 }
 
-/// Open `path` (closing any open plan first), back it up, and remember it in the recent list.
+/// Open `path` (closing any open plan first) and remember it in the recent list. The backup on
+/// open is made after the first load (see `OpenPlan::open_backup`).
 fn open_into(app: &AppHandle, state: &PlanState, path: &Path, backup_on_open: bool) -> Result<PlanInfo> {
     let mut slot = state.open.lock().map_err(lock_err)?;
     *slot = None; // release the previous plan's lock before opening (it may be the same file)
+    *state.preloaded_tables.lock().map_err(lock_err)? = None;
     let backup_dir = backup_dir_for(app, path)?;
     let keep = backup_settings::load(&data_dir(app)?).keep;
-    let options = OpenOptions { backup_dir: Some(backup_dir.clone()), backup_on_open, keep_backups: Some(keep) };
+    let options = OpenOptions { backup_dir: Some(backup_dir.clone()), backup_on_open: false, keep_backups: Some(keep) };
     let (plan, report) = Plan::open(path, &options)?;
     let info = plan.info(&report)?;
     recent::add(&recent_file(app)?, &info.path)?;
-    *slot = Some(OpenPlan { plan, report, backup_dir });
+    *slot = Some(OpenPlan::new(plan, report, backup_dir, backup_on_open.then_some(keep)));
     Ok(info)
+}
+
+/// Start opening the plan named at launch on a worker thread, so reading it overlaps the webview
+/// starting up (S8.1). Call from `setup`, before the webview can ask for anything.
+pub fn preload(app: &AppHandle, path: PathBuf) {
+    let worker = app.clone();
+    let target = path.clone();
+    let handle = std::thread::spawn(move || -> Result<PlanInfo> {
+        let state = worker.state::<PlanState>();
+        let info = open_into(&worker, &state, &target, true)?;
+        let json = {
+            let slot = state.open.lock().map_err(lock_err)?;
+            slot.as_ref().ok_or_else(not_open)?.plan.load_json()?
+        };
+        *state.preloaded_tables.lock().map_err(lock_err)? = Some(json);
+        Ok(info)
+    });
+    if let Ok(mut slot) = app.state::<PlanState>().preload.lock() {
+        *slot = Some((path, handle));
+    }
+}
+
+/// The launch preload's result for `path`, if that is the plan it opened.
+fn take_preload(state: &PlanState, path: &Path) -> Result<Option<PlanInfo>> {
+    let Some((preloaded, handle)) = state.preload.lock().map_err(lock_err)?.take() else {
+        return Ok(None);
+    };
+    let result = handle.join().map_err(|_| StoreError::new(ErrorKind::Io, "Opening the plan failed unexpectedly."))?;
+    if !same_path(&preloaded, path) {
+        return Ok(None);
+    }
+    result.map(Some)
 }
 
 #[tauri::command]
@@ -96,6 +162,9 @@ pub async fn plan_create(
 
 #[tauri::command]
 pub async fn plan_open(app: AppHandle, state: State<'_, PlanState>, path: String) -> Result<PlanInfo> {
+    if let Some(info) = take_preload(&state, Path::new(&path))? {
+        return Ok(info);
+    }
     open_into(&app, &state, Path::new(&path), true)
 }
 
@@ -112,16 +181,32 @@ pub async fn plan_close(state: State<'_, PlanState>) -> Result<()> {
     Ok(())
 }
 
+/// Every table of the open plan (JSON, as `LoadedTables`). Then the backup on open, if it is still
+/// due, runs on a worker thread: the UI has what it needs, and any write waits for it.
 #[tauri::command]
-pub async fn plan_load(state: State<'_, PlanState>) -> Result<LoadedTables> {
-    let slot = state.open.lock().map_err(lock_err)?;
-    slot.as_ref().ok_or_else(not_open)?.plan.load()
+pub async fn plan_load(app: AppHandle, state: State<'_, PlanState>) -> Result<Response> {
+    let json = match state.preloaded_tables.lock().map_err(lock_err)?.take() {
+        Some(json) => json,
+        None => {
+            let slot = state.open.lock().map_err(lock_err)?;
+            slot.as_ref().ok_or_else(not_open)?.plan.load_json()?
+        }
+    };
+    std::thread::spawn(move || {
+        if let Ok(mut slot) = app.state::<PlanState>().open.lock() {
+            if let Some(open) = slot.as_mut() {
+                // A failure leaves the backup due; the next write retries it and reports the error.
+                let _ = open.make_open_backup();
+            }
+        }
+    });
+    Ok(Response::new(InvokeResponseBody::Json(json)))
 }
 
 #[tauri::command]
 pub async fn plan_apply(state: State<'_, PlanState>, changes: RowChanges, log: Option<LogEntry>) -> Result<()> {
     let mut slot = state.open.lock().map_err(lock_err)?;
-    slot.as_mut().ok_or_else(not_open)?.plan.apply(&changes, log.as_ref())
+    slot.as_mut().ok_or_else(not_open)?.writable()?.apply(&changes, log.as_ref())
 }
 
 #[tauri::command]
@@ -151,7 +236,7 @@ pub async fn plan_restore(app: AppHandle, state: State<'_, PlanState>, backup_pa
     report.backup_path = Some(path_string(&saved));
     let info = plan.info(&report)?;
     recent::add(&recent_file(&app)?, &info.path)?;
-    *slot = Some(OpenPlan { plan, report, backup_dir });
+    *slot = Some(OpenPlan::new(plan, report, backup_dir, None));
     Ok(info)
 }
 
