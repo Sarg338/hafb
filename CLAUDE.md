@@ -8,7 +8,7 @@ This file is the durable source of truth for the project. Read it fully before d
 
 ## 1. Non-negotiables
 
-- **Local-only.** No network calls, ever, with one opt-in exception: bank sync through SimpleFIN Bridge (ADR 0006). It is off by default, talks only to the SimpleFIN host the user linked, runs only in Rust, and never sees bank credentials. Its access URL lives in Windows Credential Manager, never in the plan file. No telemetry, no crash reporting, no update checks, no analytics. The app must work with the network cable unplugged and must never ask for an account. If a library phones home, it is not allowed in.
+- **Local-only.** No network calls, ever, with one opt-in exception: bank sync through SimpleFIN Bridge (ADR 0006). It is off by default, talks only to the SimpleFIN host the user linked, runs only in Rust, and never sees bank credentials. Its access URL lives in Windows Credential Manager, never in the plan file. No telemetry, no crash reporting, no update checks, no analytics. The app must work with the network cable unplugged and must never ask for an account. If a library phones home, it is not allowed in. WebView2's own traffic is cut off in `src-tauri/src/webview_env.rs` (closed proxy, crash dumps kept local). The one thing that can't be stopped, its Microsoft-account profile lookup on PCs signed into one, is documented in `docs/privacy.md`, and a smoke test fails on anything else.
 - **Free.** No paywalls, no "pro" tier, no nag screens. MIT license.
 - **The user's data is a single file they own.** One SQLite file per budget, in a user-chosen location, human-inspectable with any SQLite tool. Users can put it in a OneDrive/Syncthing folder if they want "sync" — we do not build sync.
 - **Money is never a float.** All amounts are 64-bit integers in minor units (cents for USD). Currency decimal places come from the budget's currency setting. Division only happens in auto-assign/averaging, and rounding rules must be explicit and tested.
@@ -412,6 +412,7 @@ Mark phase status here when it changes:
     - A damaged file was opened, and its backups rotated the good ones out.
   - Every open runs `quick_check`. A damaged plan is refused untouched, and the app offers its newest good backup.
   - Tests: upgrades from every older schema, a writer killed mid-commit, backup-restore drills, engine property tests, and plans of 100k transactions and 721 MB of photos (`store/tests/safety.rs`; roadmap notes).
+  - S8.3 privacy audit done in code 2026-10-10 (`docs/privacy.md`). HAFB has no network code. WebView2's experiment-config and component-update fetches are cut off by a closed proxy, its crash dumps stay local, and the installer made no connections in a Windows firewall audit. The OneAuth account lookup is documented.
 
 ---
 

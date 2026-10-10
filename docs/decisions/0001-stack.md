@@ -87,6 +87,15 @@ CLAUDE.md §2 proposed Tauri 2 + React + TypeScript + SQLite "pending spike". On
 
 **WebView2 itself:** Tauri's default WebView2 arguments disable SmartScreen (`msSmartScreenProtection`). We do not override them. The real-machine check in §7 verifies no outbound connections.
 
+- **Corrected by S8.3 (2026-10-10):** that check (a short run) missed WebView2's own traffic.
+  - **What WebView2 does out of the box:** it fetches Microsoft's experiment configuration (`config.edge.skype.com`) at start and component updates (`edge.microsoft.com`) about a minute in.
+  - **What HAFB does now:** it creates the WebView2 environment itself (`src-tauri/src/webview_env.rs`, using `webview2-com` and `windows-core`, both already in the tree, pinned to Tauri's versions):
+    - Tauri's arguments, plus a proxy on a closed loopback port, so those fetches fail on the PC.
+    - `IsCustomCrashReportingEnabled` on.
+    - Single sign-on off.
+  - **What remains:** one lookup per launch of the Windows Microsoft account's profile by WebView2's OneAuth library. No supported switch stops it, and Sarg chose to document it.
+  - Details and evidence: `docs/privacy.md`.
+
 ## 4. The spike
 
 Everything below is throwaway, to be deleted when Phase 0 closes.
@@ -172,6 +181,6 @@ Not measured. Sarg dropped the comparison on 2026-10-08 ("it took a lot of tries
 - **Status → Accepted** (2026-10-08). The custom title bar (`tauri-plugin-frame`) is the default; the native title bar remains a tested fallback.
 
 **Caveats carried forward:**
-- **Open item (CLAUDE.md §1, no crash reporting):** WebView2 runs a Chromium **Crashpad** crash-reporter process. No traffic was observed on this machine. Whether WebView2 uploads crash dumps (likely governed by the Windows diagnostic-data setting, not by the app) and whether we can turn it off (browser args, environment variables, policy) is **unverified**. Research it before the first public build and record the answer here.
+- **Crash reporting (resolved in S8.3, 2026-10-10):** WebView2 runs a Chromium **Crashpad** process, but it has no upload address and only writes dumps into the profile's `Crashpad` folder. Whether Windows then sends them to Microsoft follows the OS diagnostic-data consent, unless the app sets `IsCustomCrashReportingEnabled`; with it set, "Windows won't send crash data to Microsoft endpoint" (Microsoft's WebView2 API reference). HAFB sets it (`webview_env.rs`). A crash of `hafb.exe` itself is Windows Error Reporting's business, under the user's Windows settings, as for any program. See `docs/privacy.md`.
 - The register grid ran on a 60 Hz display only. Re-run the grid spike on a high-refresh display when one is available.
 - The perf budget's 20k-transaction, 2019-era-laptop launch target (CLAUDE.md §8) is not covered by this spike. Re-measure when the real budget loads in Phase 3.

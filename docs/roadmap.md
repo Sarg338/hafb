@@ -387,7 +387,7 @@ Progress (YNAB used as the reference throughout, 2026-10-09; it was put back as 
 | **S8.1 Performance at scale** | Launch to usable plan < 1.5 s on a 2019-era laptop with 20k transactions; recompute < 50 ms (5y × 100 categories); register at 60 fps and on 120/144 Hz; memory budget; profiling fixes. | All CLAUDE.md §8 budgets met on hardware. |
 | **S8.2 Reliability & data safety** | Property-based engine tests; upgrade tests from every prior schema; power-loss/WAL tests; corruption detection and recovery; backup-restore drills; very large files. | No data-loss path found. |
 | **S8.3 Privacy audit** | Resolve the WebView2 **Crashpad** / diagnostic-data question (ADR 0001 open item); firewall-verified zero connections (app and installer); the bank-sync check (only the SimpleFIN host, ADR 0006) is repeated in S8.6, which comes after; dependency license and network audit; CSP review. | Written privacy statement backed by evidence. |
-| **S8.4 Packaging** | Versioning, MSI upgrade path (stable upgrade code), portable-mode data location, uninstall keeps data, ARM64 build (nice-to-have); document SmartScreen behavior for unsigned builds. | Upgrade from the previous build keeps every file intact. |
+| **S8.4 Packaging** | Third-party license notices shipped with the app (found in S8.3); versioning, MSI upgrade path (stable upgrade code), portable-mode data location, uninstall keeps data, ARM64 build (nice-to-have); document SmartScreen behavior for unsigned builds. | Upgrade from the previous build keeps every file intact. |
 | **S8.5 Docs & beta** | User guide, YNAB migration guide, shortcut reference; beta with a few YNAB users; final parity audit against `ynab-parity.md`. | Beta feedback triaged; the parity audit has only S8.6 rows open. |
 | **S8.6 Bank sync, optional** (ADR 0006; the very last item before v1.0) | SimpleFIN Bridge: paste a setup token, claim it, and keep the access URL in Windows Credential Manager (never in the plan). Map SimpleFIN accounts to HAFB accounts (new migration). Sync on open, about every 6 hours while open (random minute), and *Sync now*. Fetch window = last sync minus 5 days, capped at 90 days. Results feed the S6.5 pipeline (unapproved, auto-match, rename rules, RejectedImport). Unlink deletes the secret. One Rust HTTP client (rustls). | Sarg's Regions accounts sync with zero duplicates across repeated syncs and alongside file imports. A firewall log shows zero connections with sync off and only the SimpleFIN host with it on. Every non-server parity row is `done`; then **v1.0** is tagged. |
 
@@ -450,6 +450,29 @@ Progress:
     - **Crash window:** edits made while the backup on open runs wait in memory until it finishes. A crash in that window loses them: about 0.3 s on a normal plan, about 6.5 s here.
 
     Neither was changed, to keep this simple.
+
+- **S8.3 done in code (2026-10-10).** The written statement is `docs/privacy.md`, backed by evidence.
+  - **Finding:** WebView2, not HAFB, was contacting Microsoft.
+    - Microsoft's experiment configuration at start (`config.edge.skype.com`).
+    - Component updates about a minute in (`edge.microsoft.com`).
+    - A profile lookup of the Windows Microsoft account (`substrate.office.com`, from its OneAuth library).
+    - Phase 0's short check had missed all three.
+  - **Fix:** HAFB creates the WebView2 environment itself (`src-tauri/src/webview_env.rs`):
+    - Tauri's arguments, plus a proxy on a closed loopback port, so WebView2's own fetches fail on the PC.
+    - `IsCustomCrashReportingEnabled`, so WebView2 crash dumps stay on the PC. This closes ADR 0001's Crashpad question.
+    - Single sign-on off.
+  - **Left as documented:** the OneAuth profile lookup, once per launch and only on PCs signed into a Microsoft account. No plan data is involved, and no supported switch stops it; disabling the related Edge features was tried. Sarg chose to document it.
+  - **Evidence:**
+    - A logging proxy and socket polling over 8 minutes.
+    - WebView2's network log.
+    - Windows Filtering Platform auditing with administrator rights, covering MSI install, 5 minutes of use and uninstall: the installer made no connections, and the app made none except the OneAuth lookup. The audit setting was restored.
+  - **Code audit:**
+    - No network crates in the shipped Rust tree; `tokio` has no `net` feature.
+    - No network APIs in the shipped JS.
+    - The installer doesn't download WebView2.
+  - **CSP:** now also `object-src 'none'; base-uri 'none'; form-action 'none'`. Every form already handles submit in code.
+  - **Licenses:** all permissive (218 Rust crates and the JS runtime packages). Shipping their notices is S8.4's job.
+  - **Smoke test:** using the app for about 80 seconds makes no outside connection except that one lookup.
 
 ## Out of scope (wontfix; server-dependent)
 
