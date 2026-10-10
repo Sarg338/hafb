@@ -57,7 +57,7 @@ import { useToast } from '../ui/Toast.tsx';
 import { useConfirm } from '../ui/Dialog.tsx';
 import { BackupsDialog, ImportReportDialog, type BackupControls } from './dialogs.tsx';
 import { saveFile } from './files.ts';
-import { fileName } from './format.ts';
+import { backupTime, fileName } from './format.ts';
 import { appIpc, errorMessage, planIpc, type RecentPlan, type TitlebarMode } from './ipc.ts';
 import { INSPECTOR_DEFAULT, INSPECTOR_MAX, INSPECTOR_MIN, prefs, TEXT_SCALES, usePrefs, type ThemePref } from './prefs.ts';
 import { navigate, useRoute, type Route } from './router.ts';
@@ -157,6 +157,37 @@ function SessionToasts() {
   return null;
 }
 
+/** A plan that failed its integrity check: offer its newest good backup (S8.2). */
+function DamagedPlanPrompt() {
+  const { damaged } = useSyncExternalStore(session.subscribe, session.getState);
+  const confirm = useConfirm();
+  useEffect(() => {
+    if (!damaged) return;
+    const name = fileName(damaged.path);
+    if (!damaged.backup) {
+      void confirm({
+        title: `“${name}” is damaged`,
+        body: 'HAFB checked the file, found damage and didn’t open it. There is no good backup of it to restore. The file was left as it is.',
+        confirmLabel: 'OK',
+        cancelLabel: 'Close',
+      }).then(() => {
+        session.dismissDamaged();
+      });
+      return;
+    }
+    void confirm({
+      title: `“${name}” is damaged`,
+      body: `HAFB checked the file, found damage and didn’t open it. Restore its newest good backup, from ${backupTime(damaged.backup.stamp)}? Changes made after that backup aren’t in it. The damaged file is kept in the backups folder.`,
+      confirmLabel: 'Restore backup',
+      cancelLabel: 'Not now',
+    }).then((ok) => {
+      if (ok) void session.recoverDamaged();
+      else session.dismissDamaged();
+    });
+  }, [damaged, confirm]);
+  return null;
+}
+
 export function Shell() {
   const state = useSyncExternalStore(session.subscribe, session.getState);
   const p = usePrefs();
@@ -168,6 +199,7 @@ export function Shell() {
   return (
     <div className={cx('hafb-root', styles.shell)} data-nocolor={String(p.noColor || system)} data-theme-system={String(system)}>
       <SessionToasts />
+      <DamagedPlanPrompt />
       {state.open ? <PlanFrame open={state.open} system={system} recent={state.recent} /> : <Welcome recent={state.recent} busy={state.busy} />}
     </div>
   );

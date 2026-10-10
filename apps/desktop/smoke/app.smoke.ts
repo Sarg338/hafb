@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { after, before, describe, test } from 'node:test';
 import type { Page } from 'playwright-core';
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { DatabaseSync } from 'node:sqlite';
 import { join } from 'node:path';
 import { netWorth, spendingBreakdown } from '@hafb/engine';
 import { addDays, addMonths, addMonthsToDate, compareMonths, formatMoney, minor, monthOf } from '@hafb/shared';
@@ -186,6 +187,61 @@ void describe('persistence across a relaunch', () => {
     await second.page.getByRole('treegrid', { name: 'Categories' }).waitFor();
     assert.equal(await assignedText(second.page, 'Electric'), '$155.55');
     await second.close();
+  });
+});
+
+// ---- S8.2: a damaged plan is refused and recovered from its newest good backup ------------------
+void describe('a damaged plan', () => {
+  let box: Sandbox;
+  before(() => {
+    box = makeSandbox();
+  });
+  after(() => {
+    box.cleanup();
+  });
+
+  /** Break the root page of `transactions` (an invalid page type), as a bad sector would. */
+  function damage(path: string): void {
+    const db = new DatabaseSync(path);
+    const pageSize = Number(db.prepare('PRAGMA page_size').get()?.page_size);
+    const root = Number(db.prepare("SELECT rootpage FROM sqlite_master WHERE name = 'transactions'").get()?.rootpage);
+    db.close();
+    const bytes = readFileSync(path);
+    const at = (root - 1) * pageSize + (root === 1 ? 100 : 0);
+    bytes[at] = 0;
+    bytes.fill(0xff, at + 1, at + 8);
+    writeFileSync(path, bytes);
+  }
+
+  void test('opening it offers the newest good backup; restoring opens the plan and keeps the damaged file', { timeout: 300_000 }, async () => {
+    // A first open makes the backup on open.
+    const first = await launch(box, ['--open', box.planPath]);
+    await first.page.waitForFunction(() => window.hafbOpenTiming ?? null, null, { timeout: 30_000 });
+    await first.page.waitForTimeout(2000);
+    await first.close();
+    damage(box.planPath);
+
+    const app = await launch(box, ['--open', box.planPath]);
+    try {
+      const { page } = app;
+      const dialog = page.getByRole('alertdialog').or(page.getByRole('dialog')).filter({ hasText: 'is damaged' });
+      await dialog.waitFor();
+      assert.match(norm(await dialog.innerText()), /Restore its newest good backup, from /);
+      await dialog.getByRole('button', { name: 'Restore backup' }).click();
+      await page.getByRole('treegrid', { name: 'Categories' }).waitFor();
+      await page.locator('[role=status]', { hasText: /Restored “Sample Household” from its backup/ }).first().waitFor();
+      const kept = readdirSync(join(box.dataDir, 'backups'), { recursive: true }).map(String).filter((f) => /damaged-.*\.hafb$/.test(f));
+      assert.equal(kept.length, 1, `the damaged file is kept: ${JSON.stringify(kept)}`);
+    } finally {
+      await app.close();
+    }
+    // The restored file opens cleanly on its own.
+    const again = await launch(box, ['--open', box.planPath]);
+    try {
+      await again.page.getByRole('treegrid', { name: 'Categories' }).waitFor();
+    } finally {
+      await again.close();
+    }
   });
 });
 

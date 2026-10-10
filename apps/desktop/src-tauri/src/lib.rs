@@ -44,6 +44,8 @@ pub fn run() {
             commands::plan_save_copy,
             commands::plan_backups,
             commands::plan_restore,
+            commands::plan_recovery_candidate,
+            commands::plan_recover,
             commands::plan_backup_now,
             commands::backup_settings_get,
             commands::backup_settings_set,

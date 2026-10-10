@@ -240,6 +240,36 @@ pub async fn plan_restore(app: AppHandle, state: State<'_, PlanState>, backup_pa
     Ok(info)
 }
 
+/// For a plan that failed to open as damaged: the backup recovering it would use (S8.2).
+#[tauri::command]
+pub async fn plan_recovery_candidate(app: AppHandle, path: String) -> Result<Option<BackupInfo>> {
+    hafb_store::newest_good_backup(&backup_dir_for(&app, Path::new(&path))?)
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Recovered {
+    info: PlanInfo,
+    backup: BackupInfo,
+    damaged_copy: String,
+}
+
+/// Replace a damaged plan with its newest good backup and open it; the damaged file is kept in
+/// the plan's backup folder (S8.2).
+#[tauri::command]
+pub async fn plan_recover(app: AppHandle, state: State<'_, PlanState>, path: String) -> Result<Recovered> {
+    let mut slot = state.open.lock().map_err(lock_err)?;
+    *slot = None;
+    *state.preloaded_tables.lock().map_err(lock_err)? = None;
+    let path = PathBuf::from(path);
+    let backup_dir = backup_dir_for(&app, &path)?;
+    let (plan, report, backup, kept) = Plan::recover(&path, &backup_dir)?;
+    let info = plan.info(&report)?;
+    recent::add(&recent_file(&app)?, &info.path)?;
+    *slot = Some(OpenPlan::new(plan, report, backup_dir, None));
+    Ok(Recovered { info, backup, damaged_copy: path_string(&kept) })
+}
+
 /// The backup settings (S6.6), with the default folder for the UI.
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]

@@ -52,8 +52,20 @@ export interface CommandLogEntry {
 
 /** Every store error arrives as { kind, message }. */
 export interface StoreError {
-  kind: 'AlreadyOpen' | 'NewerVersion' | 'NotAPlan' | 'Invalid' | 'NotOpen' | 'Io' | 'Sqlite';
+  kind: 'AlreadyOpen' | 'NewerVersion' | 'NotAPlan' | 'Damaged' | 'Invalid' | 'NotOpen' | 'Io' | 'Sqlite';
   message: string;
+}
+
+/** A damaged plan replaced by its newest good backup (S8.2). */
+export interface Recovered {
+  info: PlanInfo;
+  backup: BackupInfo;
+  /** Where the damaged file was kept (the plan's backup folder). */
+  damagedCopy: string;
+}
+
+export function errorKind(e: unknown): string | null {
+  return typeof e === 'object' && e !== null && 'kind' in e && typeof e.kind === 'string' ? e.kind : null;
 }
 
 export function errorMessage(e: unknown): string {
@@ -71,6 +83,9 @@ export const planIpc = {
   saveCopy: (dest: string) => invoke<null>('plan_save_copy', { dest }),
   backups: () => invoke<BackupInfo[]>('plan_backups'),
   restore: (backupPath: string) => invoke<PlanInfo>('plan_restore', { backupPath }),
+  /** The backup that would replace a damaged plan at `path`, or null if none is good. */
+  recoveryCandidate: (path: string) => invoke<BackupInfo | null>('plan_recovery_candidate', { path }),
+  recover: (path: string) => invoke<Recovered>('plan_recover', { path }),
   backupNow: () => invoke<string>('plan_backup_now'),
   backupSettings: () => invoke<BackupSettingsInfo>('backup_settings_get'),
   setBackupSettings: (keep: number, folder: string | null) => invoke<BackupSettingsInfo>('backup_settings_set', { keep, folder }),

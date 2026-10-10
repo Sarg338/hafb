@@ -37,6 +37,11 @@ const STORE: Record<string, { title: string; message: (detail: string) => string
     message: () => 'Choose a .hafb plan file. Nothing was changed.',
     recoverable: true,
   },
+  Damaged: {
+    title: 'This plan file is damaged',
+    message: () => "HAFB didn't open it, so nothing more was changed. Its newest good backup can replace it.",
+    recoverable: true,
+  },
   NotOpen: {
     title: 'No plan is open',
     message: () => 'Open or create a plan first.',

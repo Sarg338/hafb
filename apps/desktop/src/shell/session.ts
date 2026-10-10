@@ -36,7 +36,8 @@ import {
 } from '@hafb/store';
 import { isTauri } from '@tauri-apps/api/core';
 import { makeDate, monthOf, uuidv7Generator, type ISODate, type Month } from '@hafb/shared';
-import { appIpc, errorMessage, planIpc, type BackupInfo, type PlanInfo, type RecentPlan } from './ipc.ts';
+import { appIpc, errorKind, errorMessage, planIpc, type BackupInfo, type PlanInfo, type RecentPlan } from './ipc.ts';
+import { backupTime } from './format.ts';
 import { photos } from './photos.ts';
 
 export interface LoadTimings {
@@ -81,6 +82,14 @@ export interface SessionState {
   /** A long operation in progress ("Importing…"); the UI disables actions while set. */
   busy: string | null;
   toast: Toast | null;
+  /** A plan that failed to open as damaged, and the backup that can replace it (S8.2). */
+  damaged: DamagedPlan | null;
+}
+
+export interface DamagedPlan {
+  path: string;
+  /** The newest backup that passed the integrity check, or null when none did. */
+  backup: BackupInfo | null;
 }
 
 /** The machine's local calendar date. The only place the UI reads the clock for "today". */
@@ -110,7 +119,7 @@ export type NewPlanSettings = Omit<PlanSettings, 'createdAt' | 'firstMonth'>;
 
 
 class PlanSession {
-  private state: SessionState = { recent: [], open: null, busy: null, toast: null };
+  private state: SessionState = { recent: [], open: null, busy: null, toast: null, damaged: null };
   private readonly listeners = new Set<() => void>();
   private readonly sessionId = newId();
   /** Writes go to disk one at a time, in order. */
@@ -218,18 +227,45 @@ class PlanSession {
   }
 
   openPath(path: string): Promise<void> {
-    return this.task('Opening…', async () => {
-      const startedAt = performance.now();
-      await this.loadOpened(await planIpc.open(path), undefined, startedAt);
-    });
+    return this.task('Opening…', () => this.openFile(path));
   }
 
   openDialog(): Promise<void> {
     return this.task('Opening…', async () => {
       const path = await planIpc.pickPlanPath('open');
-      const startedAt = performance.now();
-      if (path !== null) await this.loadOpened(await planIpc.open(path), undefined, startedAt);
+      if (path !== null) await this.openFile(path);
     });
+  }
+
+  /** Open `path`; a damaged file is held for the recovery dialog instead of a bare error (S8.2). */
+  private async openFile(path: string): Promise<void> {
+    const startedAt = performance.now();
+    let info: PlanInfo;
+    try {
+      info = await planIpc.open(path);
+    } catch (e) {
+      if (errorKind(e) !== 'Damaged') throw e;
+      const backup = await planIpc.recoveryCandidate(path).catch(() => null);
+      this.set({ damaged: { path, backup } });
+      return;
+    }
+    await this.loadOpened(info, undefined, startedAt);
+  }
+
+  /** Replace the damaged plan with its newest good backup and open it (S8.2). */
+  recoverDamaged(): Promise<void> {
+    const damaged = this.state.damaged;
+    if (!damaged) return Promise.resolve();
+    this.set({ damaged: null });
+    return this.task('Restoring…', async () => {
+      const r = await planIpc.recover(damaged.path);
+      await this.loadOpened(r.info);
+      this.notify(`Restored “${r.info.name}” from its backup of ${backupTime(r.backup.stamp)}. Changes made after that backup aren’t in it. The damaged file was kept at ${r.damagedCopy}.`);
+    });
+  }
+
+  dismissDamaged(): void {
+    this.set({ damaged: null });
   }
 
   /** A new plan file (S7.1/S7.2), optionally starting with a template's categories. */
