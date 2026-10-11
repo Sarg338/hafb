@@ -104,13 +104,16 @@ These belong to Windows and follow your Windows settings, as they do for every p
 
 ## Licenses
 
-Everything HAFB ships is under permissive licenses compatible with HAFB's MIT license:
-- **Rust crates (218):** MIT and/or Apache-2.0, BSD-3-Clause, Zlib and Unicode-3.0. Five MPL-2.0
-  crates (`cssparser`, `selectors`, `dtoa-short`, `option-ext`, `cssparser-macros`) are used
-  unmodified.
-- **Compiled in with SQLite (S8.3b):** SQLCipher (BSD-3-Clause, Zetetic) and OpenSSL's crypto
-  library (Apache-2.0).
-- **JavaScript packages:** React, TanStack (MIT) and `@tauri-apps/api` (MIT or Apache-2.0).
+Everything HAFB ships is under licenses compatible with HAFB's MIT license:
+- **Rust crates (228 for x64 and ARM64):** MIT and/or Apache-2.0, BSD-3-Clause, Zlib and
+  Unicode-3.0. Five MPL-2.0 crates (`cssparser`, `selectors`, `dtoa-short`, `option-ext`,
+  `cssparser-macros`) are used unmodified; their source is on crates.io.
+- **Compiled in:** SQLCipher (BSD-3-Clause, Zetetic) with SQLite (public domain), OpenSSL's crypto
+  library (Apache-2.0), and Microsoft's WebView2 loader (BSD-3-Clause, from the WebView2 SDK).
+- **JavaScript packages (12):** React, TanStack, `@fluentui/svg-icons` (MIT) and `@tauri-apps/api`
+  (MIT or Apache-2.0).
 
-These licenses ask for their notices to travel with the app; the installer's notices file is part of
-S8.4 (packaging).
+Their notices travel with the app (S8.4): `THIRD-PARTY-NOTICES.txt` is installed beside `hafb.exe`,
+is in the portable zip, and shows in *Help → About HAFB → Show third-party licenses*.
+`scripts/notices.mjs` writes it from the dependency trees on every `pnpm build` and fails on a
+license outside its allowed list; the UI build fails if it bundles a package the file doesn't list.

@@ -472,7 +472,7 @@ Progress:
     - No network APIs in the shipped JS.
     - The installer doesn't download WebView2.
   - **CSP:** now also `object-src 'none'; base-uri 'none'; form-action 'none'`. Every form already handles submit in code.
-  - **Licenses:** all permissive (218 Rust crates and the JS runtime packages). Shipping their notices is S8.4's job.
+  - **Licenses:** all compatible with MIT (218 Rust crates and the JS runtime packages): permissive, plus five unmodified MPL-2.0 crates. Shipping their notices is S8.4's job.
   - **Smoke test:** using the app for about 80 seconds makes no outside connection except that one lookup.
 - **S8.3b done in code (2026-10-10).** Optional plan passwords with SQLCipher 4 (ADR 0010).
   - **Plan Settings → Password:** set, change or remove. Changing needs the current password. "Remember on this PC" uses Windows Credential Manager. Backups follow by default; ones under an even earlier password are listed and can be brought along with that password.
@@ -485,6 +485,15 @@ Progress:
   - **Without HAFB:** DB Browser for SQLite 3.13.1 (portable, includes *DB Browser for SQLCipher*) opened a locked plan with its password and its default settings.
   - **Build:** needs Strawberry Perl for OpenSSL (README). The first build compiles it in about 9 minutes.
   - **Tests:** `store/tests/passwords.rs` (8), a Credential Manager round trip, UI model tests, and the smoke test "lock, reopen with the password, remember it, change it with the backups, and remove it".
+- **S8.4 done in code (2026-10-11).** Packaging (ADR 0011; user-facing guide `docs/install.md`).
+  - **Version 0.9.0**, from Cargo.toml only; `pnpm version:set` writes every copy and a test checks them.
+  - **MSI:** upgrade code pinned (the value earlier builds already used), downgrades refused, `.hafb` files open in HAFB, licenses installed beside the exe. Uninstalling keeps plans, the data folder and remembered passwords.
+  - **Portable zip:** `HAFB.exe` beside a `HAFB Data` folder, which then holds settings, backups and the WebView2 profile; AppData is untouched.
+  - **License notices:** `THIRD-PARTY-NOTICES.txt` is generated on every build (4 C libraries, 228 crates, 12 JS packages) and fails on a license outside the allowed list. It's shown in *Help → About HAFB*. `LICENSE` (MIT) added.
+  - **SmartScreen** on unsigned builds is documented in `docs/install.md`.
+  - **Done-when met:** installed the previous build (0.0.1) and used it, with a locked plan remembered. Then installed 0.9.0 over it, 0.9.1 over that, tried 0.9.0 again (refused), uninstalled and reinstalled. Every file in the data folder and the plans (161–170) was byte-identical across each step; one entry in Installed apps throughout. The upgraded and reinstalled apps showed the recent list and opened the locked plan with the remembered password. A double-clicked `.hafb` opened in HAFB.
+  - **ARM64:** builds (`pnpm build:arm64`, native ARM64 exe, MSI 3.68 MB). **Not yet run on ARM hardware.**
+  - **Tests:** smoke 49/49, including portable mode and About HAFB. Fixed on the way: the password smoke test's cleanup used `cmdkey`, which can't delete HAFB's credentials, so they'd been left behind; `smoke/forget-credentials.ps1` replaces it.
 
 ## Out of scope (wontfix; server-dependent)
 
