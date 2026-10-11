@@ -36,7 +36,7 @@ import {
 } from '@hafb/store';
 import { isTauri } from '@tauri-apps/api/core';
 import { makeDate, monthOf, uuidv7Generator, type ISODate, type Month } from '@hafb/shared';
-import { appIpc, errorKind, errorMessage, planIpc, type BackupInfo, type PlanInfo, type RecentPlan } from './ipc.ts';
+import { appIpc, errorKind, errorMessage, planIpc, type BackupInfo, type PasswordChanged, type PasswordStatus, type PlanInfo, type RecentPlan, type RelockReport } from './ipc.ts';
 import { backupTime } from './format.ts';
 import { photos } from './photos.ts';
 
@@ -84,13 +84,21 @@ export interface SessionState {
   toast: Toast | null;
   /** A plan that failed to open as damaged, and the backup that can replace it (S8.2). */
   damaged: DamagedPlan | null;
+  /** A password being asked for: a locked plan opening, or a backup under another password (S8.3b). */
+  passwordPrompt: PasswordPrompt | null;
 }
 
 export interface DamagedPlan {
   path: string;
   /** The newest backup that passed the integrity check, or null when none did. */
   backup: BackupInfo | null;
+  /** The password the plan was opened with: its backups need it too. Held only in memory. */
+  password?: string;
 }
+
+export type PasswordPrompt =
+  | { purpose: 'open'; path: string; /** The last password tried was wrong. */ wrong: boolean }
+  | { purpose: 'restore'; backup: BackupInfo; wrong: boolean };
 
 /** The machine's local calendar date. The only place the UI reads the clock for "today". */
 export function todayLocal(): ISODate {
@@ -119,7 +127,7 @@ export type NewPlanSettings = Omit<PlanSettings, 'createdAt' | 'firstMonth'>;
 
 
 class PlanSession {
-  private state: SessionState = { recent: [], open: null, busy: null, toast: null, damaged: null };
+  private state: SessionState = { recent: [], open: null, busy: null, toast: null, damaged: null, passwordPrompt: null };
   private readonly listeners = new Set<() => void>();
   private readonly sessionId = newId();
   /** Writes go to disk one at a time, in order. */
@@ -237,19 +245,40 @@ class PlanSession {
     });
   }
 
-  /** Open `path`; a damaged file is held for the recovery dialog instead of a bare error (S8.2). */
-  private async openFile(path: string): Promise<void> {
+  /**
+   * Open `path`. A damaged file is held for the recovery dialog instead of a bare error (S8.2); a
+   * locked one asks for its password (S8.3b), unless it is remembered on this PC.
+   */
+  private async openFile(path: string, password?: string, remember?: boolean): Promise<void> {
     const startedAt = performance.now();
     let info: PlanInfo;
     try {
-      info = await planIpc.open(path);
+      info = await planIpc.open(path, password, remember);
     } catch (e) {
-      if (errorKind(e) !== 'Damaged') throw e;
-      const backup = await planIpc.recoveryCandidate(path).catch(() => null);
-      this.set({ damaged: { path, backup } });
+      const kind = errorKind(e);
+      if (kind === 'NeedsPassword' || kind === 'WrongPassword') {
+        this.set({ passwordPrompt: { purpose: 'open', path, wrong: password !== undefined } });
+        return;
+      }
+      if (kind !== 'Damaged') throw e;
+      const backup = await planIpc.recoveryCandidate(path, password).catch(() => null);
+      this.set({ damaged: { path, backup, ...(password !== undefined ? { password } : {}) } });
       return;
     }
+    this.set({ passwordPrompt: null });
     await this.loadOpened(info, undefined, startedAt);
+  }
+
+  /** The password prompt's answer: open the locked plan, or restore the backup, with it. */
+  submitPassword(password: string, remember: boolean): Promise<void> {
+    const prompt = this.state.passwordPrompt;
+    if (!prompt) return Promise.resolve();
+    if (prompt.purpose === 'open') return this.task('Opening…', () => this.openFile(prompt.path, password, remember));
+    return this.restore(prompt.backup, password);
+  }
+
+  dismissPasswordPrompt(): void {
+    this.set({ passwordPrompt: null });
   }
 
   /** Replace the damaged plan with its newest good backup and open it (S8.2). */
@@ -258,7 +287,7 @@ class PlanSession {
     if (!damaged) return Promise.resolve();
     this.set({ damaged: null });
     return this.task('Restoring…', async () => {
-      const r = await planIpc.recover(damaged.path);
+      const r = await planIpc.recover(damaged.path, damaged.password);
       await this.loadOpened(r.info);
       this.notify(`Restored “${r.info.name}” from its backup of ${backupTime(r.backup.stamp)}. Changes made after that backup aren’t in it. The damaged file was kept at ${r.damagedCopy}.`);
     });
@@ -296,7 +325,8 @@ class PlanSession {
       this.run((pl, ctx) => archivePlan(pl, ctx, { today }));
       await this.writes;
       const archived = this.state.open?.plan.settings.name ?? open.plan.settings.name;
-      await this.loadOpened(await planIpc.create(path, encodePlan(fresh), true));
+      // A locked plan's fresh start is locked with the same password (S8.3b).
+      await this.loadOpened(await planIpc.create(path, encodePlan(fresh), true, open.info.locked));
       this.notify(`Your fresh start “${name}” is open. “${archived}” is kept with all its history.`);
     });
   }
@@ -328,7 +358,7 @@ class PlanSession {
     const today = todayLocal();
     this.set({
       open: {
-        info: { path: label, name: plan.settings.name, schemaVersion: 1, migratedFrom: null, backupPath: null, preMigrationBackupPath: null },
+        info: { path: label, name: plan.settings.name, schemaVersion: 1, migratedFrom: null, backupPath: null, preMigrationBackupPath: null, locked: false },
         plan,
         history: emptyHistory(),
         month: monthOf(today),
@@ -369,13 +399,57 @@ class PlanSession {
     return planIpc.backups();
   }
 
-  restore(backup: BackupInfo): Promise<void> {
+  /**
+   * Restore `backup`. One made under a different password than the plan has now asks for that
+   * password first (S8.3b); the plan keeps its current one.
+   */
+  restore(backup: BackupInfo, password?: string): Promise<void> {
     return this.task('Restoring…', async () => {
       await this.writes;
-      const info = await planIpc.restore(backup.path);
+      let info: PlanInfo;
+      try {
+        info = await planIpc.restore(backup.path, password);
+      } catch (e) {
+        const kind = errorKind(e);
+        if (kind !== 'NeedsPassword' && kind !== 'WrongPassword') throw e;
+        this.set({ passwordPrompt: { purpose: 'restore', backup, wrong: password !== undefined } });
+        return;
+      }
+      this.set({ passwordPrompt: null });
       await this.loadOpened(info);
       this.notify(`Restored the backup from ${backup.fileName}. The plan as it was before is in the backups list.`);
     });
+  }
+
+  passwordStatus(): Promise<PasswordStatus> {
+    return planIpc.passwordStatus();
+  }
+
+  /**
+   * Set (`current` null), change, or remove (`next` null) the open plan's password (S8.3b). Waits
+   * for pending writes; the file is rewritten at once, outside undo. Errors go to the caller (the
+   * password dialog shows them).
+   */
+  async setPassword(current: string | null, next: string | null, remember: boolean, relock: boolean): Promise<PasswordChanged> {
+    await this.writes;
+    this.set({ busy: next === null ? 'Removing the password…' : 'Locking the plan…' });
+    try {
+      const r = await planIpc.setPassword(current, next, remember, relock);
+      this.setOpen({ info: r.info });
+      return r;
+    } finally {
+      this.set({ busy: null });
+    }
+  }
+
+  /** Re-lock the backups an earlier password opens (S8.3b). */
+  async relockBackups(password: string): Promise<RelockReport> {
+    this.set({ busy: 'Re-locking backups…' });
+    try {
+      return await planIpc.relockBackups(password);
+    } finally {
+      this.set({ busy: null });
+    }
   }
 
   async removeRecent(path: string): Promise<void> {

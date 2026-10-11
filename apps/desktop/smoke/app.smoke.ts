@@ -1,12 +1,12 @@
 // Smoke suite (S3.5, ADR 0005): the real release app, the real store, a real plan file.
 // Run: pnpm smoke (after pnpm build) or pnpm smoke:build.
 import assert from 'node:assert/strict';
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { after, before, describe, test } from 'node:test';
 import type { Page } from 'playwright-core';
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 import { netWorth, spendingBreakdown } from '@hafb/engine';
 import { addDays, addMonths, addMonthsToDate, compareMonths, formatMoney, minor, monthOf } from '@hafb/shared';
 import { addScheduled, applyChanges, budgetSnapshot, postLoanCharges, readZip, type PlanData } from '@hafb/store';
@@ -295,6 +295,136 @@ void describe('a damaged plan', () => {
     } finally {
       await again.close();
     }
+  });
+});
+
+// ---- S8.3b: plan passwords -------------------------------------------------------------------------
+void describe('plan passwords', () => {
+  let box: Sandbox;
+  const running: App[] = [];
+  const PLAIN = 'SQLite format 3\0';
+  const header = (file: string): string => readFileSync(file).subarray(0, 16).toString('latin1');
+  const readable = (file: string): boolean => readFileSync(file).includes('Sample Household');
+  const backups = (): string[] =>
+    readdirSync(join(box.dataDir, 'backups'), { recursive: true })
+      .map(String)
+      .filter((f) => f.endsWith('.hafb'))
+      .map((f) => join(box.dataDir, 'backups', f));
+  const launchPlan = async (): Promise<App> => {
+    const a = await launch(box, ['--open', box.planPath]);
+    running.push(a);
+    return a;
+  };
+  const planSettings = async (page: Page) => {
+    await page.getByRole('navigation', { name: 'Plan navigation' }).locator('button').first().click();
+    await page.getByRole('menuitem', { name: 'Plan Settings…' }).click();
+    return page.getByRole('dialog', { name: 'Plan Settings' });
+  };
+  /** Credential Manager entries this sandbox made ("Remember on this PC"). */
+  const forgetSandboxCredentials = (): void => {
+    const listed = spawnSync('cmdkey', ['/list'], { encoding: 'utf8' }).stdout;
+    const mine = basename(box.root).toLowerCase();
+    for (const line of listed.split('\n')) {
+      const m = /Target:\s*(?:LegacyGeneric:target=)?(HAFB plan password: .*)$/.exec(line.trim());
+      if (m?.[1]?.includes(mine) === true) spawnSync('cmdkey', [`/delete:${m[1]}`]);
+    }
+  };
+  before(() => {
+    box = makeSandbox();
+  });
+  after(async () => {
+    for (const a of running) await a.close().catch(() => undefined);
+    forgetSandboxCredentials();
+    box.cleanup();
+  });
+
+  void test('lock, reopen with the password, remember it, change it with the backups, and remove it', { timeout: 600_000 }, async () => {
+    // Lock it from Plan Settings. The first open makes a backup, which is locked along with it.
+    const first = await launchPlan();
+    await first.page.getByRole('treegrid', { name: 'Categories' }).waitFor();
+    await first.page.waitForTimeout(1500);
+    let settings = await planSettings(first.page);
+    await settings.getByRole('button', { name: 'Set a password…' }).click();
+    const set = first.page.getByRole('dialog', { name: 'Set a password' });
+    await set.getByLabel('Password', { exact: true }).fill('smoke pass one');
+    await set.getByLabel('Type it again', { exact: true }).fill('smoke pass on');
+    await set.getByText('The two passwords don’t match.').waitFor();
+    assert.ok(await set.getByRole('button', { name: 'Lock Plan' }).isDisabled(), 'can’t lock with a mismatch');
+    await set.getByLabel('Type it again', { exact: true }).fill('smoke pass one');
+    assert.ok(await set.getByRole('checkbox', { name: /Also lock its/ }).isChecked(), 'backups follow by default');
+    await set.getByRole('button', { name: 'Lock Plan' }).click();
+    const locked = first.page.getByRole('dialog', { name: 'The plan is locked' });
+    await locked.getByText(/backup is now locked|backups are now locked/).waitFor({ timeout: 60_000 });
+    await locked.getByRole('button', { name: 'Done' }).click();
+    assert.notEqual(header(box.planPath), PLAIN);
+    assert.ok(!readable(box.planPath), 'nothing readable in the locked file');
+    assert.ok(backups().length >= 1);
+    for (const b of backups()) assert.ok(header(b) !== PLAIN && !readable(b), `${b} is locked`);
+    settings = await planSettings(first.page);
+    await settings.getByRole('button', { name: 'Change password…' }).waitFor();
+    await settings.getByRole('button', { name: 'Cancel' }).click();
+    await first.close();
+
+    // Reopening asks; a wrong password says so; the right one opens it and is remembered.
+    const second = await launchPlan();
+    const prompt = second.page.getByRole('dialog', { name: '“Sample Household” is locked' });
+    await prompt.waitFor();
+    await prompt.getByLabel('Password', { exact: true }).fill('not it');
+    await prompt.getByRole('button', { name: 'Open' }).click();
+    await prompt.getByText('That password isn’t right.').waitFor();
+    await prompt.getByLabel('Password', { exact: true }).fill('smoke pass one');
+    await prompt.getByRole('checkbox', { name: 'Remember on this PC' }).check();
+    await prompt.getByRole('button', { name: 'Open' }).click();
+    await second.page.getByRole('treegrid', { name: 'Categories' }).waitFor();
+    await assignVia(second.page, 'Electric', '123.45');
+    await second.page.waitForTimeout(800);
+    await second.close();
+
+    // Remembered: it opens straight away, with the change in it.
+    const third = await launchPlan();
+    await third.page.getByRole('treegrid', { name: 'Categories' }).waitFor();
+    assert.equal(await assignedText(third.page, 'Electric'), '$123.45');
+    await third.page.waitForTimeout(1500);
+
+    // Change it: the current password is checked, and the backups move to the new one.
+    settings = await planSettings(third.page);
+    await settings.getByRole('button', { name: 'Change password…' }).click();
+    const change = third.page.getByRole('dialog', { name: 'Change password' });
+    await change.getByLabel('Current password', { exact: true }).fill('wrong one');
+    await change.getByLabel('New password', { exact: true }).fill('smoke pass two');
+    await change.getByLabel('Type it again', { exact: true }).fill('smoke pass two');
+    assert.ok(await change.getByRole('checkbox', { name: 'Remember on this PC' }).isChecked(), 'still remembered');
+    await change.getByRole('button', { name: 'Change Password' }).click();
+    await change.getByText('That password isn’t right.').waitFor();
+    await change.getByLabel('Current password', { exact: true }).fill('smoke pass one');
+    await change.getByRole('button', { name: 'Change Password' }).click();
+    const changed = third.page.getByRole('dialog', { name: 'Password changed' });
+    await changed.getByText(/now changed to the new password/).waitFor({ timeout: 60_000 });
+    await changed.getByRole('button', { name: 'Done' }).click();
+    await third.close();
+
+    // The new password is the remembered one now: straight in again.
+    const fourth = await launchPlan();
+    await fourth.page.getByRole('treegrid', { name: 'Categories' }).waitFor();
+    assert.equal(await assignedText(fourth.page, 'Electric'), '$123.45');
+
+    // Remove it: the plan and its backups are plain SQLite files again.
+    settings = await planSettings(fourth.page);
+    await settings.getByRole('button', { name: 'Remove password…' }).click();
+    const remove = fourth.page.getByRole('dialog', { name: 'Remove password' });
+    await remove.getByLabel('Current password', { exact: true }).fill('smoke pass two');
+    await remove.getByRole('button', { name: 'Remove Password' }).click();
+    const removed = fourth.page.getByRole('dialog', { name: 'Password removed' });
+    await removed.getByText(/now unlocked/).waitFor({ timeout: 60_000 });
+    await removed.getByRole('button', { name: 'Done' }).click();
+    await fourth.close();
+    assert.equal(header(box.planPath), PLAIN);
+    for (const b of backups()) assert.equal(header(b), PLAIN, `${b} is unlocked`);
+
+    const fifth = await launchPlan();
+    await fifth.page.getByRole('treegrid', { name: 'Categories' }).waitFor();
+    assert.equal(await assignedText(fifth.page, 'Electric'), '$123.45');
+    await fifth.close();
   });
 });
 

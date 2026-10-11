@@ -43,6 +43,8 @@ import { NewPlanDialog } from '../screens/lifecycle/NewPlanDialog.tsx';
 import { TargetsEntryDialog } from '../screens/lifecycle/TargetsEntryDialog.tsx';
 import { TemplateDialog } from '../screens/lifecycle/TemplateDialog.tsx';
 import { DisplayOptionsDialog } from '../screens/settings/DisplayOptionsDialog.tsx';
+import { PasswordPrompt, PasswordSection, PlanPasswordDialog, type PasswordControls } from '../screens/settings/PlanPassword.tsx';
+import type { PasswordMode } from '../screens/settings/passwordModel.ts';
 import { PlanSettingsDialog } from '../screens/settings/PlanSettingsDialog.tsx';
 import { PreferencesDialog, type PlanFolderControls } from '../screens/settings/PreferencesDialog.tsx';
 import { draftFrom, settingsEdit } from '../screens/settings/settingsModel.ts';
@@ -188,6 +190,33 @@ function DamagedPlanPrompt() {
   return null;
 }
 
+/** A locked plan being opened, or a backup under another password, asks for its password (S8.3b). */
+function SessionPasswordPrompt() {
+  const { passwordPrompt: prompt } = useSyncExternalStore(session.subscribe, session.getState);
+  if (!prompt) return null;
+  const open = prompt.purpose === 'open';
+  return (
+    <PasswordPrompt
+      key={open ? prompt.path : prompt.backup.path}
+      title={open ? `“${fileName(prompt.path)}” is locked` : 'This backup has another password'}
+      description={
+        open
+          ? 'Enter the plan’s password to open it.'
+          : `The backup from ${backupTime(prompt.backup.stamp)} was made under an earlier password. Enter that password to restore it. The plan keeps the password it has now.`
+      }
+      wrong={prompt.wrong}
+      offerRemember={open}
+      submitLabel={open ? 'Open' : 'Restore'}
+      onSubmit={(password, remember) => {
+        void session.submitPassword(password, remember);
+      }}
+      onCancel={() => {
+        session.dismissPasswordPrompt();
+      }}
+    />
+  );
+}
+
 export function Shell() {
   const state = useSyncExternalStore(session.subscribe, session.getState);
   const p = usePrefs();
@@ -200,6 +229,7 @@ export function Shell() {
     <div className={cx('hafb-root', styles.shell)} data-nocolor={String(p.noColor || system)} data-theme-system={String(system)}>
       <SessionToasts />
       <DamagedPlanPrompt />
+      <SessionPasswordPrompt />
       {state.open ? <PlanFrame open={state.open} system={system} recent={state.recent} /> : <Welcome recent={state.recent} busy={state.busy} />}
     </div>
   );
@@ -213,7 +243,8 @@ function PlanFrame({ open, system, recent }: { open: OpenPlan; /** A Windows-col
   const route = useRoute();
   const p = usePrefs();
   const today = todayLocal();
-  const [dialog, setDialog] = useState<null | 'new' | 'backups' | 'addAccount' | 'payees' | 'planSettings' | 'display' | 'prefs' | 'template' | 'freshStart' | 'targets' | 'help'>(null);
+  const [dialog, setDialog] = useState<null | 'new' | 'backups' | 'addAccount' | 'payees' | 'planSettings' | 'password' | 'display' | 'prefs' | 'template' | 'freshStart' | 'targets' | 'help'>(null);
+  const [passwordMode, setPasswordMode] = useState<PasswordMode>('set');
   const { setOverlayOpen } = useShortcuts();
   const [editingAccount, setEditingAccount] = useState<string | null>(null);
   const confirm = useConfirm();
@@ -558,6 +589,28 @@ function PlanFrame({ open, system, recent }: { open: OpenPlan; /** A Windows-col
             setDialog(null);
             session.run((pl, ctx) => editPlanSettings(pl, ctx, settingsEdit(draft)), { announce: 'Plan settings applied.' });
           }}
+          {...(open.inMemory === true
+            ? {}
+            : {
+                extra: (
+                  <PasswordSection
+                    locked={open.info.locked}
+                    onPick={(mode) => {
+                      setPasswordMode(mode);
+                      setDialog('password');
+                    }}
+                  />
+                ),
+              })}
+        />
+      )}
+      {dialog === 'password' && (
+        <PlanPasswordDialog
+          mode={passwordMode}
+          controls={passwordControls}
+          onClose={() => {
+            setDialog(null);
+          }}
         />
       )}
       {dialog === 'template' && (
@@ -708,3 +761,10 @@ function PlanFrame({ open, system, recent }: { open: OpenPlan; /** A Windows-col
 }
 
 const loadBackups = () => session.listBackups();
+
+/** The password dialog's link to the open plan (S8.3b). */
+const passwordControls: PasswordControls = {
+  status: () => session.passwordStatus(),
+  setPassword: (current, next, remember, relock) => session.setPassword(current, next, remember, relock),
+  relockBackups: (password) => session.relockBackups(password),
+};

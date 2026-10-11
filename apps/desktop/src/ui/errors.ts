@@ -42,6 +42,16 @@ const STORE: Record<string, { title: string; message: (detail: string) => string
     message: () => "HAFB didn't open it, so nothing more was changed. Its newest good backup can replace it.",
     recoverable: true,
   },
+  NeedsPassword: {
+    title: 'This plan is locked with a password',
+    message: () => 'Enter its password to open it. Nothing was changed.',
+    recoverable: true,
+  },
+  WrongPassword: {
+    title: "That password isn't right",
+    message: () => 'Try again. Nothing was changed.',
+    recoverable: true,
+  },
   NotOpen: {
     title: 'No plan is open',
     message: () => 'Open or create a plan first.',

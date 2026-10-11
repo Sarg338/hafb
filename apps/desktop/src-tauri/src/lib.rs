@@ -1,4 +1,5 @@
 mod commands;
+mod credentials;
 mod diagnostics;
 mod exports;
 mod paths;
@@ -48,6 +49,9 @@ pub fn run() {
             commands::plan_restore,
             commands::plan_recovery_candidate,
             commands::plan_recover,
+            commands::plan_password_status,
+            commands::plan_set_password,
+            commands::plan_relock_backups,
             commands::plan_backup_now,
             commands::backup_settings_get,
             commands::backup_settings_set,

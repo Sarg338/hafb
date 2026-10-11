@@ -10,6 +10,31 @@ export interface PlanInfo {
   migratedFrom: number | null;
   backupPath: string | null;
   preMigrationBackupPath: string | null;
+  /** Locked with a password (S8.3b). */
+  locked: boolean;
+}
+
+/** The open plan's password state, for Plan Settings (S8.3b). */
+export interface PasswordStatus {
+  locked: boolean;
+  /** Its password is remembered on this PC (Windows Credential Manager). */
+  remembered: boolean;
+  /** How many backups it has. */
+  backups: number;
+}
+
+/** What re-locking the plan's backups did (S8.3b). */
+export interface RelockReport {
+  relocked: number;
+  unchanged: number;
+  /** Backups none of the passwords given opened (an even older password, or damaged). */
+  left: BackupInfo[];
+}
+
+export interface PasswordChanged {
+  info: PlanInfo;
+  /** Present when the backups were asked to follow. */
+  backups: RelockReport | null;
 }
 
 export interface BackupInfo {
@@ -52,7 +77,7 @@ export interface CommandLogEntry {
 
 /** Every store error arrives as { kind, message }. */
 export interface StoreError {
-  kind: 'AlreadyOpen' | 'NewerVersion' | 'NotAPlan' | 'Damaged' | 'Invalid' | 'NotOpen' | 'Io' | 'Sqlite';
+  kind: 'AlreadyOpen' | 'NewerVersion' | 'NotAPlan' | 'Damaged' | 'NeedsPassword' | 'WrongPassword' | 'Invalid' | 'NotOpen' | 'Io' | 'Sqlite';
   message: string;
 }
 
@@ -74,18 +99,27 @@ export function errorMessage(e: unknown): string {
 }
 
 export const planIpc = {
-  create: (path: string, changes: RowChanges, overwrite = false) => invoke<PlanInfo>('plan_create', { path, changes, overwrite }),
-  open: (path: string) => invoke<PlanInfo>('plan_open', { path }),
+  /** `keepPassword`: a Fresh Start of a locked plan gets the same password (Rust keeps it). */
+  create: (path: string, changes: RowChanges, overwrite = false, keepPassword = false) => invoke<PlanInfo>('plan_create', { path, changes, overwrite, keepPassword }),
+  /** A locked plan needs `password`, unless one is remembered on this PC (S8.3b). */
+  open: (path: string, password?: string, remember?: boolean) => invoke<PlanInfo>('plan_open', { path, password, remember }),
   current: () => invoke<PlanInfo | null>('plan_current'),
   close: () => invoke<null>('plan_close'),
   load: () => invoke<LoadedTables>('plan_load'),
   apply: (changes: RowChanges, log?: CommandLogEntry) => invoke<null>('plan_apply', { changes, log }),
   saveCopy: (dest: string) => invoke<null>('plan_save_copy', { dest }),
   backups: () => invoke<BackupInfo[]>('plan_backups'),
-  restore: (backupPath: string) => invoke<PlanInfo>('plan_restore', { backupPath }),
+  /** `password`: for a backup made under a different password than the plan has now. */
+  restore: (backupPath: string, password?: string) => invoke<PlanInfo>('plan_restore', { backupPath, password }),
   /** The backup that would replace a damaged plan at `path`, or null if none is good. */
-  recoveryCandidate: (path: string) => invoke<BackupInfo | null>('plan_recovery_candidate', { path }),
-  recover: (path: string) => invoke<Recovered>('plan_recover', { path }),
+  recoveryCandidate: (path: string, password?: string) => invoke<BackupInfo | null>('plan_recovery_candidate', { path, password }),
+  recover: (path: string, password?: string) => invoke<Recovered>('plan_recover', { path, password }),
+  passwordStatus: () => invoke<PasswordStatus>('plan_password_status'),
+  /** Set (`current` null), change, or remove (`next` null) the open plan's password. */
+  setPassword: (current: string | null, next: string | null, remember: boolean, relock: boolean) =>
+    invoke<PasswordChanged>('plan_set_password', { current, new: next, remember, relock }),
+  /** Re-lock the backups an earlier password opens, to match the plan. */
+  relockBackups: (password: string) => invoke<RelockReport>('plan_relock_backups', { password }),
   backupNow: () => invoke<string>('plan_backup_now'),
   backupSettings: () => invoke<BackupSettingsInfo>('backup_settings_get'),
   setBackupSettings: (keep: number, folder: string | null) => invoke<BackupSettingsInfo>('backup_settings_set', { keep, folder }),

@@ -6,8 +6,9 @@ use hafb_store::app_settings::{self, AppSettings};
 use hafb_store::backup_settings::{self, BackupSettings};
 use hafb_store::error::{ErrorKind, Result, StoreError};
 use hafb_store::recent::{self, RecentPlan};
+use hafb_store::lock;
 use hafb_store::wire::{LogEntry, RowChanges};
-use hafb_store::{OpenOptions, OpenReport, Plan, PlanInfo};
+use hafb_store::{OpenOptions, OpenReport, Password, Plan, PlanInfo, RelockReport};
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
@@ -96,16 +97,50 @@ fn path_string(p: &Path) -> String {
     p.to_string_lossy().into_owned()
 }
 
+/// A password from the webview (S8.3b).
+fn password(text: Option<String>) -> Result<Option<Password>> {
+    text.map(Password::new).transpose()
+}
+
+/// How the user unlocks a plan: the password they typed, and whether to remember it on this PC
+/// (`None`: leave what is remembered as it is).
+#[derive(Default)]
+struct Unlock {
+    typed: Option<Password>,
+    remember: Option<bool>,
+}
+
 /// Open `path` (closing any open plan first) and remember it in the recent list. The backup on
-/// open is made after the first load (see `OpenPlan::open_backup`).
-fn open_into(app: &AppHandle, state: &PlanState, path: &Path, backup_on_open: bool) -> Result<PlanInfo> {
+/// open is made after the first load (see `OpenPlan::open_backup`). A locked plan opens with the
+/// password typed, else the one remembered on this PC, else fails with `NeedsPassword` (S8.3b).
+fn open_into(app: &AppHandle, state: &PlanState, path: &Path, backup_on_open: bool, unlock: Unlock) -> Result<PlanInfo> {
     let mut slot = state.open.lock().map_err(lock_err)?;
     *slot = None; // release the previous plan's lock before opening (it may be the same file)
     *state.preloaded_tables.lock().map_err(lock_err)? = None;
     let backup_dir = backup_dir_for(app, path)?;
     let keep = backup_settings::load(&data_dir(app)?).keep;
-    let options = OpenOptions { backup_dir: Some(backup_dir.clone()), backup_on_open: false, keep_backups: Some(keep) };
-    let (plan, report) = Plan::open(path, &options)?;
+    let remembered = match &unlock.typed {
+        None if path.is_file() && lock::is_locked(path)? => crate::credentials::recall(path),
+        _ => None,
+    };
+    let from_memory = remembered.is_some();
+    let options = OpenOptions { backup_dir: Some(backup_dir.clone()), keep_backups: Some(keep), password: unlock.typed.clone().or(remembered), ..OpenOptions::default() };
+    let (plan, report) = Plan::open(path, &options).map_err(|e| match e.kind {
+        // A remembered password that no longer works (changed on another PC): ask for it.
+        ErrorKind::WrongPassword if from_memory => lock::needs_password(),
+        _ => e,
+    })?;
+    if let (Some(typed), Some(remember)) = (&unlock.typed, unlock.remember) {
+        if plan.password().is_some() {
+            if remember {
+                // A password is at most 256 characters, well inside what Windows keeps; if Windows
+                // still refuses, the plan is open and the password is simply asked for next time.
+                let _ = crate::credentials::remember(path, typed);
+            } else {
+                crate::credentials::forget(path);
+            }
+        }
+    }
     let info = plan.info(&report)?;
     recent::add(&recent_file(app)?, &info.path)?;
     *slot = Some(OpenPlan::new(plan, report, backup_dir, backup_on_open.then_some(keep)));
@@ -119,7 +154,7 @@ pub fn preload(app: &AppHandle, path: PathBuf) {
     let target = path.clone();
     let handle = std::thread::spawn(move || -> Result<PlanInfo> {
         let state = worker.state::<PlanState>();
-        let info = open_into(&worker, &state, &target, true)?;
+        let info = open_into(&worker, &state, &target, true, Unlock::default())?;
         let json = {
             let slot = state.open.lock().map_err(lock_err)?;
             slot.as_ref().ok_or_else(not_open)?.plan.load_json()?
@@ -151,21 +186,41 @@ pub async fn plan_create(
     path: String,
     changes: RowChanges,
     overwrite: Option<bool>,
+    keep_password: Option<bool>,
 ) -> Result<PlanInfo> {
     let path = PathBuf::from(path);
-    if state.open.lock().map_err(lock_err)?.as_ref().is_some_and(|o| same_path(o.plan.path(), &path)) {
-        return Err(StoreError::invalid("That plan is open; choose a different file."));
+    // Fresh Start of a locked plan (`keep_password`): the new plan gets the same password, and is
+    // remembered on this PC if the old one was (S8.3b). The password never goes to the webview.
+    let (inherited, remembered) = {
+        let slot = state.open.lock().map_err(lock_err)?;
+        if slot.as_ref().is_some_and(|o| same_path(o.plan.path(), &path)) {
+            return Err(StoreError::invalid("That plan is open; choose a different file."));
+        }
+        match (keep_password, slot.as_ref().and_then(|o| o.plan.password().map(|p| (p.clone(), o.plan.path().to_path_buf())))) {
+            (Some(true), Some((p, old))) => (Some(p), crate::credentials::recall(&old).is_some()),
+            _ => (None, false),
+        }
+    };
+    match &inherited {
+        Some(p) => Plan::create_locked(&path, &changes, overwrite.unwrap_or(false), p)?,
+        None => Plan::create(&path, &changes, overwrite.unwrap_or(false))?,
     }
-    Plan::create(&path, &changes, overwrite.unwrap_or(false))?;
-    open_into(&app, &state, &path, false)
+    let unlock = Unlock { remember: inherited.as_ref().map(|_| remembered), typed: inherited };
+    open_into(&app, &state, &path, false, unlock)
 }
 
+/// Open a plan. `password` is what the user typed for a locked one; `remember` keeps it on this PC
+/// (false forgets it). Without a password, a remembered one is used (S8.3b).
 #[tauri::command]
-pub async fn plan_open(app: AppHandle, state: State<'_, PlanState>, path: String) -> Result<PlanInfo> {
-    if let Some(info) = take_preload(&state, Path::new(&path))? {
-        return Ok(info);
+pub async fn plan_open(app: AppHandle, state: State<'_, PlanState>, path: String, password: Option<String>, remember: Option<bool>) -> Result<PlanInfo> {
+    let typed = self::password(password)?;
+    let preloaded = take_preload(&state, Path::new(&path));
+    if typed.is_none() {
+        if let Some(info) = preloaded? {
+            return Ok(info);
+        }
     }
-    open_into(&app, &state, Path::new(&path), true)
+    open_into(&app, &state, Path::new(&path), true, Unlock { typed, remember })
 }
 
 /// The open plan, if any (the webview reloads during development).
@@ -221,9 +276,12 @@ pub async fn plan_backups(state: State<'_, PlanState>) -> Result<Vec<BackupInfo>
     backup::list_backups(&slot.as_ref().ok_or_else(not_open)?.backup_dir)
 }
 
-/// Replace the open plan with one of its own backups (from `plan_backups`).
+/// Replace the open plan with one of its own backups (from `plan_backups`). The plan keeps its
+/// password; `password` is for a backup made under a different one (S8.3b). If the backup can't
+/// be restored, the plan stays open as it was.
 #[tauri::command]
-pub async fn plan_restore(app: AppHandle, state: State<'_, PlanState>, backup_path: String) -> Result<PlanInfo> {
+pub async fn plan_restore(app: AppHandle, state: State<'_, PlanState>, backup_path: String, password: Option<String>) -> Result<PlanInfo> {
+    let typed = self::password(password)?;
     let mut slot = state.open.lock().map_err(lock_err)?;
     let open = slot.take().ok_or_else(not_open)?;
     let backup_file = PathBuf::from(backup_path);
@@ -231,8 +289,13 @@ pub async fn plan_restore(app: AppHandle, state: State<'_, PlanState>, backup_pa
         *slot = Some(open);
         return Err(StoreError::invalid("Only this plan's own backups can be restored; use Open for other files."));
     }
+    let keys: Vec<&Password> = typed.iter().chain(open.plan.password()).collect();
+    if let Err(e) = hafb_store::check_restorable(&backup_file, &keys) {
+        *slot = Some(open);
+        return Err(e);
+    }
     let backup_dir = open.backup_dir.clone();
-    let (plan, mut report, saved) = open.plan.restore(&backup_file, &backup_dir)?;
+    let (plan, mut report, saved) = open.plan.restore(&backup_file, &backup_dir, typed.as_ref())?;
     report.backup_path = Some(path_string(&saved));
     let info = plan.info(&report)?;
     recent::add(&recent_file(&app)?, &info.path)?;
@@ -240,10 +303,17 @@ pub async fn plan_restore(app: AppHandle, state: State<'_, PlanState>, backup_pa
     Ok(info)
 }
 
-/// For a plan that failed to open as damaged: the backup recovering it would use (S8.2).
+/// For a plan that failed to open as damaged: the backup recovering it would use (S8.2). A locked
+/// plan's backups need its password, the one it was opened with.
 #[tauri::command]
-pub async fn plan_recovery_candidate(app: AppHandle, path: String) -> Result<Option<BackupInfo>> {
-    hafb_store::newest_good_backup(&backup_dir_for(&app, Path::new(&path))?)
+pub async fn plan_recovery_candidate(app: AppHandle, path: String, password: Option<String>) -> Result<Option<BackupInfo>> {
+    let key = password_for(&path, self::password(password)?);
+    hafb_store::newest_good_backup(&backup_dir_for(&app, Path::new(&path))?, &key.iter().collect::<Vec<_>>())
+}
+
+/// The password typed for the plan at `path`, else the one remembered for it.
+fn password_for(path: &str, typed: Option<Password>) -> Option<Password> {
+    typed.or_else(|| crate::credentials::recall(Path::new(path)))
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -257,17 +327,90 @@ pub struct Recovered {
 /// Replace a damaged plan with its newest good backup and open it; the damaged file is kept in
 /// the plan's backup folder (S8.2).
 #[tauri::command]
-pub async fn plan_recover(app: AppHandle, state: State<'_, PlanState>, path: String) -> Result<Recovered> {
+pub async fn plan_recover(app: AppHandle, state: State<'_, PlanState>, path: String, password: Option<String>) -> Result<Recovered> {
+    let key = password_for(&path, self::password(password)?);
     let mut slot = state.open.lock().map_err(lock_err)?;
     *slot = None;
     *state.preloaded_tables.lock().map_err(lock_err)? = None;
     let path = PathBuf::from(path);
     let backup_dir = backup_dir_for(&app, &path)?;
-    let (plan, report, backup, kept) = Plan::recover(&path, &backup_dir)?;
+    let (plan, report, backup, kept) = Plan::recover(&path, &backup_dir, key.as_ref())?;
     let info = plan.info(&report)?;
     recent::add(&recent_file(&app)?, &info.path)?;
     *slot = Some(OpenPlan::new(plan, report, backup_dir, None));
     Ok(Recovered { info, backup, damaged_copy: path_string(&kept) })
+}
+
+/// The open plan's password state for Plan Settings (S8.3b).
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PasswordStatus {
+    locked: bool,
+    /// Its password is remembered on this PC.
+    remembered: bool,
+    /// How many backups it has (in its current backup folder).
+    backups: usize,
+}
+
+#[tauri::command]
+pub async fn plan_password_status(state: State<'_, PlanState>) -> Result<PasswordStatus> {
+    let slot = state.open.lock().map_err(lock_err)?;
+    let open = slot.as_ref().ok_or_else(not_open)?;
+    let locked = open.plan.password().is_some();
+    Ok(PasswordStatus {
+        locked,
+        remembered: locked && crate::credentials::recall(open.plan.path()).is_some(),
+        backups: backup::list_backups(&open.backup_dir)?.len(),
+    })
+}
+
+/// What changing the password did.
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PasswordChanged {
+    info: PlanInfo,
+    /// What happened to the backups, when the user asked for them to follow.
+    backups: Option<RelockReport>,
+}
+
+/// Set, change or remove the open plan's password (S8.3b). `current` must match a locked plan's
+/// password. `new: null` removes it. `remember` keeps the new one on this PC (otherwise any
+/// remembered one is forgotten). `relock` rewrites the plan's backups to match: under the new
+/// password, or none.
+#[tauri::command]
+pub async fn plan_set_password(
+    state: State<'_, PlanState>,
+    current: Option<String>,
+    new: Option<String>,
+    remember: bool,
+    relock: bool,
+) -> Result<PasswordChanged> {
+    let (current, new) = (self::password(current)?, self::password(new)?);
+    let mut slot = state.open.lock().map_err(lock_err)?;
+    let open = slot.as_mut().ok_or_else(not_open)?;
+    let old = open.plan.password().cloned();
+    if old.is_some() && current != old {
+        return Err(lock::wrong_password());
+    }
+    open.writable()?.set_password(new.clone())?;
+    let path = open.plan.path().to_path_buf();
+    match (&new, remember) {
+        // At most 256 characters: well inside what Windows keeps.
+        (Some(p), true) => crate::credentials::remember(&path, p).map_err(|m| StoreError::new(ErrorKind::Io, m))?,
+        _ => crate::credentials::forget(&path),
+    }
+    let backups = if relock { Some(hafb_store::relock_backups(&open.backup_dir, &old.iter().collect::<Vec<_>>(), new.as_ref())?) } else { None };
+    Ok(PasswordChanged { info: open.plan.info(&open.report)?, backups })
+}
+
+/// Re-lock the backups that an earlier password opens (the ones `plan_set_password` left), to
+/// match the plan: under its password, or none (S8.3b).
+#[tauri::command]
+pub async fn plan_relock_backups(state: State<'_, PlanState>, password: String) -> Result<RelockReport> {
+    let earlier = Password::new(password)?;
+    let slot = state.open.lock().map_err(lock_err)?;
+    let open = slot.as_ref().ok_or_else(not_open)?;
+    hafb_store::relock_backups(&open.backup_dir, &[&earlier], open.plan.password())
 }
 
 /// The backup settings (S6.6), with the default folder for the UI.

@@ -36,7 +36,7 @@ export function PlanSettingsDialog({
   year: number;
   onClose: () => void;
   onSubmit: (draft: SettingsDraft) => void;
-  /** More fields under the formats (New Plan's "Start with"). */
+  /** More fields under the formats (New Plan's "Start with"; Plan Settings' Password section). */
   extra?: React.ReactNode;
 }) {
   const [draft, setDraft] = useState(initial);

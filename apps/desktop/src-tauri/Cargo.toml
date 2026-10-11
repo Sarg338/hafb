@@ -23,8 +23,11 @@ tauri-build = { version = "=2.7.1", features = [] }
 # Default features only: no updater, no HTTP client, nothing that talks to the network.
 tauri = { version = "=2.12.1", features = [] }
 serde = { version = "1.0.229", features = ["derive"] }
-# `bundled` compiles SQLite into the binary: a known SQLite version, no system DLL.
-rusqlite = { version = "0.40.2", features = ["bundled"] }
+# Compiles SQLCipher (SQLite plus page encryption, for plan passwords: S8.3b, ADR 0010) into the
+# binary with OpenSSL's crypto library built from source: a known version, no system DLL. A plain
+# plan is still a plain SQLite file. OpenSSL is used for ciphers only (SQLCipher never opens a
+# socket). Building needs Strawberry Perl (README).
+rusqlite = { version = "0.40.2", features = ["bundled-sqlcipher-vendored-openssl"] }
 # Custom title bar that keeps Windows 11 Snap Layouts. Source audited 2026-10-08 (see ADR 0001); pinned exactly.
 tauri-plugin-frame = "=1.1.8"
 # Plan files (ADR 0002): migrations, generic load/apply, backups. Our own crate; no Tauri inside.
@@ -35,12 +38,15 @@ hafb-store = { path = "store" }
 rfd = { version = "=0.17.2", default-features = false }
 
 [target.'cfg(windows)'.dependencies]
-# Already in the tree via tauri-plugin-frame; used directly only for process start time (launch spike).
+# Already in the tree via tauri-plugin-frame; used directly for the process start time, COM
+# (webview_env) and Credential Manager (credentials).
 windows-sys = { version = "0.61", features = [
   "Win32_Foundation",
   "Win32_System_SystemInformation",
   "Win32_System_Threading",
   "Win32_System_Com",
+  # Credential Manager, for "Remember on this PC" with plan passwords (S8.3b, src/credentials.rs).
+  "Win32_Security_Credentials",
 ] }
 # Already in the tree via Tauri/wry, pinned to the same versions so the types match. Used to create
 # the WebView2 environment with Microsoft's privacy options (S8.3, src/webview_env.rs). Bindings
