@@ -474,6 +474,17 @@ Progress:
   - **CSP:** now also `object-src 'none'; base-uri 'none'; form-action 'none'`. Every form already handles submit in code.
   - **Licenses:** all permissive (218 Rust crates and the JS runtime packages). Shipping their notices is S8.4's job.
   - **Smoke test:** using the app for about 80 seconds makes no outside connection except that one lookup.
+- **S8.3b done in code (2026-10-10).** Optional plan passwords with SQLCipher 4 (ADR 0010).
+  - **Plan Settings → Password:** set, change or remove. Changing needs the current password. "Remember on this PC" uses Windows Credential Manager. Backups follow by default; ones under an even earlier password are listed and can be brought along with that password.
+  - **Opening:** a locked plan asks for its password (a wrong one says so). A remembered one opens straight away, and if it stops working the app asks again. A locked file is recognized from its header, before the damage check, so a wrong password never offers recovery.
+  - **Restore, recovery and Fresh Start** keep the plan's password. A backup under a different password asks for it.
+  - **Safety:** every rewrite goes to a file beside the plan or backup, is checked, then renamed into place. A test kills a process mid-change four times; the plan and every backup always open with one password or the other, with every row intact.
+  - **Measured:**
+    - **Launch:** a 20k-transaction plan, locked with "Remember" on, opens in 783 ms against 790 ms plain (median of 7). With the S8.1 CPU cap it's 1,423 ms against 1,385 ms.
+    - **Size:** installer 2.6 → 3.8 MB, app 5.0 → 7.6 MB.
+  - **Without HAFB:** DB Browser for SQLite 3.13.1 (portable, includes *DB Browser for SQLCipher*) opened a locked plan with its password and its default settings.
+  - **Build:** needs Strawberry Perl for OpenSSL (README). The first build compiles it in about 9 minutes.
+  - **Tests:** `store/tests/passwords.rs` (8), a Credential Manager round trip, UI model tests, and the smoke test "lock, reopen with the password, remember it, change it with the backups, and remove it".
 
 ## Out of scope (wontfix; server-dependent)
 

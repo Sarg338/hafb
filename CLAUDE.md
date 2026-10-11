@@ -11,6 +11,7 @@ This file is the durable source of truth for the project. Read it fully before d
 - **Local-only.** No network calls, ever, with one opt-in exception: bank sync through SimpleFIN Bridge (ADR 0006). It is off by default, talks only to the SimpleFIN host the user linked, runs only in Rust, and never sees bank credentials. Its access URL lives in Windows Credential Manager, never in the plan file. No telemetry, no crash reporting, no update checks, no analytics. The app must work with the network cable unplugged and must never ask for an account. If a library phones home, it is not allowed in. WebView2's own traffic is cut off in `src-tauri/src/webview_env.rs` (closed proxy, crash dumps kept local). The one thing that can't be stopped, its Microsoft-account profile lookup on PCs signed into one, is documented in `docs/privacy.md`, and a smoke test fails on anything else.
 - **Free.** No paywalls, no "pro" tier, no nag screens. MIT license.
 - **The user's data is a single file they own.** One SQLite file per budget, in a user-chosen location, human-inspectable with any SQLite tool. Users can put it in a OneDrive/Syncthing folder if they want "sync" — we do not build sync.
+  - A plan can optionally be locked with a password (S8.3b, ADR 0010). It is then a SQLCipher 4 file with default settings, readable with a SQLCipher tool (DB Browser for SQLCipher) and the password. The password is never stored in the plan; "Remember on this PC" keeps it in Windows Credential Manager.
 - **Money is never a float.** All amounts are 64-bit integers in minor units (cents for USD). Currency decimal places come from the budget's currency setting. Division only happens in auto-assign/averaging, and rounding rules must be explicit and tested.
 - **Budget math is the product.** Every rule in §5 has unit tests before it has UI. Never "fix" math in the UI layer.
 - **Native Windows.** Windows 10 22H2+ and Windows 11, x64 (ARM64 nice-to-have). Keyboard-first, fast, looks like it belongs on the OS. Not a browser tab in a frame.
@@ -21,7 +22,7 @@ This file is the durable source of truth for the project. Read it fully before d
 ## 2. Tech stack
 
 **Status: DECIDED — 2026-10-08.** The Phase 0 spike passed on Sarg's machine: 50k-row grid at 60 fps with 0 missed frames, launch ≈ 500 ms, snap layouts working, no network activity, 2.25 MB `.msi`. Details and the pinned versions are in `docs/decisions/0001-stack.md`.
-- **Storage:** `rusqlite` (bundled) behind Tauri commands; `tauri-plugin-sql` was rejected.
+- **Storage:** `rusqlite` (bundled) behind Tauri commands; `tauri-plugin-sql` was rejected. Since S8.3b the bundled SQLite is SQLCipher with OpenSSL's crypto built from source (ADR 0010).
 - **Title bar:** custom, via `tauri-plugin-frame` =1.1.8 (source audited); the native title bar is a tested fallback.
 - **TypeScript 6.0.3, not 7:** typescript-eslint doesn't support 7 yet.
 - **WinUI 3:** a head-to-head spike was started, then dropped at Sarg's direction because it was too fiddly to build. Its findings are in the ADR.
@@ -413,7 +414,7 @@ Mark phase status here when it changes:
   - Every open runs `quick_check`. A damaged plan is refused untouched, and the app offers its newest good backup.
   - Tests: upgrades from every older schema, a writer killed mid-commit, backup-restore drills, engine property tests, and plans of 100k transactions and 721 MB of photos (`store/tests/safety.rs`; roadmap notes).
   - S8.3 privacy audit done in code 2026-10-10 (`docs/privacy.md`). HAFB has no network code. WebView2's experiment-config and component-update fetches are cut off by a closed proxy, its crash dumps stay local, and the installer made no connections in a Windows firewall audit. The OneAuth account lookup is documented.
-  - S8.3b optional plan passwords added by Sarg 2026-10-10 (SQLCipher 4, set in Plan Settings; roadmap row). Not started. When it lands, §1's "human-inspectable with any SQLite tool" becomes "or a SQLCipher tool with the password" for locked plans.
+  - S8.3b optional plan passwords done in code 2026-10-10 (ADR 0010). Plans are locked with SQLCipher 4 from a new Password section in Plan Settings. Backups follow the password when it changes, restore keeps it, and "Remember on this PC" uses Credential Manager. Tests cover a process killed mid-change, and DB Browser for SQLCipher opens a locked plan. Building now needs Strawberry Perl (README).
 
 ---
 

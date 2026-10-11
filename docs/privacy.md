@@ -11,8 +11,9 @@ exactly what does and doesn't leave the PC, and how that was checked (roadmap S8
   anywhere else unless you put the file in a synced folder yourself.
 - **There is no network code in the app.**
   - The Rust side has no HTTP, TLS or socket libraries. `cargo tree` for the shipped app lists no
-    `reqwest`, `hyper`, `ureq`, `rustls`, `native-tls` or `openssl`, and `tokio` is built without
-    its `net` feature.
+    `reqwest`, `hyper`, `ureq`, `rustls` or `native-tls`, and `tokio` is built without its `net`
+    feature. OpenSSL is compiled in for one job: SQLCipher's ciphers for plan passwords (ADR 0010).
+    Only its crypto library is linked; its TLS code is left out by the linker.
   - The interface's code (`dist/assets/index-*.js`) calls no network API: no `XMLHttpRequest`,
     `WebSocket`, `EventSource` or `sendBeacon`. Its one `fetch` is Vite's module preloader loading
     HAFB's own script files. The only web addresses in it are XML namespaces and React's
@@ -24,6 +25,19 @@ exactly what does and doesn't leave the PC, and how that was checked (roadmap S8
   (`webviewInstallMode: skip`); WebView2 is part of Windows 11 and up-to-date Windows 10.
 - **Optional bank sync (planned, S8.6)** will be the one exception, off by default: when you turn
   it on, HAFB contacts only the SimpleFIN Bridge server you link (ADR 0006).
+
+## Plan passwords (optional)
+
+Plan Settings can lock a plan with a password (S8.3b, ADR 0010). The file is then encrypted with
+SQLCipher 4 (AES-256), and so are its backups and copies, so other programs can't read it without the
+password. It stays a standard format: DB Browser for SQLite's SQLCipher edition opens it with the
+password, so you are never locked in to HAFB.
+
+- **Nothing about the password leaves the PC.** It isn't stored in the plan, sent anywhere or
+  recoverable. A forgotten password means the plan can't be opened.
+- **"Remember on this PC"** keeps it in Windows Credential Manager, for your Windows account on this
+  PC only (it doesn't roam to other PCs). Unticking it, changing it or removing the password updates
+  or deletes that entry.
 
 ## What the WebView2 runtime does, and what HAFB does about it
 
@@ -94,6 +108,8 @@ Everything HAFB ships is under permissive licenses compatible with HAFB's MIT li
 - **Rust crates (218):** MIT and/or Apache-2.0, BSD-3-Clause, Zlib and Unicode-3.0. Five MPL-2.0
   crates (`cssparser`, `selectors`, `dtoa-short`, `option-ext`, `cssparser-macros`) are used
   unmodified.
+- **Compiled in with SQLite (S8.3b):** SQLCipher (BSD-3-Clause, Zetetic) and OpenSSL's crypto
+  library (Apache-2.0).
 - **JavaScript packages:** React, TanStack (MIT) and `@tauri-apps/api` (MIT or Apache-2.0).
 
 These licenses ask for their notices to travel with the app; the installer's notices file is part of

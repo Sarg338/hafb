@@ -9,6 +9,7 @@ A free, local-only, native Windows envelope-budgeting app. It aims for feature p
 - Windows 10 22H2+ or Windows 11 (x64) with the WebView2 Evergreen runtime. It's preinstalled on Windows 11.
 - Node.js ≥ 22.12 and pnpm 12 (`npm install -g pnpm@12.10.1`).
 - Rust stable (MSVC) with clippy (`rustup component add clippy`), plus Visual Studio Build Tools with the C++ workload.
+- Strawberry Perl (`winget install StrawberryPerl.StrawberryPerl`). OpenSSL's build scripts need it: SQLCipher, which locks plans with a password, uses OpenSSL's ciphers (ADR 0010). The first Rust build compiles OpenSSL in about 9 minutes.
 
 ## Commands
 
