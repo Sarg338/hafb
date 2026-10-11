@@ -1,7 +1,6 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "HAFB",
-  "version": "0.0.1",
   "identifier": "app.hafb.desktop",
   "build": {
     "beforeDevCommand": "pnpm vite:dev",
@@ -43,8 +42,24 @@
       "icons/128x128@2x.png",
       "icons/icon.ico"
     ],
+    "resources": {
+      "../../../LICENSE": "LICENSE.txt",
+      "../../../THIRD-PARTY-NOTICES.txt": "THIRD-PARTY-NOTICES.txt"
+    },
+    "fileAssociations": [
+      {
+        "ext": ["hafb"],
+        "name": "HAFB plan",
+        "description": "HAFB plan",
+        "role": "Editor"
+      }
+    ],
     "windows": {
-      "webviewInstallMode": { "type": "skip" }
+      "webviewInstallMode": { "type": "skip" },
+      "allowDowngrades": false,
+      "wix": {
+        "upgradeCode": "1c28ff98-a600-55b8-89eb-89a19e51ee75"
+      }
     }
   }
 }
