@@ -20,7 +20,6 @@ const CAPTION_BUTTON_WIDTH: u32 = 46;
 
 pub fn run() {
     let main_started_ms = diagnostics::ms_since_process_start();
-    paths::redirect_webview_profile();
     let startup_plan = startup::plan_path_from_args(std::env::args_os().skip(1));
     let preload_plan = startup_plan.clone();
 
@@ -98,7 +97,9 @@ pub fn run() {
             let mut builder = tauri::WebviewWindowBuilder::from_config(app.handle(), &config)?;
             #[cfg(windows)]
             {
-                let environment = webview_env::create(&app.path().app_local_data_dir()?)?;
+                // The profile goes in the app's data folder: AppData, the portable folder or HAFB_DATA_DIR.
+                let data = paths::app_data_dir(app.handle()).ok_or("no local data folder")?;
+                let environment = webview_env::create(&data)?;
                 builder = builder.with_environment(environment);
             }
             let window = builder.build()?;
@@ -132,4 +133,17 @@ pub fn run() {
                 app.state::<commands::PlanState>().close();
             }
         });
+}
+
+#[cfg(test)]
+mod tests {
+    /// One version everywhere (S8.4): Cargo.toml feeds Tauri and the installer, package.json feeds
+    /// About HAFB. `pnpm version:set` changes them together.
+    #[test]
+    fn versions_agree() {
+        let version = env!("CARGO_PKG_VERSION");
+        assert!(include_str!("../../package.json").contains(&format!("\"version\": \"{version}\"")), "apps/desktop/package.json");
+        assert!(include_str!("../store/Cargo.toml").contains(&format!("\nversion = \"{version}\"")), "store/Cargo.toml");
+        assert!(!include_str!("../tauri.conf.json").contains("\"version\""), "tauri.conf.json takes its version from Cargo.toml");
+    }
 }

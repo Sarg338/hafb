@@ -4,14 +4,14 @@ import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
 import { after, before, describe, test } from 'node:test';
 import type { Page } from 'playwright-core';
-import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import { basename, join } from 'node:path';
 import { netWorth, spendingBreakdown } from '@hafb/engine';
 import { addDays, addMonths, addMonthsToDate, compareMonths, formatMoney, minor, monthOf } from '@hafb/shared';
 import { addScheduled, applyChanges, budgetSnapshot, postLoanCharges, readZip, type PlanData } from '@hafb/store';
 import { buildSamplePlan } from '../src/design/sample.ts';
-import { launch, makeSandbox, type App, type Sandbox } from './harness.ts';
+import { EXE, launch, makeSandbox, type App, type Sandbox } from './harness.ts';
 import { buildLargePlan, LARGE_PLAN_TRANSACTIONS } from './largePlan.ts';
 import { expectedReadyToAssign, expectedRows, importExport, norm, readGrid, todayLocal } from './planCheck.ts';
 
@@ -320,14 +320,10 @@ void describe('plan passwords', () => {
     await page.getByRole('menuitem', { name: 'Plan Settings…' }).click();
     return page.getByRole('dialog', { name: 'Plan Settings' });
   };
-  /** Credential Manager entries this sandbox made ("Remember on this PC"). */
+  /** Credential Manager entries this sandbox made ("Remember on this PC"). cmdkey can't delete them. */
   const forgetSandboxCredentials = (): void => {
-    const listed = spawnSync('cmdkey', ['/list'], { encoding: 'utf8' }).stdout;
-    const mine = basename(box.root).toLowerCase();
-    for (const line of listed.split('\n')) {
-      const m = /Target:\s*(?:LegacyGeneric:target=)?(HAFB plan password: .*)$/.exec(line.trim());
-      if (m?.[1]?.includes(mine) === true) spawnSync('cmdkey', [`/delete:${m[1]}`]);
-    }
+    const script = join(import.meta.dirname, 'forget-credentials.ps1');
+    spawnSync('powershell', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', script, '-Match', basename(box.root)]);
   };
   before(() => {
     box = makeSandbox();
@@ -2179,5 +2175,71 @@ void describe('settings, templates and Fresh Start (Phase 7)', () => {
     await sidebar(old.page).getByText(`(Archived on ${today})`).first().waitFor();
     assert.doesNotMatch(norm(await sidebar(old.page).innerText()), /Everyday Checking \$0\.00/);
     await old.close();
+  });
+});
+
+// S8.4 packaging: portable mode and About HAFB. Installing, upgrading and uninstalling the MSI need
+// an administrator, so they're checked by hand (roadmap S8.4 notes), not here.
+void describe('packaging', () => {
+  let box: Sandbox;
+  before(() => {
+    box = makeSandbox();
+  });
+  after(() => {
+    box.cleanup();
+  });
+
+  void test('portable mode keeps settings, backups and the WebView2 profile beside the exe and leaves AppData alone', { timeout: 120_000 }, async () => {
+    const folder = join(box.root, 'portable');
+    const data = join(folder, 'HAFB Data');
+    mkdirSync(data, { recursive: true });
+    const exe = join(folder, 'HAFB.exe');
+    copyFileSync(EXE, exe);
+    const appData = join(process.env.LOCALAPPDATA ?? '', 'app.hafb.desktop');
+    const snapshot = (): string =>
+      existsSync(appData)
+        ? readdirSync(appData, { recursive: true })
+            .map(String)
+            .sort()
+            .map((f) => {
+              const s = statSync(join(appData, f));
+              return `${f} ${String(s.size)} ${String(s.mtimeMs)}`;
+            })
+            .join('\n')
+        : '(none)';
+    const before = snapshot();
+    // No test overrides: the app finds its data folder on its own.
+    const app = await launch(box, ['--open', box.planPath], { HAFB_DATA_DIR: undefined, WEBVIEW2_USER_DATA_FOLDER: undefined }, exe);
+    try {
+      await app.page.getByRole('treegrid', { name: 'Categories' }).waitFor();
+      await app.page.waitForTimeout(1500);
+    } finally {
+      await app.close();
+    }
+    assert.ok(existsSync(join(data, 'recent.json')), 'the recent list is in HAFB Data');
+    assert.ok(readdirSync(join(data, 'backups'), { recursive: true }).map(String).some((f) => f.endsWith('.hafb')), 'the open backup is in HAFB Data');
+    assert.ok(existsSync(join(data, 'EBWebView')), 'the WebView2 profile is in HAFB Data');
+    assert.equal(snapshot(), before, 'nothing in %LOCALAPPDATA%\\app.hafb.desktop changed');
+  });
+
+  void test('About HAFB shows the version and the third-party licenses', { timeout: 120_000 }, async () => {
+    const version = /"version": "([^"]+)"/.exec(readFileSync(join(import.meta.dirname, '..', 'package.json'), 'utf8'))?.[1] ?? '?';
+    const app = await launch(box, ['--open', box.planPath]);
+    try {
+      const { page } = app;
+      await page.getByRole('treegrid', { name: 'Categories' }).waitFor();
+      await page.getByRole('navigation', { name: 'Plan navigation' }).locator('button').first().click();
+      await page.getByRole('menuitem', { name: 'Help…' }).click();
+      const help = page.getByRole('dialog', { name: 'Help' });
+      await help.getByRole('button', { name: 'About HAFB' }).click();
+      await help.getByText(`Version ${version}`).waitFor();
+      await help.getByRole('button', { name: 'Show third-party licenses' }).click();
+      const notices = help.getByLabel('Third-party licenses');
+      await notices.waitFor();
+      const text = await notices.innerText();
+      for (const name of ['SQLCipher', 'OpenSSL', 'Microsoft WebView2 loader', 'tauri 2.', 'react 19.', 'Permission is hereby granted']) assert.ok(text.includes(name), `the notices mention ${name}`);
+    } finally {
+      await app.close();
+    }
   });
 });

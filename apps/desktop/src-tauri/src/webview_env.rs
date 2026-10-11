@@ -20,8 +20,8 @@ use windows_sys::Win32::System::Com::{COINIT_APARTMENTTHREADED, CoInitializeEx};
 /// Tauri's (wry's) default arguments, plus the closed proxy. The port is never listened on.
 pub const BROWSER_ARGUMENTS: &str = "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --proxy-server=http://127.0.0.1:9";
 
-/// Create the environment for the main window. `data_dir` is where Tauri would put the profile
-/// (the app's local data folder); `WEBVIEW2_USER_DATA_FOLDER` still overrides it (tests).
+/// Create the environment for the main window, with its profile in `data_dir` (the app's data
+/// folder, `paths::app_data_dir`); `WEBVIEW2_USER_DATA_FOLDER` still overrides it (tests).
 pub fn create(data_dir: &Path) -> Result<ICoreWebView2Environment, String> {
     // Tauri's setup runs before wry initializes COM on this (the UI) thread; WebView2 needs a
     // single-threaded apartment. wry's own OleInitialize later finds it already set up.

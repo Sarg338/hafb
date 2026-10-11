@@ -7,6 +7,8 @@ export interface HelpTopic {
   id: string;
   title: string;
   blocks: readonly HelpBlock[];
+  /** About HAFB: the dialog adds the version and the third-party licenses (S8.4). */
+  about?: true;
 }
 
 export const HELP_TOPICS: readonly HelpTopic[] = [
@@ -110,6 +112,16 @@ export const HELP_TOPICS: readonly HelpTopic[] = [
       'Your plan is one file on your PC that you choose where to keep. HAFB never sends it anywhere and never needs an account or the internet.',
       'A backup is made every time you open a plan; Backups in the plan menu restores one. Save a copy makes a duplicate you can keep anywhere, and Export for YNAB writes YNAB’s own CSV files.',
       'Make a Fresh Start (plan menu) begins a new plan from today with your categories and targets, and keeps this one as an archive.',
+    ],
+  },
+  {
+    id: 'about',
+    title: 'About HAFB',
+    about: true,
+    blocks: [
+      'HAFB (Here’s A Free Budget) is free software under the MIT License. It has no accounts, no subscriptions and no ads, and it never connects to the internet.',
+      'Uninstalling HAFB removes only the program. Your plans, backups and settings stay on this PC.',
+      'HAFB is built with open-source software from other projects, each under its own license.',
     ],
   },
 ];

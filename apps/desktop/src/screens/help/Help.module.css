@@ -65,3 +65,12 @@
 .article li + li {
   margin-top: 4px;
 }
+
+.notices {
+  margin: 0;
+  color: var(--c-text);
+  font-family: var(--t-font-ui);
+  font-size: var(--t-size-small);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

@@ -63,20 +63,24 @@ export interface App {
 
 let nextPort = 9400 + Math.floor(Math.random() * 300);
 
-/** Launch the release app (optionally opening a plan) and connect Playwright to its webview. */
-export async function launch(sandbox: Sandbox, args: string[] = [], env: Record<string, string> = {}): Promise<App> {
-  if (!existsSync(EXE)) throw new Error(`Build the app first (pnpm build): ${EXE} is missing`);
+/**
+ * Launch the release app (optionally opening a plan) and connect Playwright to its webview. An
+ * `env` value of undefined removes that variable (the portable test runs without the overrides).
+ */
+export async function launch(sandbox: Sandbox, args: string[] = [], env: Record<string, string | undefined> = {}, exe: string = EXE): Promise<App> {
+  if (!existsSync(exe)) throw new Error(`Build the app first (pnpm build): ${exe} is missing`);
   const port = nextPort++;
-  const child = spawn(EXE, args, {
-    env: {
-      ...process.env,
-      HAFB_DATA_DIR: sandbox.dataDir,
-      // Exports land here instead of behind a native Save dialog (src-tauri/src/exports.rs).
-      HAFB_EXPORT_DIR: sandbox.exportDir,
-      WEBVIEW2_USER_DATA_FOLDER: sandbox.webviewDir,
-      WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${String(port)}`,
-      ...env,
-    },
+  const merged: Record<string, string | undefined> = {
+    ...process.env,
+    HAFB_DATA_DIR: sandbox.dataDir,
+    // Exports land here instead of behind a native Save dialog (src-tauri/src/exports.rs).
+    HAFB_EXPORT_DIR: sandbox.exportDir,
+    WEBVIEW2_USER_DATA_FOLDER: sandbox.webviewDir,
+    WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${String(port)}`,
+    ...env,
+  };
+  const child = spawn(exe, args, {
+    env: Object.fromEntries(Object.entries(merged).filter((e): e is [string, string] => e[1] !== undefined)),
     stdio: 'ignore',
   });
   let browser: Browser | undefined;
