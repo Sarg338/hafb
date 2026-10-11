@@ -413,6 +413,7 @@ Mark phase status here when it changes:
   - Every open runs `quick_check`. A damaged plan is refused untouched, and the app offers its newest good backup.
   - Tests: upgrades from every older schema, a writer killed mid-commit, backup-restore drills, engine property tests, and plans of 100k transactions and 721 MB of photos (`store/tests/safety.rs`; roadmap notes).
   - S8.3 privacy audit done in code 2026-10-10 (`docs/privacy.md`). HAFB has no network code. WebView2's experiment-config and component-update fetches are cut off by a closed proxy, its crash dumps stay local, and the installer made no connections in a Windows firewall audit. The OneAuth account lookup is documented.
+  - S8.3b optional plan passwords added by Sarg 2026-10-10 (SQLCipher 4, set in Plan Settings; roadmap row). Not started. When it lands, §1's "human-inspectable with any SQLite tool" becomes "or a SQLCipher tool with the password" for locked plans.
 
 ---
 
