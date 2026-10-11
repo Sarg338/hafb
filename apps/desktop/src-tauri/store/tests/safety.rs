@@ -49,7 +49,7 @@ fn no_backups() -> OpenOptions {
 }
 
 fn with_backups(dir: &Path) -> OpenOptions {
-    OpenOptions { backup_dir: Some(dir.to_path_buf()), backup_on_open: true, keep_backups: None }
+    OpenOptions { backup_dir: Some(dir.to_path_buf()), backup_on_open: true, keep_backups: None, password: None }
 }
 
 fn row(v: Value) -> Row {
@@ -140,7 +140,7 @@ fn every_older_schema_upgrades_keeping_every_value() {
     for version in 1..MIGRATIONS.len() {
         let path = dir.join(&format!("v{version}.hafb"));
         let backups = dir.join(&format!("backups-v{version}"));
-        Plan::create_with(&path, &sample_at(version), false, &MIGRATIONS[..version]).unwrap();
+        Plan::create_with(&path, &sample_at(version), false, &MIGRATIONS[..version], None).unwrap();
         let (plan, report) = Plan::open(&path, &with_backups(&backups)).unwrap();
         assert_eq!(report.migrated_from, Some(u32::try_from(version).unwrap()), "v{version}");
         let kept = report.pre_migration_backup_path.expect("a copy before migrating");
@@ -216,11 +216,11 @@ fn a_damaged_plan_is_refused_untouched_and_recovered_from_its_newest_good_backup
     let newest = PathBuf::from(&list[0].path);
     let newest_bytes = std::fs::read(&newest).unwrap();
     damage(&newest);
-    assert_eq!(newest_good_backup(&backups).unwrap().unwrap().path, list[1].path);
+    assert_eq!(newest_good_backup(&backups, &[]).unwrap().unwrap().path, list[1].path);
     std::fs::write(&newest, newest_bytes).unwrap();
-    assert_eq!(newest_good_backup(&backups).unwrap().unwrap().path, list[0].path);
+    assert_eq!(newest_good_backup(&backups, &[]).unwrap().unwrap().path, list[0].path);
 
-    let (plan, _, used, kept) = Plan::recover(&path, &backups).unwrap();
+    let (plan, _, used, kept) = Plan::recover(&path, &backups, None).unwrap();
     assert_eq!(used.path, list[0].path);
     assert_eq!(plan.load().unwrap(), expected);
     assert_eq!(std::fs::read(&kept).unwrap(), before, "the damaged file is kept");
@@ -235,7 +235,7 @@ fn with_no_good_backup_recovery_says_so_and_changes_nothing() {
     let path = create_big(&dir, 2000);
     damage(&path);
     let before = std::fs::read(&path).unwrap();
-    let e = Plan::recover(&path, &backups).err().expect("nothing to recover from");
+    let e = Plan::recover(&path, &backups, None).err().expect("nothing to recover from");
     assert_eq!(e.kind, ErrorKind::Damaged);
     assert_eq!(std::fs::read(&path).unwrap(), before);
 }
@@ -256,7 +256,7 @@ fn a_backup_cut_short_is_never_listed_and_is_cleared_by_the_next_backup() {
     assert!(!partial.exists());
     let list = backup::list_backups(&backups).unwrap();
     assert_eq!(list.len(), 1);
-    assert!(newest_good_backup(&backups).unwrap().is_some());
+    assert!(newest_good_backup(&backups, &[]).unwrap().is_some());
 }
 
 #[test]
@@ -284,7 +284,7 @@ fn backup_restore_drill_every_backup_restores_exactly_what_it_saved() {
     }
     // Restore each, oldest first; each restore keeps the replaced plan as a restore- backup.
     for (copy, want) in &saved {
-        let (restored, _, _) = plan.restore(Path::new(copy), &backups).unwrap();
+        let (restored, _, _) = plan.restore(Path::new(copy), &backups, None).unwrap();
         assert_eq!(&restored.load().unwrap(), want, "{copy}");
         plan = restored;
     }

@@ -13,6 +13,11 @@ pub enum ErrorKind {
     NotAPlan,
     /// The plan file failed SQLite's integrity check (S8.2): its backups can replace it.
     Damaged,
+    /// The plan is locked with a password and none was given (S8.3b).
+    NeedsPassword,
+    /// The password given doesn't open the plan (or the file isn't a plan at all: a locked file
+    /// can't tell the two apart).
+    WrongPassword,
     /// The request was malformed (unknown table or column, a float, a missing plan row, ...).
     Invalid,
     /// No plan is open.

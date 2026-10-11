@@ -201,13 +201,13 @@ fn an_older_file_is_backed_up_then_migrated() {
             }
         }
     }
-    Plan::create_with(&path, &v1, false, &MIGRATIONS[..1]).unwrap();
+    Plan::create_with(&path, &v1, false, &MIGRATIONS[..1], None).unwrap();
     let next: Vec<&str> = MIGRATIONS
         .iter()
         .copied()
         .chain(std::iter::once("ALTER TABLE accounts ADD COLUMN test_only_color TEXT;"))
         .collect();
-    let options = OpenOptions { backup_dir: Some(backups.clone()), backup_on_open: false, keep_backups: None };
+    let options = OpenOptions { backup_dir: Some(backups.clone()), backup_on_open: false, keep_backups: None, password: None };
     let (plan, report) = Plan::open_with(&path, &options, &next).unwrap();
     assert_eq!(report.migrated_from, Some(1));
     assert_eq!(plan.schema_version().unwrap(), u32::try_from(next.len()).unwrap());
@@ -420,7 +420,7 @@ fn the_command_log_is_written_with_the_change_and_pruned() {
 // ---- backups, copies, restore ------------------------------------------------------------------------
 
 fn open_with_backups(path: &Path, dir: &Path) -> (Plan, hafb_store::OpenReport) {
-    Plan::open(path, &OpenOptions { backup_dir: Some(dir.to_path_buf()), backup_on_open: true, keep_backups: None }).unwrap()
+    Plan::open(path, &OpenOptions { backup_dir: Some(dir.to_path_buf()), backup_on_open: true, keep_backups: None, password: None }).unwrap()
 }
 
 #[test]
@@ -454,7 +454,7 @@ fn the_number_kept_is_a_setting_and_back_up_now_keeps_its_own() {
     let path = create_sample(&dir);
     let backups = dir.join("backups");
     for _ in 0..5 {
-        Plan::open(&path, &OpenOptions { backup_dir: Some(backups.clone()), backup_on_open: true, keep_backups: Some(3) }).unwrap();
+        Plan::open(&path, &OpenOptions { backup_dir: Some(backups.clone()), backup_on_open: true, keep_backups: Some(3), password: None }).unwrap();
     }
     let opens = backup::list_backups(&backups).unwrap();
     assert_eq!(opens.len(), 3);
@@ -507,7 +507,7 @@ fn restore_backs_up_the_current_plan_then_replaces_it() {
     plan.apply(&upsert("accounts", vec![sample_row("accounts", "a-chk", &[("name", json!("Changed after backup"))])]), None).unwrap();
     let changed = plan.load().unwrap();
 
-    let (restored, _, saved) = plan.restore(&snapshot, &backups).unwrap();
+    let (restored, _, saved) = plan.restore(&snapshot, &backups, None).unwrap();
     assert_eq!(restored.load().unwrap(), original);
     assert!(saved.file_name().unwrap().to_string_lossy().starts_with("restore-"));
     drop(restored);
@@ -523,7 +523,7 @@ fn restore_refuses_a_file_that_is_not_a_plan_and_keeps_the_plan_open() {
     let junk = dir.join("junk.hafb");
     rusqlite::Connection::open(&junk).unwrap().execute_batch("CREATE TABLE t (x)").unwrap();
     let (plan, _) = open_with_backups(&path, &backups);
-    let Err(e) = plan.restore(&junk, &backups) else { panic!("restored junk") };
+    let Err(e) = plan.restore(&junk, &backups, None) else { panic!("restored junk") };
     assert_eq!(e.kind, ErrorKind::NotAPlan);
 }
 

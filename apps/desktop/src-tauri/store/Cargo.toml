@@ -17,7 +17,7 @@ name = "hafb-store"
 path = "src/bin/hafb-store.rs"
 
 [dependencies]
-# Same pins as the app crate (already in the tree; no new crates).
-rusqlite = { version = "0.40.2", features = ["bundled"] }
+# Same pins and features as the app crate (SQLCipher for plan passwords, S8.3b, ADR 0010).
+rusqlite = { version = "0.40.2", features = ["bundled-sqlcipher-vendored-openssl"] }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"

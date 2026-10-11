@@ -12,10 +12,12 @@ pub mod time;
 pub mod backup_settings;
 pub mod app_settings;
 pub mod attachments;
+pub mod lock;
 pub mod wire;
 
 use backup::{BackupInfo, BackupKind, make_backup};
 use error::{ErrorKind, Result, StoreError};
+pub use lock::Password;
 use rusqlite::{Connection, OpenFlags, params_from_iter, types::Value as SqlValue};
 use schema::{APPLICATION_ID, MIGRATIONS, SNAPSHOT_TABLES};
 use serde::Serialize;
@@ -36,6 +38,8 @@ pub struct OpenOptions {
     pub backup_on_open: bool,
     /// How many open backups to keep (the user's setting, S6.6); `None` = `backup::KEEP_BACKUPS`.
     pub keep_backups: Option<usize>,
+    /// The plan's password (S8.3b). Ignored for a plan that isn't locked.
+    pub password: Option<Password>,
 }
 
 /// What opening did, for the UI ("Upgraded from v1; a copy was saved first").
@@ -56,6 +60,20 @@ pub struct PlanInfo {
     pub migrated_from: Option<u32>,
     pub backup_path: Option<String>,
     pub pre_migration_backup_path: Option<String>,
+    /// Locked with a password (S8.3b).
+    pub locked: bool,
+}
+
+/// What re-locking a plan's backups did (S8.3b).
+#[derive(Debug, Clone, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RelockReport {
+    /// Backups rewritten under the new password (or without one).
+    pub relocked: usize,
+    /// Backups that were already that way.
+    pub unchanged: usize,
+    /// Backups none of the given passwords opened: they stay as they were.
+    pub left: Vec<BackupInfo>,
 }
 
 struct TableColumns {
@@ -68,6 +86,8 @@ pub struct Plan {
     conn: Connection,
     path: PathBuf,
     tables: HashMap<&'static str, TableColumns>,
+    /// The password the file is locked with; `None` for a plain file.
+    key: Option<Password>,
 }
 
 fn quote(name: &str) -> String {
@@ -79,24 +99,29 @@ fn not_a_plan(message: &str) -> StoreError {
 }
 
 /// Open an existing file read-write without creating it, and take the plan's exclusive lock.
-fn connect(path: &Path) -> Result<Connection> {
+/// Returns the password the file is locked with (`key` is ignored for a plain file).
+fn connect(path: &Path, key: Option<&Password>) -> Result<(Connection, Option<Password>)> {
     if !path.is_file() {
         return Err(not_a_plan("The plan file was not found."));
     }
+    // A locked file is recognized by its header first, so it is never mistaken for a damaged
+    // one, and a wrong password never leads to backup recovery (S8.3b).
+    let key = if lock::is_locked(path)? { Some(key.ok_or_else(lock::needs_password)?) } else { None };
     let flags = OpenFlags::SQLITE_OPEN_READ_WRITE | OpenFlags::SQLITE_OPEN_NO_MUTEX | OpenFlags::SQLITE_OPEN_URI;
     let conn = Connection::open_with_flags(path, flags)?;
+    lock::apply_key(&conn, key)?;
     conn.busy_timeout(Duration::ZERO)?;
     // EXCLUSIVE before WAL: the WAL index then lives in heap memory (no -shm file), and the
     // locks are held for the connection's life, so a second window fails with AlreadyOpen.
     let _: String = conn.query_row("PRAGMA locking_mode = EXCLUSIVE", [], |r| r.get(0))?;
     // Read the header before changing anything, so a foreign SQLite file is left untouched.
-    let app_id = schema::application_id(&conn)?;
+    let app_id = schema::application_id(&conn).map_err(|e| lock::read_error(e, key))?;
     if app_id != APPLICATION_ID {
         return Err(not_a_plan("This file is not a plan."));
     }
     let _: String = conn.query_row("PRAGMA journal_mode = WAL", [], |r| r.get(0))?;
     conn.execute_batch("PRAGMA foreign_keys = ON; PRAGMA synchronous = FULL; BEGIN EXCLUSIVE; COMMIT;")?;
-    Ok(conn)
+    Ok((conn, key.cloned()))
 }
 
 /// SQLite's quick check (structure, pages, constraints; ~35 ms for 20k transactions), so a damaged
@@ -137,7 +162,7 @@ impl Plan {
 
     #[doc(hidden)]
     pub fn open_with(path: &Path, options: &OpenOptions, migrations: &[&str]) -> Result<(Plan, OpenReport)> {
-        let conn = connect(path)?;
+        let (conn, key) = connect(path, options.password.as_ref())?;
         check_integrity(&conn)?;
         let mut report = OpenReport::default();
         let found = schema::user_version(&conn)?;
@@ -154,7 +179,7 @@ impl Plan {
             schema::migrate(&conn, migrations)?;
             report.migrated_from = Some(found);
         }
-        let plan = Plan::from_conn(conn, path.to_path_buf())?;
+        let plan = Plan::from_conn(conn, path.to_path_buf(), key)?;
         plan.name()?; // a plan without its plan row is not a plan
         if options.backup_on_open {
             if let Some(dir) = &options.backup_dir {
@@ -165,20 +190,25 @@ impl Plan {
         Ok((plan, report))
     }
 
-    fn from_conn(conn: Connection, path: PathBuf) -> Result<Plan> {
+    fn from_conn(conn: Connection, path: PathBuf, key: Option<Password>) -> Result<Plan> {
         conn.set_prepared_statement_cache_capacity(128);
         let tables = read_columns(&conn)?;
-        Ok(Plan { conn, path, tables })
+        Ok(Plan { conn, path, tables, key })
     }
 
     /// Write a new plan file from `changes` (which must include the `plan` row). The file is built
     /// under a temporary name and renamed into place, so a failure never leaves a half-written plan.
     pub fn create(path: &Path, changes: &RowChanges, replace_existing: bool) -> Result<()> {
-        Self::create_with(path, changes, replace_existing, MIGRATIONS)
+        Self::create_with(path, changes, replace_existing, MIGRATIONS, None)
+    }
+
+    /// `create`, locked with `password` from the start (Fresh Start of a locked plan, S8.3b).
+    pub fn create_locked(path: &Path, changes: &RowChanges, replace_existing: bool, password: &Password) -> Result<()> {
+        Self::create_with(path, changes, replace_existing, MIGRATIONS, Some(password))
     }
 
     #[doc(hidden)]
-    pub fn create_with(path: &Path, changes: &RowChanges, replace_existing: bool, migrations: &[&str]) -> Result<()> {
+    pub fn create_with(path: &Path, changes: &RowChanges, replace_existing: bool, migrations: &[&str], password: Option<&Password>) -> Result<()> {
         if path.exists() && !replace_existing {
             return Err(StoreError::invalid(format!("{} already exists.", path.display())));
         }
@@ -186,9 +216,10 @@ impl Plan {
         remove_with_sidecars(&tmp)?;
         let built = (|| -> Result<()> {
             let conn = Connection::open(&tmp)?;
+            lock::apply_key(&conn, password)?;
             conn.execute_batch("PRAGMA foreign_keys = ON")?;
             schema::migrate(&conn, migrations)?;
-            let mut plan = Plan::from_conn(conn, tmp.clone())?;
+            let mut plan = Plan::from_conn(conn, tmp.clone(), password.cloned())?;
             plan.apply(changes, None)?;
             plan.name()?;
             Ok(())
@@ -230,7 +261,38 @@ impl Plan {
             migrated_from: report.migrated_from,
             backup_path: report.backup_path.clone(),
             pre_migration_backup_path: report.pre_migration_backup_path.clone(),
+            locked: self.key.is_some(),
         })
+    }
+
+    /// The password this plan is locked with, if any (S8.3b).
+    pub fn password(&self) -> Option<&Password> {
+        self.key.as_ref()
+    }
+
+    /// Lock the plan with `new`, change its password, or (`None`) remove it (S8.3b). The plan is
+    /// written to a new file beside it, checked, and renamed over the old one, so a process killed
+    /// at any point leaves the plan under one password or the other, never broken. On failure the
+    /// plan stays open as it was.
+    pub fn set_password(&mut self, new: Option<Password>) -> Result<()> {
+        let tmp = sibling(&self.path, "locking");
+        remove_with_sidecars(&tmp)?;
+        if let Err(e) = lock::export(&self.conn, &tmp, new.as_ref()).and_then(|()| lock::verify(&tmp, new.as_ref())) {
+            let _ = remove_with_sidecars(&tmp);
+            return Err(e);
+        }
+        // Close the plan (checkpointing its WAL), put the new file in its place, and reopen.
+        let old_key = self.key.clone();
+        let closed = std::mem::replace(&mut self.conn, Connection::open_in_memory()?);
+        drop(closed);
+        let swapped = remove_sidecars(&self.path).and_then(|()| std::fs::rename(&tmp, &self.path).map_err(StoreError::from));
+        let key = if swapped.is_ok() { new } else { old_key };
+        let (conn, key) = connect(&self.path, key.as_ref())?;
+        *self = Plan::from_conn(conn, self.path.clone(), key)?;
+        if swapped.is_err() {
+            let _ = remove_with_sidecars(&tmp);
+        }
+        swapped
     }
 
     /// Every snapshot table, positional (ADR 0002 §4).
@@ -424,19 +486,17 @@ impl Plan {
 
     /// Back up this plan, then replace it with `backup_file` and reopen it (migrating if older).
     /// Returns the reopened plan and the path of the `restore-` copy of what was replaced.
-    pub fn restore(self, backup_file: &Path, backup_dir: &Path) -> Result<(Plan, OpenReport, PathBuf)> {
-        check_restorable(backup_file)?;
+    /// Restoring keeps the plan's current password (S8.3b): a backup made under another password,
+    /// or none, is rewritten under it. `backup_password` is for a backup under another password.
+    pub fn restore(self, backup_file: &Path, backup_dir: &Path, backup_password: Option<&Password>) -> Result<(Plan, OpenReport, PathBuf)> {
+        let keys: Vec<&Password> = backup_password.into_iter().chain(self.key.as_ref()).collect();
+        let found = check_restorable(backup_file, &keys)?;
         let saved = make_backup(&self.conn, backup_dir, BackupKind::Restore, None, backup::KEEP_BACKUPS)?;
         let path = self.path.clone();
+        let key = self.key.clone();
         drop(self);
-        let tmp = sibling(&path, "restoring");
-        remove_with_sidecars(&tmp)?;
-        std::fs::copy(backup_file, &tmp)?;
-        // A stale -wal beside the replaced file would be replayed onto the restored one. The plan
-        // file itself is replaced by the rename, so it never goes missing (S8.2).
-        remove_sidecars(&path)?;
-        std::fs::rename(&tmp, &path)?;
-        let options = OpenOptions { backup_dir: Some(backup_dir.to_path_buf()), backup_on_open: false, keep_backups: None };
+        install_copy(backup_file, found.as_ref(), &path, key.as_ref(), "restoring")?;
+        let options = OpenOptions { backup_dir: Some(backup_dir.to_path_buf()), password: key, ..OpenOptions::default() };
         let (plan, report) = Plan::open(&path, &options)?;
         Ok((plan, report, saved))
     }
@@ -444,10 +504,13 @@ impl Plan {
     /// Replace a damaged plan at `path` with its newest good backup in `backup_dir`, and open it
     /// (S8.2). The damaged file is copied into `backup_dir` as `damaged-<stamp>.hafb` first (its
     /// `-wal` too), so nothing is thrown away. Returns the plan, the backup used and the copy.
-    pub fn recover(path: &Path, backup_dir: &Path) -> Result<(Plan, OpenReport, BackupInfo, PathBuf)> {
-        let backup = newest_good_backup(backup_dir)?.ok_or_else(|| {
+    /// `password` is the damaged plan's: the recovered plan keeps it (S8.3b).
+    pub fn recover(path: &Path, backup_dir: &Path, password: Option<&Password>) -> Result<(Plan, OpenReport, BackupInfo, PathBuf)> {
+        let keys: Vec<&Password> = password.into_iter().collect();
+        let backup = newest_good_backup(backup_dir, &keys)?.ok_or_else(|| {
             StoreError::new(ErrorKind::Damaged, "This plan file is damaged and there is no good backup of it to restore.")
         })?;
+        let found = check_restorable(Path::new(&backup.path), &keys)?;
         std::fs::create_dir_all(backup_dir)?;
         let stamp = time::file_stamp(std::time::SystemTime::now());
         let kept = backup_dir.join(format!("damaged-{stamp}.hafb"));
@@ -462,12 +525,9 @@ impl Plan {
                 std::fs::copy(&wal, PathBuf::from(kept_wal))?;
             }
         }
-        let tmp = sibling(path, "recovering");
-        remove_with_sidecars(&tmp)?;
-        std::fs::copy(&backup.path, &tmp)?;
-        remove_sidecars(path)?;
-        std::fs::rename(&tmp, path)?;
-        let (plan, report) = Plan::open(path, &OpenOptions { backup_dir: Some(backup_dir.to_path_buf()), backup_on_open: false, keep_backups: None })?;
+        install_copy(Path::new(&backup.path), found.as_ref(), path, password, "recovering")?;
+        let options = OpenOptions { backup_dir: Some(backup_dir.to_path_buf()), password: password.cloned(), ..OpenOptions::default() };
+        let (plan, report) = Plan::open(path, &options)?;
         Ok((plan, report, backup, kept))
     }
 
@@ -488,22 +548,82 @@ impl Plan {
     }
 }
 
-/// The newest backup in `dir` that passes the integrity check and this app can read (S8.2).
-pub fn newest_good_backup(dir: &Path) -> Result<Option<BackupInfo>> {
-    Ok(backup::list_backups(dir)?.into_iter().find(|b| check_restorable(Path::new(&b.path)).is_ok()))
+/// The newest backup in `dir` that passes the integrity check and this app can read (S8.2), with
+/// one of `keys` if it is locked (S8.3b).
+pub fn newest_good_backup(dir: &Path, keys: &[&Password]) -> Result<Option<BackupInfo>> {
+    Ok(backup::list_backups(dir)?.into_iter().find(|b| check_restorable(Path::new(&b.path), keys).is_ok()))
 }
 
-/// A backup is restorable when it is one of our files at a version this app can read.
-fn check_restorable(file: &Path) -> Result<()> {
+/// A backup is restorable when it is one of our files at a version this app can read, and opens
+/// with one of `keys` if it is locked. Returns the key it needs.
+pub fn check_restorable(file: &Path, keys: &[&Password]) -> Result<Option<Password>> {
     if !file.is_file() {
         return Err(not_a_plan("The backup file was not found."));
     }
-    let conn = Connection::open_with_flags(file, OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX)?;
-    if schema::application_id(&conn)? != APPLICATION_ID {
-        return Err(not_a_plan("The backup is not a plan file."));
-    }
+    let (conn, key) = lock::open_with_any(file, keys, false).map_err(|e| match e.kind {
+        ErrorKind::NotAPlan => not_a_plan("The backup is not a plan file."),
+        _ => e,
+    })?;
     check_integrity(&conn).map_err(|_| StoreError::new(ErrorKind::Damaged, "That backup is damaged too; choose another."))?;
-    schema::check_version(schema::user_version(&conn)?, MIGRATIONS)
+    schema::check_version(schema::user_version(&conn)?, MIGRATIONS)?;
+    Ok(key)
+}
+
+/// Rewrite this plan's backups in `dir` under `to` (`None` = no password), so they need the same
+/// password as the plan (S8.3b). A backup is opened with one of `from` (a plain one needs none);
+/// each is written beside itself as `*.hafb.partial` (which the list ignores), checked, then
+/// renamed over the old one, so a killed process leaves every backup under one password or the
+/// other. Backups none of `from` opens, or that fail, are left as they were and reported.
+pub fn relock_backups(dir: &Path, from: &[&Password], to: Option<&Password>) -> Result<RelockReport> {
+    let mut report = RelockReport::default();
+    let keys: Vec<&Password> = from.iter().copied().chain(to).collect();
+    for b in backup::list_backups(dir)? {
+        let file = PathBuf::from(&b.path);
+        let rewritten = (|| -> Result<bool> {
+            let (conn, key) = lock::open_with_any(&file, &keys, true)?;
+            if key.as_ref() == to {
+                return Ok(false);
+            }
+            let partial = file.with_extension("hafb.partial");
+            remove_file_if_present(&partial)?;
+            let written = lock::export(&conn, &partial, to).and_then(|()| {
+                drop(conn);
+                lock::verify(&partial, to)
+            });
+            if let Err(e) = written.and_then(|()| std::fs::rename(&partial, &file).map_err(StoreError::from)) {
+                let _ = std::fs::remove_file(&partial);
+                return Err(e);
+            }
+            Ok(true)
+        })();
+        match rewritten {
+            Ok(true) => report.relocked += 1,
+            Ok(false) => report.unchanged += 1,
+            Err(_) => report.left.push(b),
+        }
+    }
+    Ok(report)
+}
+
+/// Put a copy of `src` (opened with `src_key`) at `path`, under `key`, replacing what is there in
+/// one rename. Same password both sides: a byte copy; otherwise the file is rewritten.
+fn install_copy(src: &Path, src_key: Option<&Password>, path: &Path, key: Option<&Password>, what: &str) -> Result<()> {
+    let tmp = sibling(path, what);
+    remove_with_sidecars(&tmp)?;
+    let written = if src_key == key {
+        std::fs::copy(src, &tmp).map(|_| ()).map_err(StoreError::from)
+    } else {
+        lock::open_file(src, src_key, true).and_then(|conn| lock::export(&conn, &tmp, key))
+    };
+    if let Err(e) = written {
+        let _ = remove_with_sidecars(&tmp);
+        return Err(e);
+    }
+    // A stale -wal beside the replaced file would be replayed onto the new one. The plan file
+    // itself is replaced by the rename, so it never goes missing (S8.2).
+    remove_sidecars(path)?;
+    std::fs::rename(&tmp, path)?;
+    Ok(())
 }
 
 fn sibling(path: &Path, what: &str) -> PathBuf {

@@ -5,11 +5,14 @@
 //!   hafb-store apply <file>              RowChanges JSON on stdin, one transaction
 //!   hafb-store migrate <file>            upgrade in place (pre-migration copy saved beside it)
 //!
+//! With `HAFB_PLAN_PASSWORD` set (an environment variable, so it stays out of the process list),
+//! `create` makes a locked plan and the others open one (S8.3b).
+//!
 //! Exit code 0 on success; on failure prints `{"kind":…,"message":…}` to stderr and exits 1.
 
 use hafb_store::error::{Result, StoreError};
 use hafb_store::wire::RowChanges;
-use hafb_store::{OpenOptions, Plan};
+use hafb_store::{OpenOptions, Password, Plan};
 use std::io::{Read, Write};
 use std::path::Path;
 use std::process::ExitCode;
@@ -29,10 +32,14 @@ fn run(args: &[String]) -> Result<()> {
         return Err(StoreError::invalid(USAGE));
     };
     let path = Path::new(file.as_str());
-    let options = OpenOptions::default();
+    let password = std::env::var("HAFB_PLAN_PASSWORD").ok().filter(|p| !p.is_empty()).map(Password::new).transpose()?;
+    let options = OpenOptions { password: password.clone(), ..OpenOptions::default() };
     match command.as_str() {
         "create" => {
-            Plan::create(path, &read_changes()?, force)?;
+            match &password {
+                Some(p) => Plan::create_locked(path, &read_changes()?, force, p)?,
+                None => Plan::create(path, &read_changes()?, force)?,
+            }
             let (plan, report) = Plan::open(path, &options)?;
             eprintln!("created {} ({})", path.display(), plan.info(&report)?.name);
         }
