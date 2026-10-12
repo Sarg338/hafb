@@ -16,7 +16,7 @@
 // difference while transactions are cleared: Cancel, or Create Adjustment & Finish (Finish once
 // it matches).
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
-import { CASH_ACCOUNT_TYPES, proposeRenameRule, ValidationError, type ClearedState, type FlagColor, type Frequency, type Id } from '@hafb/engine';
+import { CASH_ACCOUNT_TYPES, parseAmount, type ClearedState, type FlagColor, type Frequency, type Id } from '@hafb/engine';
 import { formatDate, minor, monthOf, neg, ZERO, type ISODate, type Minor } from '@hafb/shared';
 import {
   addScheduled,
@@ -28,7 +28,6 @@ import {
   duplicateTransactions,
   editScheduled,
   editScheduledMany,
-  editTransaction,
   editTransactions,
   enterDueScheduled,
   enterScheduledNow,
@@ -45,7 +44,9 @@ import {
   type ChangeSet,
   type Command,
   type PlanData,
-  addRenameRule,
+  editAndLearn,
+  keepImportedName,
+  renamedByRule,
   matchTransactions,
   rejectImports,
   unmatchTransaction,
@@ -83,7 +84,6 @@ import { ImportDialog } from './ImportDialog.tsx';
 import { PhotoCell, PhotoViewer } from './PhotoViewer.tsx';
 import type { PhotoInfo } from '../../shell/photos.ts';
 import { pickBankFiles, type PickedFile } from '../../shell/bankFiles.ts';
-import { useToast } from '../../ui/Toast.tsx';
 import { colorLabel, FLAG_COLORS, flagForDigit, flagName } from './flags.ts';
 import {
   addSplitLine,
@@ -120,6 +120,8 @@ import {
   type TxDraft,
 } from './registerModel.ts';
 import { ViewOptions } from './ViewOptions.tsx';
+import { SearchBox } from './SearchBox.tsx';
+import { searchSuggestions } from './searchSuggest.ts';
 import styles from './RegisterScreen.module.css';
 
 const NEW = '__new__';
@@ -230,7 +232,6 @@ export function RegisterScreen({ plan, today, accountId, actions, history, focus
   const [loanPayment, setLoanPayment] = useState(false);
   const [importFiles, setImportFiles] = useState<readonly PickedFile[] | null>(null);
   const [importDetails, setImportDetails] = useState<{ id: string; at: Rect } | null>(null);
-  const { toast } = useToast();
   const [repeatFor, setRepeatFor] = useState<{ id: string; at: Rect } | null>(null);
   const [reconcile, setReconcile] = useState<null | { step: 'ask' } | { step: 'enter'; amount: Minor } | { step: 'mode'; statement: Minor }>(null);
   const reconcileButton = useRef<HTMLButtonElement>(null);
@@ -255,6 +256,17 @@ export function RegisterScreen({ plan, today, accountId, actions, history, focus
   const range = viewRange(view, today);
   const showBalance = accountId !== null && view.runningBalance;
   const search = useMemo(() => parseRegisterSearch(plan, searchText), [plan, searchText]);
+  const suggestSearch = useCallback(
+    (text: string) =>
+      searchSuggestions(plan, text, today, (amount) => {
+        try {
+          return money(parseAmount(amount, { decimalSeparator: '.' }, plan.settings.currencyDecimals));
+        } catch {
+          return null;
+        }
+      }),
+    [plan, today, money],
+  );
   const searching = search.query !== null;
 
   const setDraft = useCallback((d: TxDraft | null) => {
@@ -367,29 +379,6 @@ export function RegisterScreen({ plan, today, accountId, actions, history, focus
     if (id !== undefined && id !== NEW) setRequest((r) => ({ cell: { rowId: id, columnId: 'payee' }, edit: false, key: (r?.key ?? 0) + 1 }));
   }, [edit, setDraft]);
 
-  // YNAB remembers a renamed import for future imports (PY-02): offer the rule right after the edit.
-  const offerRename = useCallback((t: TransactionRecord, patch: { payeeId?: string | null; payeeName?: string }): void => {
-    if (t.importedPayee === undefined || t.importedDate === undefined) return;
-    const newName = patch.payeeName ?? (patch.payeeId ? plan.payees.find((p) => p.id === patch.payeeId)?.name : undefined);
-    if (newName === undefined || newName.trim() === '') return;
-    const proposal = proposeRenameRule(t.importedPayee, newName.trim());
-    if (!proposal) return;
-    const shown = proposal.match === 'startsWith' ? `${proposal.pattern}…` : proposal.pattern;
-    toast({
-      text: `Rename future “${shown}” imports to ${proposal.renameTo}?`,
-      durationMs: 10_000,
-      action: {
-        label: 'Rename',
-        onAction: () => {
-          actions.run((pl, ctx) => {
-            const target = pl.payees.find((p) => p.deletedAt === undefined && p.transferAccountId === undefined && p.name.toLowerCase() === proposal.renameTo.toLowerCase());
-            if (!target) throw new ValidationError(`No payee named ${proposal.renameTo}`);
-            return addRenameRule(pl, ctx, { payeeId: target.id, match: proposal.match, pattern: proposal.pattern });
-          }, { announce: `Future imports of “${shown}” will be named ${proposal.renameTo}.` });
-        },
-      },
-    });
-  }, [plan, actions, toast]);
 
   const save = useCallback(
     (andAnother: boolean) => {
@@ -428,8 +417,16 @@ export function RegisterScreen({ plan, today, accountId, actions, history, focus
         const t = byId.get(edit.id);
         if (t) {
           const patch = toPatch(plan, t, d);
-          if (Object.keys(patch).length > 0) actions.run((pl, ctx) => editTransaction(pl, ctx, { transactionId: t.id, patch }));
-          offerRename(t, patch);
+          if (Object.keys(patch).length > 0) {
+            // YNAB learns an IS rule when an imported payee is changed (PY-02): same undo step.
+            const learned: { payee: string | null } = { payee: null };
+            actions.run((pl, ctx) => {
+              const cmd = editAndLearn(pl, ctx, { transactionId: t.id, patch });
+              if (cmd.learned) learned.payee = t.importedPayee ?? null;
+              return cmd;
+            });
+            if (learned.payee !== null) actions.notify(`Future imports of “${learned.payee}” get this payee too.`);
+          }
         }
       }
       if (andAnother) {
@@ -441,7 +438,7 @@ export function RegisterScreen({ plan, today, accountId, actions, history, focus
         if (id !== NEW) setRequest((r) => ({ cell: { rowId: id, columnId: 'payee' }, edit: false, key: (r?.key ?? 0) + 1 }));
       }
     },
-    [edit, byId, plan, actions, startNew, cancel, setDraft, money, today, offerRename],
+    [edit, byId, plan, actions, startNew, cancel, setDraft, money, today],
   );
 
   // Keys inside the row being edited: Enter saves (unless a picker's list is open or a field is
@@ -1064,11 +1061,11 @@ export function RegisterScreen({ plan, today, accountId, actions, history, focus
         );
       },
     });
-    const visible = view.showFlags || scheduledCount > 0 ? cols : cols.filter((c) => c.id !== 'flag');
+    const visible = cols.filter((c) => (c.id !== 'flag' || view.showFlags || scheduledCount > 0) && (c.id !== 'photo' || view.showImages));
     return visible.map((c) => (isSortable(c.id) ? { ...c, sort: sort.column === c.id ? (sort.dir === 'desc' ? 'descending' : 'ascending') : 'none' } : c));
     // `isEditing`, `editor` and `autoFocus` read edit and draft, which are listed.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [plan, accountId, draft, edit, payees, categories, parentCategories, fmt, money, showBalance, openAccounts, payeeById, categoryDisabled, draftAccount, byId, account, targetIds, toggleCleared, patchDraft, setDraft, today, sort, view.showFlags, scheduledCount]);
+  }, [plan, accountId, draft, edit, payees, categories, parentCategories, fmt, money, showBalance, openAccounts, payeeById, categoryDisabled, draftAccount, byId, account, targetIds, toggleCleared, patchDraft, setDraft, today, sort, view.showFlags, view.showImages, scheduledCount]);
 
   /** One split line's editors, laid on the grid's columns (YNAB: payee, category, memo, outflow, inflow). */
   const splitLineEditor = (l: SplitLineDraft, i: number): ReactNode => {
@@ -1371,26 +1368,13 @@ export function RegisterScreen({ plan, today, accountId, actions, history, focus
         <Button ref={viewButton} variant="toolbar" iconEnd="chevronDown" aria-haspopup="dialog" aria-expanded={viewOpen} onClick={() => { setViewOpen(!viewOpen); }}>
           View
         </Button>
-        <TextInput
-          ref={searchRef}
-          label="Search transactions"
-          hideLabel
-          size="compact"
-          prefix="search"
+        <SearchBox
+          inputRef={searchRef}
           placeholder={account ? `Search ${account.name}` : 'Search all accounts'}
-          className={cx(styles.search)}
           value={searchText}
-          aria-invalid={search.error !== null ? true : undefined}
-          title="Search: Payee:, Category:, Memo:, Account:, Outflow: >=30, Before:, After:, On:, Flag:, is:unapproved…"
-          onChange={(e) => {
-            setSearchText(e.target.value);
-          }}
-          onKeyDown={(e) => {
-            if (e.key === 'Escape' && searchText !== '') {
-              e.preventDefault();
-              setSearchText('');
-            }
-          }}
+          invalid={search.error !== null}
+          onChange={setSearchText}
+          suggest={suggestSearch}
         />
       </div>
       {search.error !== null && (
@@ -1839,6 +1823,18 @@ export function RegisterScreen({ plan, today, accountId, actions, history, focus
           )}
         </dl>
         <div className={styles.viewActions}>
+          {renamedByRule(plan, t.id) && (
+            // YNAB: keep the bank's name for this payee from now on (a renaming rule renamed it).
+            <Button
+              variant="secondary"
+              onClick={() => {
+                close();
+                actions.run((pl, ctx) => keepImportedName(pl, ctx, { transactionId: t.id }), { announce: `Imports of “${t.importedPayee ?? ''}” keep the bank’s name. Deleting that payee in Manage Payees turns renaming back on.` });
+              }}
+            >
+              Don’t rename as {payeeById.get(t.payeeId ?? '')?.name ?? 'this payee'}
+            </Button>
+          )}
           {t.matchedAt !== undefined && (
             <Button onClick={() => { close(); unmatch([t.id]); }}>
               Unmatch

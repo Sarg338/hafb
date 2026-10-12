@@ -34,6 +34,7 @@ import {
   type PlanData,
   type PlanSettings,
 } from '@hafb/store';
+import type { AccountType, InferredAccount } from '@hafb/engine';
 import { isTauri } from '@tauri-apps/api/core';
 import { makeDate, monthOf, uuidv7Generator, type ISODate, type Month } from '@hafb/shared';
 import { appIpc, errorKind, errorMessage, planIpc, type BackupInfo, type PasswordChanged, type PasswordStatus, type PlanInfo, type RecentPlan, type RelockReport } from './ipc.ts';
@@ -86,6 +87,8 @@ export interface SessionState {
   damaged: DamagedPlan | null;
   /** A password being asked for: a locked plan opening, or a backup under another password (S8.3b). */
   passwordPrompt: PasswordPrompt | null;
+  /** A YNAB export read and waiting for its account types to be checked (S8.5). */
+  importTypes: { planName: string; accounts: readonly InferredAccount[] } | null;
 }
 
 export interface DamagedPlan {
@@ -127,7 +130,8 @@ export type NewPlanSettings = Omit<PlanSettings, 'createdAt' | 'firstMonth'>;
 
 
 class PlanSession {
-  private state: SessionState = { recent: [], open: null, busy: null, toast: null, damaged: null, passwordPrompt: null };
+  private state: SessionState = { recent: [], open: null, busy: null, toast: null, damaged: null, passwordPrompt: null, importTypes: null };
+  private pendingImport: { csv: { planCsv: string; registerCsv: string }; planName: string; today: ISODate } | null = null;
   private readonly listeners = new Set<() => void>();
   private readonly sessionId = newId();
   /** Writes go to disk one at a time, in order. */
@@ -331,6 +335,7 @@ class PlanSession {
     });
   }
 
+  /** Step 1 of the YNAB import: read the export, then ask about account types (importTypes). */
   importExport(): Promise<void> {
     return this.task('Importing…', async () => {
       const zipPath = await planIpc.pickImportZip();
@@ -339,15 +344,35 @@ class PlanSession {
       const files = findExportFiles(entries.keys());
       const text = (name: string): string => new TextDecoder('utf-8').decode(entries.get(name));
       const ctx = context();
-      const planName = files.planName || 'Imported plan';
-      const { plan, report } = importYnabExport(
-        { planCsv: text(files.planFile), registerCsv: text(files.registerFile) },
-        { today: exportDateFromName(files.planFile) ?? ctx.today, now: ctx.now, newId, planName },
-      );
-      const path = await planIpc.pickPlanPath('save', `${planName}.hafb`);
+      const source = {
+        csv: { planCsv: text(files.planFile), registerCsv: text(files.registerFile) },
+        planName: files.planName || 'Imported plan',
+        today: exportDateFromName(files.planFile) ?? ctx.today,
+      };
+      const { report } = importYnabExport(source.csv, { today: source.today, now: ctx.now, newId, planName: source.planName });
+      this.pendingImport = source;
+      this.set({ importTypes: { planName: source.planName, accounts: report.accounts } });
+    });
+  }
+
+  /** Step 2: build the plan with the chosen account types and save it. */
+  finishImport(accountTypes: Readonly<Record<string, AccountType>>): Promise<void> {
+    const source = this.pendingImport;
+    this.pendingImport = null;
+    this.set({ importTypes: null });
+    if (!source) return Promise.resolve();
+    return this.task('Importing…', async () => {
+      const ctx = context();
+      const { plan, report } = importYnabExport(source.csv, { today: source.today, now: ctx.now, newId, planName: source.planName, accountTypes });
+      const path = await planIpc.pickPlanPath('save', `${source.planName}.hafb`);
       if (path === null) return;
       await this.loadOpened(await planIpc.create(path, encodePlan(plan), true), report);
     });
+  }
+
+  cancelImport(): void {
+    this.pendingImport = null;
+    this.set({ importTypes: null });
   }
 
   /**

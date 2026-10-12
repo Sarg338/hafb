@@ -57,7 +57,7 @@ import type { MenuItem } from '../ui/Menu.tsx';
 import { Splitter } from '../ui/Splitter.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import { useConfirm } from '../ui/Dialog.tsx';
-import { BackupsDialog, ImportReportDialog, type BackupControls } from './dialogs.tsx';
+import { BackupsDialog, ImportReportDialog, ImportTypesDialog, type BackupControls } from './dialogs.tsx';
 import { saveFile } from './files.ts';
 import { backupTime, fileName } from './format.ts';
 import { appIpc, errorMessage, planIpc, type RecentPlan, type TitlebarMode } from './ipc.ts';
@@ -217,6 +217,24 @@ function SessionPasswordPrompt() {
   );
 }
 
+/** A YNAB export waiting for its account types to be checked (S8.5), from the welcome screen or the plan menu. */
+function SessionImportTypes() {
+  const { importTypes } = useSyncExternalStore(session.subscribe, session.getState);
+  if (!importTypes) return null;
+  return (
+    <ImportTypesDialog
+      planName={importTypes.planName}
+      accounts={importTypes.accounts}
+      onContinue={(types) => {
+        void session.finishImport(types);
+      }}
+      onCancel={() => {
+        session.cancelImport();
+      }}
+    />
+  );
+}
+
 export function Shell() {
   const state = useSyncExternalStore(session.subscribe, session.getState);
   const p = usePrefs();
@@ -230,6 +248,7 @@ export function Shell() {
       <SessionToasts />
       <DamagedPlanPrompt />
       <SessionPasswordPrompt />
+      <SessionImportTypes />
       {state.open ? <PlanFrame open={state.open} system={system} recent={state.recent} /> : <Welcome recent={state.recent} busy={state.busy} />}
     </div>
   );

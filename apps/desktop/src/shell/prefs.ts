@@ -14,6 +14,8 @@ export interface RegisterViewPref {
   to?: Month;
   showReconciled: boolean;
   showFlags: boolean;
+  /** YNAB's Show Images: the photo column (S8.5). */
+  showImages: boolean;
   runningBalance: boolean;
 }
 
@@ -27,7 +29,7 @@ export interface ReflectFiltersPref {
   excludedAccounts: string[];
 }
 
-export const DEFAULT_REGISTER_VIEW: RegisterViewPref = { preset: 'all', showReconciled: true, showFlags: true, runningBalance: false };
+export const DEFAULT_REGISTER_VIEW: RegisterViewPref = { preset: 'all', showReconciled: true, showFlags: true, showImages: true, runningBalance: false };
 
 export interface Prefs {
   version: 1;
@@ -139,6 +141,7 @@ export function parsePrefs(text: string | null): Prefs {
         ...(typeof v.to === 'string' && isMonth(v.to) ? { to: v.to } : {}),
         showReconciled: v.showReconciled !== false,
         showFlags: v.showFlags !== false,
+        showImages: v.showImages !== false,
         runningBalance: v.runningBalance === true,
       };
     }

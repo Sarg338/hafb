@@ -132,6 +132,22 @@
   margin-left: 6px;
 }
 
+/* Search suggestions (R-14): the pickers' list, wider than the box, with YNAB's criterion column. */
+.searchPopover {
+  width: 400px;
+  max-width: calc(100vw - 32px);
+}
+
+.searchKey {
+  flex: none;
+  width: 64px;
+  color: var(--c-text-muted);
+  font-family: var(--t-font-label);
+  font-size: var(--t-size-micro);
+  font-weight: var(--t-label-weight);
+  text-align: right;
+}
+
 .banner {
   padding: 10px 14px 0;
 }

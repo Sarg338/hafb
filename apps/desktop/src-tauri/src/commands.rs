@@ -544,11 +544,15 @@ pub async fn pick_plan_path(app: AppHandle, window: WebviewWindow, mode: PickMod
 /// Native open dialog for a plan export (.zip). The picked file becomes readable by `read_import_file`.
 #[tauri::command]
 pub async fn pick_import_zip(window: WebviewWindow, state: State<'_, PlanState>) -> Result<Option<String>> {
-    let picked = rfd::FileDialog::new()
-        .set_parent(&window)
-        .set_title("Import a plan export")
-        .add_filter("Plan export", &["zip"])
-        .pick_file();
+    // The smoke suite sets HAFB_PICK_FILES instead of clicking a dialog (as for bank files).
+    let picked = match std::env::var("HAFB_PICK_FILES").ok().filter(|v| !v.is_empty()) {
+        Some(path) => Some(PathBuf::from(path)),
+        None => rfd::FileDialog::new()
+            .set_parent(&window)
+            .set_title("Import a plan export")
+            .add_filter("Plan export", &["zip"])
+            .pick_file(),
+    };
     *state.picked_import.lock().map_err(lock_err)? = picked.iter().cloned().collect();
     Ok(picked.map(|p| path_string(&p)))
 }

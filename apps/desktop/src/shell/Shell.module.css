@@ -217,6 +217,29 @@
   color: var(--c-warn-text);
 }
 
+/* The YNAB import's account-type step (S8.5): one row per account. */
+.importTypes {
+  display: grid;
+  gap: 8px;
+}
+
+.importType {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+}
+
+.importTypeName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.importTypes p {
+  margin: 4px 0 0;
+}
+
 /* Backups dialog settings (S6.6). */
 .backupSettings {
   display: grid;

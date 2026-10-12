@@ -1,6 +1,6 @@
 // The register's View Options (YNAB, observed 2026-10-08): date presets (This Month, Last Month,
 // Latest 3 Months, This Year, Last Year, All Dates), a From/To month range, and Show Reconciled
-// Transactions / Show Flags; single-account registers also offer Show Running Balance (YNAB keeps it
+// Transactions / Show Flags / Show Images; single-account registers also offer Show Running Balance (YNAB keeps it
 // per register). Nothing applies until Apply.
 import { useMemo, useState, type RefObject } from 'react';
 import { addMonths, compareMonths, monthOf, monthParts, type ISODate, type Month } from '@hafb/shared';
@@ -70,6 +70,7 @@ export function ViewOptions({ anchor, view, firstMonth, today, singleAccount, on
       <div className={styles.viewChecks}>
         <Checkbox label="Show Reconciled Transactions" checked={draft.showReconciled} onChange={(v) => { setDraft({ ...draft, showReconciled: v }); }} />
         <Checkbox label="Show Flags" checked={draft.showFlags} onChange={(v) => { setDraft({ ...draft, showFlags: v }); }} />
+        <Checkbox label="Show Images" checked={draft.showImages} onChange={(v) => { setDraft({ ...draft, showImages: v }); }} />
         {singleAccount && <Checkbox label="Show Running Balance" checked={draft.runningBalance} onChange={(v) => { setDraft({ ...draft, runningBalance: v }); }} />}
       </div>
       <div className={styles.viewActions}>

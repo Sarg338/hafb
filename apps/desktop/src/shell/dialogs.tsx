@@ -1,11 +1,14 @@
 // Dialogs the shell opens from its menus: backups and the import report.
 import { useCallback, useEffect, useState } from 'react';
+import type { AccountType, InferredAccount } from '@hafb/engine';
 import type { ImportReport } from '@hafb/store';
+import { typeInfo } from '../screens/accounts/accountsModel.ts';
 import { Button } from '../ui/Button.tsx';
 import { Combobox } from '../ui/Combobox.tsx';
 import { Dialog, useConfirm } from '../ui/Dialog.tsx';
 import { backupTime } from './format.ts';
 import { errorMessage, type BackupInfo, type BackupSettingsInfo } from './ipc.ts';
+import { changedTypes, typeChoices } from './importTypes.ts';
 import styles from './Shell.module.css';
 
 const KIND_LABEL: Record<BackupInfo['kind'], string> = {
@@ -209,6 +212,54 @@ export function BackupsDialog({
   );
 }
 
+/**
+ * The YNAB import's account-type step (S8.5): the export has no types, so HAFB's guesses are
+ * shown for checking. Only types of the same kind are offered (importTypes.ts), so nothing the
+ * user picks changes a number; a loan picked here gets HAFB's loan tools.
+ */
+export function ImportTypesDialog({ planName, accounts, onContinue, onCancel }: { planName: string; accounts: readonly InferredAccount[]; onContinue: (types: Record<string, AccountType>) => void; onCancel: () => void }) {
+  const [chosen, setChosen] = useState<Record<string, AccountType>>(() => Object.fromEntries(accounts.map((a) => [a.name, a.type])));
+  return (
+    <Dialog
+      open
+      onClose={onCancel}
+      size="wide"
+      title="Check your account types"
+      description={`YNAB’s export of “${planName}” doesn’t say what type each account is, so HAFB worked them out. Change any that are wrong; you can’t change a type later.`}
+      footer={
+        <>
+          <Button onClick={onCancel}>Cancel</Button>
+          <Button variant="primary" onClick={() => { onContinue(changedTypes(accounts, chosen)); }}>
+            Continue
+          </Button>
+        </>
+      }
+    >
+      <div className={styles.importTypes}>
+        {accounts.map((a) => {
+          const choices = typeChoices(a);
+          return (
+            <div key={a.name} className={styles.importType}>
+              <span className={styles.importTypeName}>{a.name}</span>
+              <Combobox
+                label={`${a.name} account type`}
+                size="medium"
+                groups={[{ id: 'types', label: a.onBudget ? 'On your plan' : 'Loans and tracking', options: choices.map((t) => ({ id: t, label: typeInfo(t).label })) }]}
+                value={chosen[a.name] ?? a.type}
+                onChange={(id) => {
+                  const t = choices.find((c) => c === id);
+                  if (t !== undefined) setChosen({ ...chosen, [a.name]: t });
+                }}
+              />
+            </div>
+          );
+        })}
+        <p className={styles.muted}>Cash and credit accounts keep their kind, and so do loans and tracking accounts, so every number stays exactly as it was in YNAB. A loan’s interest rate and payment can be added afterwards in the account.</p>
+      </div>
+    </Dialog>
+  );
+}
+
 export function ImportReportDialog({ report, onClose, onAddTargets }: { report: ImportReport | undefined; onClose: () => void; onAddTargets?: () => void }) {
   if (!report) return null;
   const c = report.counts;
@@ -229,11 +280,11 @@ export function ImportReportDialog({ report, onClose, onAddTargets }: { report: 
       }
     >
       <div className={styles.report}>
-        <p>YNAB’s export doesn’t say what type each account is, so HAFB worked it out:</p>
+        <p>Your accounts came in as:</p>
         <ul>
           {report.accounts.map((a) => (
             <li key={a.name}>
-              <strong>{a.name}</strong>: {a.type} <span className={styles.muted}>({a.reason})</span>
+              <strong>{a.name}</strong>: {typeInfo(a.type).label} <span className={styles.muted}>({a.reason})</span>
             </li>
           ))}
         </ul>

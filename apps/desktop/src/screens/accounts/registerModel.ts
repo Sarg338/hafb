@@ -214,6 +214,7 @@ function searchContext(plan: PlanData, look: Lookups): SearchContext {
     payeeName: (id) => look.payees.get(id),
     categoryName: (id) => look.categories.get(id)?.name,
     accountName: (id) => look.accounts.get(id)?.name,
+    accountOnBudget: (id) => look.accounts.get(id)?.onBudget !== false,
     decimals: plan.settings.currencyDecimals,
   };
 }
