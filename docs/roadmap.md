@@ -494,6 +494,40 @@ Progress:
   - **Done-when met:** installed the previous build (0.0.1) and used it, with a locked plan remembered. Then installed 0.9.0 over it, 0.9.1 over that, tried 0.9.0 again (refused), uninstalled and reinstalled. Every file in the data folder and the plans (161–170) was byte-identical across each step; one entry in Installed apps throughout. The upgraded and reinstalled apps showed the recent list and opened the locked plan with the remembered password. A double-clicked `.hafb` opened in HAFB.
   - **ARM64:** builds (`pnpm build:arm64`, native ARM64 exe, MSI 3.68 MB). **Not yet run on ARM hardware.**
   - **Tests:** smoke 49/49, including portable mode and About HAFB. Fixed on the way: the password smoke test's cleanup used `cmdkey`, which can't delete HAFB's credentials, so they'd been left behind; `smoke/forget-credentials.ps1` replaces it.
+- **S8.5 done in code (2026-10-12); the beta itself needs testers.**
+  - **Guides:**
+    - [user-guide.md](user-guide.md): every screen and task, in YNAB's words.
+    - [migrating-from-ynab.md](migrating-from-ynab.md): export, import, the account-type step, what comes across and what doesn't, checking it.
+    - [shortcuts.md](shortcuts.md): unchanged, still generated from the shortcut list and tested.
+    - Help adds a "Moving from YNAB" topic.
+    - `userDocs.test.ts` fails if a bold label in the guides no longer exists in the app.
+  - **Parity audit** ([parity-audit.md](parity-audit.md)):
+    - Every `done` row was checked against its code and tests.
+    - The list was compared with YNAB's What's New and help center (2025 to 2026-10-07).
+    - Where the docs were silent, the YNAB trial was used; the trial plan was left as it was.
+    - Result: 154 done, 4 wontfix, and only S8.6's two rows open.
+    - Seven gaps found and built:
+      - card payment targets (T-12), with the Credit Card Interest nudge (CC-07);
+      - progress-bar rollover and extra sections (P-10);
+      - search suggestions, plus four criteria YNAB's list offers (R-14);
+      - Show Images (R-16);
+      - learned IS renaming rules and "Don't rename as" (PY-02, R-22);
+      - an account-type step on YNAB import, so a YNAB loan arrives as a loan (IE-01).
+    - Migration 0007 (additive): `accounts.loan_charges_from`, so an imported loan isn't charged again for months YNAB already charged; and `targets.pay_off`.
+  - **Beta kit:**
+    - [beta.md](beta.md): what to try, the report template, what not to send, known limits, and triage outcomes with a log.
+    - [CHANGELOG.md](../CHANGELOG.md): 0.9.0 is beta 1.
+    - `pnpm build` writes `SHA256SUMS_<version>_<arch>.txt`, matching `Get-FileHash`.
+  - **Tests:**
+    - Smoke adds "parity audit (S8.5)", 6 tests:
+      - a YNAB import with the type step, Ready to Assign matching the store;
+      - a card target across a relaunch;
+      - search suggestions and Show Images;
+      - learned renaming and Don't rename;
+      - reconcile's No path and unlocking;
+      - three Reflect tabs.
+    - Unit tests cover the untested parts the audit found (S-06, CC-06, P-22, P-06, P-25).
+  - **Open (needs Sarg):** recruit a few YNAB users, send them the MSI or zip with beta.md, and triage what comes back. *Done when* also needs that.
 
 ## Out of scope (wontfix; server-dependent)
 

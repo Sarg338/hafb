@@ -5,7 +5,7 @@
 - **When to update:** in the same commit that changes a feature's status.
 - **Sources:** YNAB What's New and help center, researched 2026-10-08 (see `docs/ynab-references.md`). Section headers link the main source article. "§" refers to CLAUDE.md.
 
-A row is `done` only after Sarg validates it on hardware. Rows whose engine half is finished (Phase 1, 2026-10-08) are `in-progress` until their UI ships.
+A row is `done` only after Sarg validates it on hardware. The final audit (S8.5, 2026-10-12) checked every `done` row against the code, its tests and YNAB's current help center: `docs/parity-audit.md`. Rows whose engine half is finished (Phase 1, 2026-10-08) are `in-progress` until their UI ships.
 
 ## 1. Plan screen ([plan header](https://support.ynab.com/en_us/the-plan-header-BkmiuJ_C9), [colors & icons](https://support.ynab.com/en_us/colors-and-icons-in-your-plan-HJQv_XHko), [progress bars](https://support.ynab.com/en_us/progress-bars-a-guide-SkDEhot09))
 
@@ -19,8 +19,8 @@ A row is `done` only after Sarg validates it on hardware. Rows whose engine half
 | P-06 | Hide/unhide categories (Hidden Categories group) | S1.2 | S4.2 | done |
 | P-07 | Collapse/expand groups, collapse all (Ctrl+Up/Down) | — | S4.1 | done |
 | P-08 | Assigned / Activity / Available columns; inline assign with math (+ − × ÷) | S1.2 | S4.2 | done |
-| P-09 | Available pills: green, yellow (underfunded, or overspent only on credit, with a card icon), red (cash overspending), grey; icons (calendar = upcoming shortfall, pie = underfunded, snooze) | S1.4 | S4.1 | done (S7.6 check: every state and icon; underfunded uses the design system's clock icon) |
-| P-10 | Segmented progress bars (rollover / weekly / extra; light = spent, dark = available) | S1.4 | S4.1 | done |
+| P-09 | Available pills: green, yellow (underfunded, or overspent only on credit, with a card icon), red (cash overspending), grey; icons (calendar = upcoming shortfall, clock = underfunded, snooze) | S1.4 | S4.1 | done (S7.6 check: every state and icon; underfunded uses the design system's clock icon, YNAB's pie; S8.5: the calendar state has a test) |
+| P-10 | Segmented progress bars (rollover / weekly / extra; light = spent, dark = available) | S1.4 | S4.1 / S8.5 | done (S8.5 audit: the rollover and extra sections were missing and were added from YNAB's progress bars guide and trial: a "set aside" rollover is its own first section, holding more than the target adds an extra section, overspending ends in red) |
 | P-11 | Display Options: progress bars on/off; balance style "differentiate without color"; theme | — | S4.1 / S7.1 | done (YNAB's Display Options dialog in the plan menu: Theme Default / Dark / Match System, plus High contrast; Progress Bars; Balance Style; Apply or Cancel) |
 | P-12 | Cash overspending (zeroed next month, reduces Ready to Assign) | S1.2 | S4.1 | done |
 | P-13 | Credit overspending (resets to 0 next month; stays as card debt the payment category doesn't cover) | S1.3 | S4.1 | done |
@@ -63,11 +63,11 @@ A row is `done` only after Sarg validates it on hardware. Rows whose engine half
 | T-05 | Statuses: on track, underfunded, funded, overspent, snoozed | S1.4 | S5.2 | done |
 | T-06 | Snooze (Shift+Z), current month only | S1.4 | S5.2 | done |
 | T-07 | Target editor with behavior explanations and the "Most people choose this" hint | — | S5.2 | done |
-| T-08 | Edit Plan mode (pencil); target suggestions from history | S1.4 | S5.2 | done |
+| T-08 | Target suggestions from history (YNAB's Edit Plan mode, the pencil, is in its mobile apps only; on the web, targets are made from the inspector) | S1.4 | S5.2 | done (S8.5 audit: Edit Plan is mobile-only, per YNAB's targets guide; the suggestion is in the target editor) |
 | T-09 | Expected income (for Cost to Be Me) | S1.4 | S5.1 | done |
 | T-10 | Legacy target types mapped on import | S1.4 | S2.4 | done (`legacyTarget`, budget-math §6.10; YNAB's CSV has no targets, so imports use the S7.2 re-entry screen) |
 | T-11 | Monthly Debt Payment target for paired loan categories | S1.7 | S6.4 | done (the paired category's target becomes a Monthly Debt Payment with the payoff calculator and a due day) |
-| T-12 | CC payoff target drives the CC underfunded alert | S1.3 | S5.2 | done |
+| T-12 | CC payment targets: Pay Off Balance by Date, Pay Specific Amount Monthly; a target drives the CC underfunded alert | S1.3 | S8.5 | done (S8.5 audit: payment categories couldn't take a target; built to the YNAB trial, 2026-10-12, migration 0007) |
 
 ## 4. Auto-Assign ([auto-assign](https://support.ynab.com/en_us/auto-assign-a-guide-r1gBNbBJo))
 
@@ -116,15 +116,15 @@ A row is `done` only after Sarg validates it on hardware. Rows whose engine half
 | R-11 | Multi-select with checkboxes; floating action bar; right-click menu | — | S4.6 | done |
 | R-12 | Bulk Categorize (K), Memo…, Flag, Clear, Approve, Move to Account, Duplicate, Delete (YNAB has no bulk date or payee edit; verified in the trial 2026-10-08) | S1.6 | S4.6 | done |
 | R-13 | Duplicate transaction (Shift+D) | — | S4.6 | done |
-| R-14 | Search with criteria syntax (`Category:`, `Payee:`, `Memo:`, `Outflow: >=`, Before/After/On, flag, Split, Matched, Approved, `is:`), Ctrl+Shift+F | S1.6 | S4.6 | done (live suggestions while typing: S7.4) |
+| R-14 | Search with criteria syntax (`Category:`, `Payee:`, `Memo:`, `Outflow: >=`, Before/After/On, flag, Split, Matched, Approved, `is:`), Ctrl+Shift+F | S1.6 | S4.6 / S8.5 | done (S8.5 audit: the suggestions this row claimed weren't built; YNAB's suggestion list was added, with its Is: states, Cleared or Reconciled, Needs Category and Income: <month>) |
 | R-15 | Column sort | — | S4.6 | done |
-| R-16 | View options: date presets (incl. Last Month), show/hide reconciled | — | S4.6 | done |
+| R-16 | View options: date presets (incl. Last Month), show/hide reconciled, flags, images; running balance | — | S4.6 | done (Show Images added in S8.5, YNAB 2026-09) |
 | R-17 | All Accounts register | — | S4.6 | done |
 | R-18 | Banners: "N new transactions to approve or categorize", uncategorized filter | S1.6 | S4.6 | done |
-| R-19 | Approve (A) / reject (Shift+R) / unapproved state | S1.6 | S6.5 | done (Reject, Shift+R, only for unapproved imports; never re-imports) |
+| R-19 | Approve (A) / reject (Shift+R) / unapproved state; approving one transfer leg approves the other; a match counts as approval | S1.6 | S6.5 | done (Reject, Shift+R, only for unapproved imports; never re-imports. YNAB 2026-04 and 2026-08 behaviours named in S8.5) |
 | R-20 | Match (M) / unmatch (Shift+U) | S1.6 | S6.5 | done (auto-match on import; Match, M, for one import + one entered; Unmatch, Shift+U, restores both) |
 | R-21 | Photo attachments (thumbnail, viewer) stored in the .hafb | — | S7.6 | done (ADR 0009) |
-| R-22 | Bank Import Details panel (original payee/memo as imported) | — | S6.5 | done (Bank Import Details: imported payee, memo, date and amount; match note) |
+| R-22 | Bank Import Details panel (original payee/memo as imported); Don't rename as <payee> | — | S6.5 | done (Bank Import Details: imported payee, memo, date and amount; match note. Don't rename as: S8.5, YNAB 2026-09) |
 | R-23 | New transaction shortcut (Shift+N) | — | S4.5 | done |
 | R-24 | Retailer order-history links | — | — | wontfix (server) |
 
@@ -150,15 +150,15 @@ A row is `done` only after Sarg validates it on hardware. Rows whose engine half
 | CC-04 | Activity popover: spending, returns, funded spending, payments | S1.3 | S4.7 | done (matches the trial plan to the cent) |
 | CC-05 | Record Payment (pre-fill = min(available, cleared balance)) | S1.3 | S4.7 | done |
 | CC-06 | Pay-in-full gap; underfunded alert (current month) | S1.3 | S4.7 | done (payoff-target variant with T-12, S5.2) |
-| CC-07 | Credit Card Interest categorization (YNAB rolling out Oct 2026; research first) | S1.3 | S7.6 | done behind a preference, off by default (budget-math §3.15; recheck against YNAB once the trial has it, §13 Q10) |
+| CC-07 | Credit Card Interest categorization (YNAB rolling out Oct 2026; research first) | S1.3 | S7.6 | done behind a preference, off by default (budget-math §3.15); S8.5 adds YNAB's nudge to a payoff target. Recheck against YNAB once the trial has it, §13 Q10 |
 | CC-08 | CC payment auto-matching across checking ↔ card on import | S1.6 | S6.5 | done (a card payment imported on both sides pairs into a transfer) |
 
 ## 9. Payees ([categorizing](https://support.ynab.com/en_us/categorizing-transactions-a-guide-HyRl60sks))
 
 | ID | Feature | Engine | UI | Status |
 |---|---|---|---|---|
-| PY-01 | Payee manager: rename, combine, delete | — | S5.5 | done |
-| PY-02 | Rename rules learned from edits | S1.6 | S5.5 | done (Manage Payees renaming rules apply on import; renaming an imported payee offers "Rename future … imports?") |
+| PY-01 | Payee manager: rename, combine, hide, delete | — | S5.5 | done (hide: YNAB 2026-09, migration 0002) |
+| PY-02 | Rename rules learned from edits (IS) and made by hand (IS, CONTAINS) | S1.6 | S5.5 | done (S8.5: changing an imported payee learns its IS rule straight away, as YNAB documents, instead of asking; Manage Payees also offers "starts with", an HAFB extra) |
 | PY-03 | Default category: 2-of-last-3 rule | S1.6 | S5.5 | done |
 | PY-04 | Fixed default category per payee; auto-categorize off per payee | S1.6 | S5.5 | done |
 | PY-05 | Transfer payees (system-managed) | S1.2 | S4.5 | done |
@@ -167,7 +167,7 @@ A row is `done` only after Sarg validates it on hardware. Rows whose engine half
 
 | ID | Feature | Engine | UI | Status |
 |---|---|---|---|---|
-| RC-01 | Reconcile flow (Shift+E): confirm cleared balance → yes / "Let's fix it" | S1.6 | S5.6 | done |
+| RC-01 | Reconcile flow (Shift+E): confirm the cleared balance → Yes, or No → the bank's balance → Create Adjustment & Finish | S1.6 | S5.6 | done (S8.5: the No path has a smoke test) |
 | RC-02 | Reconciliation Balance Adjustment transaction | S1.6 | S5.6 | done |
 | RC-03 | Lock icons; reconciled-edit warning (unlocks one transaction) | — | S5.6 | done |
 | RC-04 | Hide/show reconciled; "Reconciled N days ago" | — | S5.6 | done |
@@ -196,13 +196,13 @@ A row is `done` only after Sarg validates it on hardware. Rows whose engine half
 | L-04 | Paired category; Record Payment; Monthly Debt Payment target | S1.7 | S6.4 | done (pair or create a category; one loan per category; Record Payment pre-fills Available; the inspector shows the loan) |
 | L-05 | Payoff calculator: payment ↔ payoff date, interest saved | S1.7 | S6.4 | done (Loan Payoff Simulator: monthly payment ↔ payoff date, interest remaining, time remaining; totals match YNAB to the cent, budget-math §10.5) |
 | L-06 | Loan Planner what-if extra payments | S1.7 | S6.4 | done (a higher monthly payment and a one-time extra this month; Interest Savings and Time Savings as YNAB words them, Reset all changes; +$500 on the trial mortgage matches YNAB exactly) |
-| L-07 | Missing-details indicator; no auto-close at $0; payoff celebration | — | S6.4 | done (gear in the sidebar and an "Add loan details" button; loans never close themselves; a celebration when the balance reaches zero) |
+| L-07 | Missing-details indicator; no auto-close at $0; payoff celebration when a payment clears the balance | — | S6.4 | done (gear in the sidebar and an "Add loan details" button; loans never close themselves; a celebration when the balance reaches zero) |
 
 ## 13. Import / export ([file import](https://support.ynab.com/en_us/file-based-import-a-guide-Bkj4Sszyo), [approve & match](https://support.ynab.com/en_us/approving-and-matching-transactions-a-guide-ByYNZaQ1i))
 
 | ID | Feature | Engine | UI | Status |
 |---|---|---|---|---|
-| IE-01 | YNAB export import (Plan.csv + Register.csv), to the cent | S1.8 | S2.4 / S7.2 | done (welcome screen, plan menu and New Plan's "Import your YNAB export instead"; to the cent, golden-tested) |
+| IE-01 | YNAB export import (Plan.csv + Register.csv), to the cent; account types checked first | S1.8 | S2.4 / S7.2 | done (welcome screen, plan menu and New Plan's "Import your YNAB export instead"; to the cent, golden-tested. S8.5: the account-type step, within the same kind so no number changes; an imported loan's charges start after the export) |
 | IE-02 | Target re-entry screen after YNAB import | — | S7.2 | done (Add targets from the import report: a target choice and amount per category, prefilled with the 3-month average assigned; one undo step) |
 | IE-03 | CSV import: column mapper per account, date formats, swap inflow/outflow, semicolons | S1.6 | S6.5 | done (delimiter, header, date order and decimal mark detected; mapping remembered per account; header guesses checked on public Chase, Capital One, Schwab, N26, Outbank, UBS and credit-union layouts; UTF-8, UTF-16 and Windows-1252 files) |
 | IE-04 | OFX/QFX import, several files at once; QIF import | S1.6 | S6.5 | done (checked on public sample files from US Bank, Navy Federal, Wells Fargo, BMO, WaMu, CIBC, RBC, ATB and Fidelity) |
@@ -225,7 +225,7 @@ A row is `done` only after Sarg validates it on hardware. Rows whose engine half
 | PL-03 | Templates: bundled category sets; pick categories to import; never overwrite | — | S7.2 | done (12 bundled templates; YNAB's Import Category Template dialog with a checklist; new groups at the bottom, nothing overwritten; amounts become "Have a balance of" targets with no date, as YNAB does) |
 | PL-04 | Fresh Start (archive + new plan, §5.14; verify starting-balance rule) | S1.5 | S7.2 | done (YNAB's dialog; new file with accounts at $0 today, groups, categories, targets, scheduled, payees, expected income; the old file is renamed "(Archived on …)" and keeps its history) |
 | PL-05 | Settings: currency & decimals, number/date format, first month | S1.1 | S7.1 | done (YNAB's Plan Settings: name, 160 currencies as "Name–CODE" with YNAB's defaults, placement before / after / don't show, all 8 number formats incl. 1,23,456.78, all 7 date formats; a currency with other decimals keeps every stored amount and only changes what shows, as YNAB does (migration 0004); undoable. YNAB has no first-month setting: it is the month the plan starts) |
-| PL-06 | Settings: theme (light/dark/system/high contrast), font scale | — | S7.1 | done (Display Options theme; Preferences text size 90–150% zooming the whole window, Ctrl+= / Ctrl+- / Ctrl+0) |
+| PL-06 | Settings: theme (light/dark/system/high contrast), font scale | — | S7.1 | done (Display Options theme; Preferences text size 90–200% zooming the whole window, Ctrl+= / Ctrl+- / Ctrl+0) |
 | PL-07 | Settings: default account, data folder, shortcuts on/off | — | S7.1 | done (Preferences: default account per plan for All Accounts entry and imports, plans folder for the Open and Save dialogs, keyboard shortcuts on/off, Hide Amounts) |
 | PL-08 | Template sharing by link; YNAB Together; referrals; subscriptions | — | — | wontfix (server) |
 

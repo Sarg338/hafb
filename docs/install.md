@@ -22,7 +22,7 @@ HAFB's downloads aren't code-signed yet. Signing needs a paid certificate renewe
 - **First run:** a blue window says *Microsoft Defender SmartScreen prevented an unrecognized app from starting*. Choose **More info**, check that the app is **HAFB.exe** or the HAFB `.msi`, then **Run anyway**. The publisher shows as *Unknown publisher*.
   - The installer shows this once, when you run it. Installed HAFB doesn't ask again.
   - The portable zip carries the download's *Mark of the Web*, so HAFB.exe asks on its first run. To avoid that, right-click the zip, choose **Properties**, tick **Unblock**, then unzip it.
-- **Checking a download:** each release lists its files' SHA-256. In PowerShell, `Get-FileHash .\HAFB_0.9.0_x64_en-US.msi` should print the same value.
+- **Checking a download:** each release comes with `SHA256SUMS_<version>_<arch>.txt`, listing its files' SHA-256. In PowerShell, `Get-FileHash .\HAFB_0.9.0_x64_en-US.msi` should print the same value.
 
 SmartScreen asks only because the file is unsigned and new. HAFB has no network code at all (`docs/privacy.md`).
 

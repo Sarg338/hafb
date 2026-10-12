@@ -90,12 +90,12 @@ Entities (table ≈ TS type ≈ Rust struct; keep them in lockstep via `packages
     - **Loans** (off-budget): `mortgage`, `auto_loan`, `student_loan`, `personal_loan`, `medical_debt`, `other_debt`.
     - **Tracking** (off-budget): `asset`, `liability`.
     - **Closed.**
-  - Loan accounts also carry: interest rate (bps), escrow amount, fees, minimum payment, original principal, payment schedule, `paired_category_id` (optional; one loan per category).
+  - Loan accounts also carry: interest rate (bps), escrow amount, fees, minimum payment, original principal, payment schedule, `paired_category_id` (optional; one loan per category), and `loan_charges_from` (the first month charges post; set on loans imported from YNAB, migration 0007).
   - Transactions in cash-type accounts are created **cleared** by default.
 - **CategoryGroup:** name, hidden, sort order, `system_kind` (`inflow` | `creditCardPayments` | `hidden`; NULL for user groups; ADR 0002 §3).
   - The system groups are *Credit Card Payments* and *Hidden Categories*, plus the implicit *Inflow* group that holds *Ready to Assign*.
 - **Category:** group, name, hidden, note, sort order, `credit_card_account_id` (set only for CC payment categories).
-- **Target:** one per category, cadence × behavior (§5.4).
+- **Target:** one per category, cadence × behavior (§5.4). A credit card payment category takes only YNAB's card targets, *Pay Off Balance by Date* (`pay_off`, migration 0007) or *Pay Specific Amount Monthly*.
   - Fields: snoozed months, created date (`createdOn`), updated.
   - Not versioned: an edit applies to all past and future months, as in YNAB.
 - **FocusedView:** name, sort order, category ids.
@@ -170,7 +170,9 @@ RTA(m) = RTA(m-1)
 - Interest/fees charged on the card are regular categorized outflows on the card (user categorizes them, usually to a "Interest & Fees" category).
 - The CC payment category's *available* is how much cash is set aside to pay the card. Account balance vs. available = the "pay in full" gap. Show it.
 - **Record Payment** pre-fills the lower of the payment category's available amount and the card's cleared balance.
-- **Underfunded alert** on the payment category (current month only) when available < card balance. If the card has a payoff target, the alert follows the target instead.
+- **Underfunded alert** on the payment category (current month only) when available < card balance. If the card has a target, the alert follows the target instead (S8.5, budget-math §6.11):
+  - *Pay Off Balance by Date:* the card's balance by a month, spread evenly from what was set aside before this month.
+  - *Pay Specific Amount Monthly:* a monthly *Set aside another*.
 - YNAB is rolling out **Credit Card Interest** categorization (Oct 2026): interest stays out of the plan and doesn't overspend a category. Implemented in S7.6 behind a Preferences switch, off by default (`CREDIT_CARD_INTEREST`, migration 0006, budget-math §3.15). It's modeled from YNAB's announcement because the trial account doesn't have it yet; recheck it there when it arrives (§13 Q10).
 
 ### 5.4 Targets
@@ -212,7 +214,7 @@ Rules:
   - Overspending is not a target status: status is snoozed / underfunded / funded / on track / inactive.
 - **Expiry:** a non-repeating target whose due month has passed becomes inactive.
 - **Cost to Be Me:** the sum of full weekly/monthly target amounts plus this month's share of multi-month targets (no-date balances excluded), compared with the plan's expected income.
-- **Edit Plan** can suggest target amounts from historical spending.
+- The target editor suggests an amount from historical spending. (YNAB's *Edit Plan* mode is in its mobile apps only; on the web, targets are made from the inspector.)
 
 ### 5.5 Auto-assign
 These options act on the selected categories, or else on the current Focused View, or else on everything visible:
@@ -416,6 +418,10 @@ Mark phase status here when it changes:
   - S8.3 privacy audit done in code 2026-10-10 (`docs/privacy.md`). HAFB has no network code. WebView2's experiment-config and component-update fetches are cut off by a closed proxy, its crash dumps stay local, and the installer made no connections in a Windows firewall audit. The OneAuth account lookup is documented.
   - S8.3b optional plan passwords done in code 2026-10-10 (ADR 0010). Plans are locked with SQLCipher 4 from a new Password section in Plan Settings. Backups follow the password when it changes, restore keeps it, and "Remember on this PC" uses Credential Manager. Tests cover a process killed mid-change, and DB Browser for SQLCipher opens a locked plan. Building now needs Strawberry Perl (README).
   - S8.4 packaging done in code 2026-10-11 (ADR 0011, `docs/install.md`). Version 0.9.0. The MSI has a pinned upgrade code, refuses downgrades and opens `.hafb` files. The portable zip keeps its data in `HAFB Data`. License notices ship with the app and show in Help → About HAFB. Tested by installing 0.0.1, then 0.9.0 and 0.9.1 over it, a refused downgrade, uninstall and reinstall: every data file was byte-identical throughout. ARM64 builds but hasn't been run on ARM hardware.
+  - S8.5 docs and the parity audit done in code 2026-10-12:
+    - Guides: `docs/user-guide.md`, `docs/migrating-from-ynab.md` and `docs/beta.md`, plus `CHANGELOG.md`. A test keeps the guides' quoted labels real.
+    - The final audit is in `docs/parity-audit.md`. It found seven gaps, now built: card payment targets, progress-bar sections, search suggestions, Show Images, learned renaming and Don't rename, and the YNAB import's account-type step (migration 0007). Only S8.6's two rows are open.
+    - Still needed: the beta itself, which needs Sarg to find YNAB users.
 
 ---
 

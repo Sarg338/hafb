@@ -236,6 +236,28 @@ NEED cadences: 1 × 1 monthly; 2 × 1 weekly; 13 × 1 yearly; 1 × n every n mon
 months; 13 × n every 12n months; 14 every 2 years; 0 a one-time amount by its date. Every n weeks
 (2 × n, n > 1) has no current equivalent and is refused, as is a repeating cadence without its date.
 
+### 6.11 Credit card payment targets (T-12; YNAB trial 2026-10-12)
+
+A payment category takes YNAB's two card targets, and no others:
+
+- **Pay Off Balance by Date** (a month and year; YNAB's default is next month). The amount is what
+  the card owes at the end of the month (−balance), so it changes as you spend and pay.
+  - Needed for Payoff = owed; Available for Payment = the category's available; To Go = owed − available, never negative.
+  - This month: what's still owed after what was set aside before this month's assignment,
+    spread evenly over the months left including this one, rounded up to the cent like every
+    multi-month target: ⌈(owed − (available − assigned)) ÷ months⌉.
+  - Stored as a non-repeating custom *Have a balance of* with amount 0, due the month's last day,
+    and `payOff` set (migration 0007).
+- **Pay Specific Amount Monthly** (an amount): a monthly *Set aside another*. "Amount to Assign This
+  Month", "Assigned So Far", "To Go".
+- With a target, the payment category's underfunded alert follows the target instead of the
+  pay-in-full gap (§3, CLAUDE.md §5.3), and Auto-Assign → Underfunded asks for the target's share.
+
+**Example (trial, amex):** owes $50.00, $40.00 available, nothing assigned in October, Pay Off
+Balance by Date November 2026 → Needed for Payoff $50.00, Available for Payment $40.00, To Go
+$10.00, "Assign $5.00 this month to stay on track" (⌈10.00 ÷ 2⌉). Pay Specific Amount Monthly
+$20.00 → "Assign $20.00 to meet your target", Assigned So Far $0.00, To Go $20.00.
+
 ## 7. Plan operations (CLAUDE.md §5.5, §5.6, §5.14)
 
 Every operation is pure. It returns assignment deltas and their total (the amount of Ready to Assign it uses), so the UI can preview it and commit it as one undo step.
@@ -358,6 +380,14 @@ Assumptions, where the article is silent:
 - **Free text:** matches payee, category, memo or account names, including split lines. If it looks like an amount, it also matches that exact magnitude: `20` finds a 20.00 split line.
 - **Flags:** `Flag is:` accepts a color or the user's custom flag name.
 - **Uncategorized:** `Category: Uncategorized` (and the `uncategorized` keyword) mean no category, not a split, not a transfer.
+
+From YNAB's suggestion list (trial, 2026-10-12), which lists these as it suggests them:
+- **`Is: Cleared or Reconciled`:** cleared or reconciled.
+- **`Is: Needs Category`:** uncategorized, in an on-budget account, and not a starting balance (a card's starting debt is "Category not needed").
+- **`Is: Unapproved or Needs Category`:** either.
+- **`Income: October 2026`:** that month's *Inflow: Ready to Assign* transactions and starting balances. The trial listed the cards' $0.00 starting balances with the paychecks. A month reads "October 2026" or "Oct 2026".
+
+The suggestions themselves (`searchSuggest.ts`) are presentation: a word lists matching category and account names, the Is: states when it starts "is", then Find in any field / the Payee / the Category / the Memo; a number lists the Income: hint and Outflow/Inflow equal, more or equal, less or equal. Payees aren't suggested by name, as in YNAB.
 
 ### 8.6 Bank file import (CLAUDE.md §5.12, `bankImport/`)
 
@@ -515,7 +545,7 @@ So the required payment is **$507.51**. Paying it all in January takes $1,010.00
 
 YNAB "calculates the monthly interest charge and applies it automatically"; past and current charges can be edited, and escrow works the same way ([Loan Accounts](https://support.ynab.com/en_us/loan-accounts-in-ynab-a-guide-HkNSkPHJi)). It doesn't say when the charge is posted.
 
-- **ASSUMPTION:** each month from the one after the loan's first transaction, charges are posted on the 1st:
+- **ASSUMPTION:** each month from the one after the loan's first transaction, charges are posted on the 1st (a loan imported from YNAB starts the month after the export instead, `chargesFrom`, migration 0007: its history already holds YNAB's charges):
   - **Interest** on the balance at the end of the previous month (rule 1);
   - **Escrow** and **Fees** at their monthly amounts.
 - Each charge is an ordinary transaction (payee Interest, Escrow or Fees; no category: the account is off budget). It can be edited, and once deleted it is never posted again for that month.

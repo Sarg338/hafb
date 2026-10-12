@@ -2,9 +2,14 @@
 
 A free, local-only, native Windows envelope-budgeting app. It aims for feature parity with YNAB without accounts, servers or subscriptions. Your budget is one SQLite file that you own. MIT licensed.
 
-**Status: Phase 8 (release) in progress; version 0.9.0.** See [docs/roadmap.md](docs/roadmap.md) for progress, `docs/budget-math.md` for every rule with worked examples, [CLAUDE.md](CLAUDE.md) for the spec and [docs/decisions/0001-stack.md](docs/decisions/0001-stack.md) for the stack decision.
+**Status: Phase 8 (release) in progress; version 0.9.0, the first beta.** See [docs/roadmap.md](docs/roadmap.md) for progress, `docs/budget-math.md` for every rule with worked examples, [CLAUDE.md](CLAUDE.md) for the spec and [docs/decisions/0001-stack.md](docs/decisions/0001-stack.md) for the stack decision.
 
-**Installing:** see [docs/install.md](docs/install.md) for the installer and portable versions, upgrading, uninstalling (your data stays) and the SmartScreen warning on unsigned builds.
+**Using HAFB:**
+- [docs/install.md](docs/install.md): the installer and portable versions, upgrading, uninstalling (your data stays) and the SmartScreen warning on unsigned builds.
+- [docs/user-guide.md](docs/user-guide.md): everything HAFB does, in YNAB's words.
+- [docs/migrating-from-ynab.md](docs/migrating-from-ynab.md): bring a YNAB plan across to the cent.
+- [docs/shortcuts.md](docs/shortcuts.md): every keyboard shortcut.
+- [docs/beta.md](docs/beta.md): for beta testers. What's new: [CHANGELOG.md](CHANGELOG.md).
 
 ## Requirements
 
@@ -22,7 +27,7 @@ pnpm dev            # run the app with hot reload (Tauri + Vite)
 pnpm test           # Vitest, all packages
 pnpm test:engine    # engine only
 pnpm lint           # tsc (strict) + ESLint + cargo clippy
-pnpm build          # license notices, then .msi + portable .zip, then prints sizes
+pnpm build          # license notices, then .msi + portable .zip + SHA-256 checksums, then prints sizes
 pnpm build:arm64    # the same for Windows on ARM (rustup target add aarch64-pc-windows-msvc)
 pnpm notices        # regenerate THIRD-PARTY-NOTICES.txt only
 pnpm version:set 0.9.1   # set the version everywhere (Cargo.toml, package.json, Cargo.lock)
