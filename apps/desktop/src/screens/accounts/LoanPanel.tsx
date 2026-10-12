@@ -122,7 +122,11 @@ export function LoanPanel({ plan, account, today, money, actions }: LoanPanelPro
 
       {paired ? (
         <p className={styles.paired}>
-          <Icon name="link" /> Paired with <strong>{paired.name}</strong>: payments to {account.name} come from that category.
+          <Icon name="link" />
+          {/* One flex item, so the gap doesn't split the sentence around the name. */}
+          <span>
+            Paired with <strong>{paired.name}</strong>: payments to {account.name} come from that category.
+          </span>
           <Button variant="toolbar" size="small" onClick={() => { setDialog('pair'); }}>
             Change
           </Button>

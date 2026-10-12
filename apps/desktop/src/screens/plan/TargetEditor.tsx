@@ -61,8 +61,8 @@ export function TargetEditor({ target, today, fmt, dateFormat, suggestion, onSav
     setD({ ...d, ...p });
     setError(null);
   };
-  const save = (): void => {
-    const r = toTargetArgs(d);
+  const save = (draft: TargetDraft = d): void => {
+    const r = toTargetArgs(draft);
     if (r.ok) onSave(r.args);
     else setError(r.error);
   };
@@ -90,7 +90,9 @@ export function TargetEditor({ target, today, fmt, dateFormat, suggestion, onSav
         onCommit={(v) => {
           patch({ amount: v });
         }}
-        onEnter={save}
+        onEnter={(amount) => {
+          save({ ...d, amount });
+        }}
       />
       {debt && <DebtCalculator terms={debt} today={today} payment={d.amount} fmt={fmt} onPick={(amount) => { patch({ amount }); }} />}
       {!debt && suggestion !== null && d.amount !== suggestion && (
@@ -222,7 +224,12 @@ export function TargetEditor({ target, today, fmt, dateFormat, suggestion, onSav
         <Button variant="toolbar" onClick={onCancel}>
           Cancel
         </Button>
-        <Button variant="primary" onClick={save}>
+        <Button
+          variant="primary"
+          onClick={() => {
+            save();
+          }}
+        >
           Save Target
         </Button>
       </div>
@@ -248,8 +255,8 @@ export function CardTargetEditor({ target, today, fmt, onSave, onDelete, onCance
     setD({ ...d, month: compareMonths(picked, first) < 0 ? first : picked });
     setError(null);
   };
-  const save = (): void => {
-    const r = cardTargetArgs(d);
+  const save = (draft: CardTargetDraft = d): void => {
+    const r = cardTargetArgs(draft);
     if (r.ok) onSave(r.args);
     else setError(r.error);
   };
@@ -271,7 +278,7 @@ export function CardTargetEditor({ target, today, fmt, onSave, onDelete, onCance
           <Combobox label="Pay off by year" size="medium" groups={[{ id: 'y', label: 'Year', options: years.map((y) => ({ id: String(y), label: String(y) })) }]} value={String(year)} onChange={(id) => { setMonth(Number(id), month); }} />
         </div>
       ) : (
-        <MoneyInput label="Amount each month" variant="field" value={d.amount} format={fmt} onCommit={(amount) => { setD({ ...d, amount }); setError(null); }} onEnter={save} />
+        <MoneyInput label="Amount each month" variant="field" value={d.amount} format={fmt} onCommit={(amount) => { setD({ ...d, amount }); setError(null); }} onEnter={(amount) => { save({ ...d, amount }); }} />
       )}
       <p className={styles.note}>
         <Icon name="info" /> Making minimum payments? Choose Pay Specific Amount Monthly and enter your minimum payment.
@@ -291,7 +298,12 @@ export function CardTargetEditor({ target, today, fmt, onSave, onDelete, onCance
         <Button variant="toolbar" onClick={onCancel}>
           Cancel
         </Button>
-        <Button variant="primary" onClick={save}>
+        <Button
+          variant="primary"
+          onClick={() => {
+            save();
+          }}
+        >
           Save Target
         </Button>
       </div>

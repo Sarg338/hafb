@@ -22,8 +22,11 @@ export interface MoneyInputProps {
   hot?: boolean;
   id?: string;
   className?: string;
-  /** After Enter commits: e.g. move to the next row. Defaults to leaving the field. */
-  onEnter?: () => void;
+  /**
+   * After Enter commits: e.g. move to the next row. Defaults to leaving the field. Gets the amount
+   * just committed: a save run from here must use it, as the parent hasn't re-rendered with it yet.
+   */
+  onEnter?: (value: Minor) => void;
   /** Start in editing state with this text (restoring an unsaved edit); an invalid one shows its error. */
   defaultDraft?: string;
 }
@@ -58,31 +61,33 @@ export const MoneyInput = forwardRef<HTMLInputElement, MoneyInputProps>(function
   const { inputId, helpId, errorId, describedBy } = useFieldIds(id, help, error);
   const preview = draft !== null && hasArithmetic(draft) ? evaluateAmount(draft, options) : null;
 
-  const commit = (): boolean => {
-    if (draft === null) return true;
+  /** The amount now in force, or null when the text isn't a valid amount (its error shows). */
+  const commit = (): Minor | null => {
+    if (draft === null) return value;
     if (draft.trim() === '') {
       setDraft(null);
       setError(null);
       if (value !== 0) onCommit(ZERO);
-      return true;
+      return ZERO;
     }
     const result = evaluateAmount(draft, options);
     if (!result.ok) {
       setError(result.error);
-      return false;
+      return null;
     }
     setDraft(null);
     setError(null);
     if (result.value !== value) onCommit(result.value);
-    return true;
+    return result.value;
   };
 
   const onKeyDown = (e: KeyboardEvent<HTMLInputElement>): void => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      if (commit()) {
+      const committed = commit();
+      if (committed !== null) {
         done.current = true;
-        if (onEnter) onEnter();
+        if (onEnter) onEnter(committed);
         else e.currentTarget.blur();
       }
     } else if (e.key === 'Escape' && draft !== null) {

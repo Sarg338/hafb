@@ -182,9 +182,9 @@ function CostToBeMe({ model, money, actions }: { model: PlanModel; money: MoneyT
   useEffect(() => {
     if (editing) incomeRef.current?.focus();
   }, [editing]);
-  const save = (): void => {
+  const save = (amount: Minor = draft): void => {
     setEditing(false);
-    if (draft !== cost.income) actions.run((p, ctx) => setExpectedIncome(p, ctx, { amount: draft }));
+    if (amount !== cost.income) actions.run((p, ctx) => setExpectedIncome(p, ctx, { amount }));
   };
   return (
     <div className={styles.cost}>
@@ -215,7 +215,12 @@ function CostToBeMe({ model, money, actions }: { model: PlanModel; money: MoneyT
             >
               Cancel
             </Button>
-            <Button variant="primary" onClick={save}>
+            <Button
+              variant="primary"
+              onClick={() => {
+                save();
+              }}
+            >
               Save
             </Button>
           </div>

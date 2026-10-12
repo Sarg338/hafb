@@ -2327,6 +2327,45 @@ void describe('parity audit (S8.5)', () => {
     await again.close();
   });
 
+  // Found setting up a plan from a bills spreadsheet: Enter saved the amount from before the typing.
+  void test('Enter in a money field saves what was just typed: target, card target and expected income', { timeout: 300_000 }, async () => {
+    const app = await open();
+    const { page } = app;
+    const grid = page.getByRole('treegrid', { name: 'Categories' });
+    await grid.waitFor();
+    const inspector = page.getByRole('complementary', { name: 'Inspector' });
+    const pick = async (name: RegExp): Promise<void> => {
+      await grid.locator('[data-col=category]', { hasText: name }).first().click({ position: { x: 200, y: 10 } });
+    };
+    await pick(/^Streaming/);
+    await inspector.getByRole('button', { name: 'Edit Target' }).click();
+    await inspector.getByRole('textbox', { name: 'I need' }).fill('45');
+    await page.keyboard.press('Enter');
+    await inspector.getByRole('button', { name: 'Edit Target' }).waitFor();
+    // It was $38.00; before the fix, Enter saved that again.
+    assert.match(norm(await inspector.innerText()), /Refill Up to \$45\.00 Each Month/);
+
+    await pick(/^Visa Rewards/);
+    const card = inspector.getByRole('button', { name: 'Edit Target' });
+    await (await card.isVisible() ? card : inspector.getByRole('button', { name: 'Create a Debt Payoff Target' })).click();
+    await inspector.getByRole('combobox', { name: 'Target' }).click();
+    await page.getByRole('option', { name: 'Pay Specific Amount Monthly' }).click();
+    await inspector.getByLabel('Amount each month').fill('210');
+    await page.keyboard.press('Enter');
+    await inspector.getByRole('button', { name: 'Edit Target' }).waitFor();
+    assert.match(norm(await inspector.innerText()), /Pay Specific Amount Monthly.*\$210\.00/);
+
+    await page.keyboard.press('Escape');
+    const all = grid.getByRole('checkbox', { name: 'Select all rows' });
+    while ((await grid.getByRole('row', { selected: true }).count()) > 0) await all.click();
+    await inspector.getByRole('button', { name: 'Edit expected income' }).click();
+    await inspector.getByRole('textbox', { name: 'Expected Income' }).fill('6000');
+    await page.keyboard.press('Enter');
+    await inspector.getByRole('button', { name: 'Edit expected income' }).waitFor();
+    assert.match(norm(await inspector.innerText()), /Expected Income \$6,000\.00/);
+    await app.close();
+  });
+
   void test('search suggests criteria as you type; Show Images hides the photo column', { timeout: 300_000 }, async () => {
     const app = await open();
     const { page } = app;
