@@ -31,6 +31,7 @@ import type { AccountRecord, JsonValue, PayeeRecord, PlanData, TransactionRecord
 import { Draft, liveAccount, omit, type Command, type CommandContext } from './context.ts';
 import { payeeByName, transferPayee } from './payees.ts';
 import { enterScheduledOccurrence } from './scheduled.ts';
+import { editTransaction, type TransactionPatch } from './transactions.ts';
 
 /** Card payments pair when both sides land within this many days. */
 export const PAYMENT_PAIR_DAYS = 3;
@@ -286,4 +287,74 @@ export function saveImportProfile(plan: PlanData, _ctx: CommandContext, args: { 
   liveAccount(d, args.accountId);
   d.put('importProfiles', { accountId: args.accountId, profile: args.profile });
   return { label: 'Save import settings', changes: d.build() };
+}
+
+// ---- renaming learned from edits (YNAB, https://support.ynab.com/en_us/how-to-rename-payees-BkotNUSyo) ----
+// Editing an imported transaction's payee creates (or updates) an IS rule for the bank's text.
+// "Don't rename as" turns that off: the bank's text becomes a payee of its own with an IS rule to
+// itself, placed first so no CONTAINS rule wins, and no rule is learned while it stands. Deleting
+// that payee in Manage Payees removes its rule, which turns renaming back on.
+
+const sameText = (a: string, b: string): boolean => a.trim().toLowerCase() === b.trim().toLowerCase();
+
+function isRulesFor(plan: PlanData, raw: string) {
+  return liveRules(plan).filter((r) => r.match === 'equals' && sameText(r.pattern, raw));
+}
+
+/** An IS rule naming the bank's text after itself: "Don't rename as" is on. */
+function keepsName(plan: PlanData, rule: { targetPayeeId: Id; pattern: string }): boolean {
+  const target = plan.payees.find((p) => p.id === rule.targetPayeeId && p.deletedAt === undefined);
+  return target !== undefined && sameText(target.name, rule.pattern);
+}
+
+/** Learn (or update) the IS rule after the user changed an imported transaction's payee; null when nothing changes. */
+export function learnRenameRule(plan: PlanData, ctx: CommandContext, args: { transactionId: Id }): Command | null {
+  const t = plan.transactions.find((x) => x.id === args.transactionId && x.deletedAt === undefined);
+  const raw = t?.importedPayee?.trim() ?? '';
+  if (!t || raw === '' || t.payeeId === undefined || t.payeeId === null) return null;
+  const payee = plan.payees.find((p) => p.id === t.payeeId && p.deletedAt === undefined);
+  if (!payee) return null;
+  const rules = isRulesFor(plan, raw);
+  if (rules.some((r) => keepsName(plan, r))) return null;
+  if (sameText(payeeTarget(plan, raw).name, payee.name)) return null;
+  const d = new Draft(plan);
+  const [first, ...rest] = rules;
+  if (first) {
+    d.put('payeeRenameRules', { ...first, targetPayeeId: payee.id });
+    for (const r of rest) d.remove('payeeRenameRules', r.id);
+  } else {
+    const order = plan.payeeRenameRules.reduce((m, r) => Math.max(m, r.sortOrder), -1) + 1;
+    d.put('payeeRenameRules', { id: ctx.newId(), match: 'equals', pattern: raw, targetPayeeId: payee.id, sortOrder: order });
+  }
+  return { label: `Rename future “${raw}” imports to ${payee.name}`, changes: d.build() };
+}
+
+/** Edit a transaction and, when its imported payee changed, learn the rule: one undo step. */
+export function editAndLearn(plan: PlanData, ctx: CommandContext, args: { transactionId: Id; patch: TransactionPatch }): Command & { learned: boolean } {
+  const edit = editTransaction(plan, ctx, args);
+  const learn = 'payeeId' in args.patch || 'payeeName' in args.patch ? learnRenameRule(applyChanges(plan, edit.changes).plan, ctx, { transactionId: args.transactionId }) : null;
+  return { label: edit.label, changes: learn ? mergeChangeSets(edit.changes, learn.changes) : edit.changes, learned: learn !== null };
+}
+
+/** True when a renaming rule (not "Don't rename") gave this imported transaction its payee: Bank Import Details offers "Don't rename as". */
+export function renamedByRule(plan: PlanData, transactionId: Id): boolean {
+  const t = plan.transactions.find((x) => x.id === transactionId);
+  const raw = t?.importedPayee?.trim() ?? '';
+  if (!t || raw === '') return false;
+  const rule = applyRenameRules(raw, liveRules(plan));
+  return rule !== null && !keepsName(plan, rule) && rule.targetPayeeId === t.payeeId;
+}
+
+/** "Don't rename as …": keep the bank's name for this payee text, here and in future imports. */
+export function keepImportedName(plan: PlanData, ctx: CommandContext, args: { transactionId: Id }): Command {
+  const d = new Draft(plan);
+  const t = d.get('transactions', args.transactionId);
+  const raw = t?.importedPayee?.trim() ?? '';
+  if (!t || raw === '') throw new ValidationError('Only an imported transaction keeps its bank name');
+  const payee = payeeByName(d, ctx, raw);
+  for (const r of isRulesFor(plan, raw)) d.remove('payeeRenameRules', r.id);
+  const first = plan.payeeRenameRules.reduce((m, r) => Math.min(m, r.sortOrder), 0) - 1;
+  d.put('payeeRenameRules', { id: ctx.newId(), match: 'equals', pattern: raw, targetPayeeId: payee.id, sortOrder: first });
+  d.put('transactions', { ...t, payeeId: payee.id });
+  return { label: `Don’t rename “${raw}”`, changes: d.build() };
 }

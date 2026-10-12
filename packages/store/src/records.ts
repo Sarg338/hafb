@@ -53,6 +53,8 @@ export interface LoanDetails {
   fees?: Minor;
   originalPrincipal?: Minor;
   pairedCategoryId?: Id;
+  /** The first month charges may be posted (migration 0007): set on loans imported from YNAB. */
+  chargesFrom?: Month;
 }
 
 export interface AccountRecord extends Account {

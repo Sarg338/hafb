@@ -2,6 +2,8 @@ import { computeBudget, monthState, READY_TO_ASSIGN } from '@hafb/engine';
 import { describe, expect, it } from 'vitest';
 import { canonical, decodePlan, encodePlan } from '../src/codec.ts';
 import { exportDateFromName, findExportFiles, importYnabExport, type YnabImportOptions } from '../src/import/ynab.ts';
+import { applyChanges } from '../src/changes.ts';
+import { editAccount } from '../src/commands/index.ts';
 import { ENTITY_KINDS } from '../src/records.ts';
 import { budgetSnapshot } from '../src/snapshot.ts';
 import { applyRows, loadTables, openMemoryPlan } from './helpers/sqliteStore.ts';
@@ -186,6 +188,16 @@ describe('importYnabExport (synthetic export)', () => {
   it('marks loan accounts set by options as needing details', () => {
     const r = importYnabExport({ planCsv: PLAN, registerCsv: REGISTER }, { ...options(), accountTypes: { Savings: 'mortgage' } });
     expect(r.report.loanAccountsWithoutDetails).toEqual(['Savings']);
+    // Its history already holds what YNAB charged: HAFB's own charges start the month after the export.
+    const loan = r.plan.accounts.find((a) => a.name === 'Savings');
+    expect(loan?.loan).toEqual({ chargesFrom: '2026-11' });
+    // Entering the loan's details later keeps it.
+    const withRate = editAccount(r.plan, { now: '2026-12-02T00:00:00.000Z', today: '2026-12-02', newId: counterIds() }, { accountId: loan?.id ?? '', loan: { interestRateBps: 600 } });
+    expect(applyChanges(r.plan, withRate.changes).plan.accounts.find((a) => a.id === loan?.id)?.loan).toEqual({ chargesFrom: '2026-11', interestRateBps: 600 });
+    // And it survives the file.
+    const db = openMemoryPlan();
+    applyRows(db, encodePlan(r.plan));
+    expect(decodePlan(loadTables(db)).accounts.find((a) => a.id === loan?.id)?.loan).toEqual({ chargesFrom: '2026-11' });
   });
 
   it('ids come only from newId, deterministically', () => {

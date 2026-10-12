@@ -194,6 +194,17 @@ fn an_older_file_is_backed_up_then_migrated() {
             r.remove("display_decimals");
         }
     }
+    // 0007: accounts.loan_charges_from and targets.pay_off.
+    for t in v1.upserts.iter_mut().filter(|t| t.table == "accounts") {
+        for r in &mut t.rows {
+            r.remove("loan_charges_from");
+        }
+    }
+    for t in v1.upserts.iter_mut().filter(|t| t.table == "targets") {
+        for r in &mut t.rows {
+            r.remove("pay_off");
+        }
+    }
     for t in v1.upserts.iter_mut().filter(|t| t.table == "transactions") {
         for r in &mut t.rows {
             for c in ["imported_date", "imported_amount", "entered_amount", "matched_at"] {

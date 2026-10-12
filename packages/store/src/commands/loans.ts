@@ -6,7 +6,8 @@
 //
 // ASSUMPTIONS (budget-math §10.4): each month's charges are posted on the 1st, interest on the
 // balance at the end of the previous month (the engine's amortization rule); the first charges
-// come the month after the loan's first transaction; a charge the user deleted is never posted
+// come the month after the loan's first transaction (or from `chargesFrom`, set on loans imported
+// from YNAB, migration 0007); a charge the user deleted is never posted
 // again. YNAB's first posting in the trial (after 2026-11-01) will confirm the date and amount.
 import { monthlyInterest, READY_TO_ASSIGN, ValidationError, type Id } from '@hafb/engine';
 import { addMonths, compareDates, compareMonths, firstDayOfMonth, minor, monthOf, neg, type ISODate, type Minor, type Month } from '@hafb/shared';
@@ -62,7 +63,9 @@ export function postLoanCharges(plan: PlanData, ctx: CommandContext): Command | 
     const live = txs.filter((t) => t.deletedAt === undefined);
     if (live.length === 0) continue;
     const first = live.reduce((m, t) => (compareMonths(monthOf(t.date), m) < 0 ? monthOf(t.date) : m), monthOf(live[0]?.date ?? ctx.today));
-    for (let m = addMonths(first, 1); compareMonths(m, thisMonth) <= 0; m = addMonths(m, 1)) {
+    // A loan imported from YNAB starts after the export: its history already holds YNAB's charges.
+    const start = loan.chargesFrom !== undefined && compareMonths(loan.chargesFrom, addMonths(first, 1)) > 0 ? loan.chargesFrom : addMonths(first, 1);
+    for (let m = start; compareMonths(m, thisMonth) <= 0; m = addMonths(m, 1)) {
       const on = firstDayOfMonth(m);
       const balance = balanceBefore(txs, on);
       for (const c of CHARGES) {

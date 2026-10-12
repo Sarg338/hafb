@@ -51,7 +51,8 @@
    "original_principal",
    "paired_category_id",
    "created_at",
-   "deleted_at"
+   "deleted_at",
+   "loan_charges_from"
   ],
   "rows": [
    [
@@ -71,6 +72,7 @@
     null,
     null,
     "2026-10-08T12:00:00.000Z",
+    null,
     null
    ],
    [
@@ -90,6 +92,7 @@
     null,
     null,
     "2026-10-08T12:00:00.000Z",
+    null,
     null
    ],
    [
@@ -109,6 +112,7 @@
     20000000,
     "c-rent",
     "2026-10-08T12:00:00.000Z",
+    null,
     null
    ],
    [
@@ -128,7 +132,8 @@
     null,
     null,
     "2026-10-08T12:00:00.000Z",
-    "2026-10-08T12:00:00.000Z"
+    "2026-10-08T12:00:00.000Z",
+    null
    ]
   ]
  },
@@ -291,7 +296,8 @@
    "start_month",
    "created_on",
    "snoozed_months",
-   "updated_at"
+   "updated_at",
+   "pay_off"
   ],
   "rows": [
    [
@@ -306,7 +312,8 @@
     "2026-09",
     null,
     "[\"2026-10\"]",
-    "2026-10-08T12:00:00.000Z"
+    "2026-10-08T12:00:00.000Z",
+    0
    ],
    [
     "c-old",
@@ -320,7 +327,8 @@
     "2026-09",
     null,
     "[]",
-    null
+    null,
+    0
    ],
    [
     "c-rent",
@@ -334,7 +342,8 @@
     "2026-09",
     null,
     "[]",
-    null
+    null,
+    0
    ],
    [
     "c-wk",
@@ -348,7 +357,8 @@
     "2026-10",
     "2026-10-08",
     "[]",
-    null
+    null,
+    0
    ],
    [
     "c-yr",
@@ -362,7 +372,8 @@
     "2026-09",
     null,
     "[]",
-    null
+    null,
+    0
    ]
   ]
  },

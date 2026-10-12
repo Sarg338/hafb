@@ -2,6 +2,8 @@ import { CREDIT_CARD_INTEREST, READY_TO_ASSIGN, autoAssign, monthState } from '@
 import { minor, type Month } from '@hafb/shared';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { applyChanges, findRecord } from '../src/changes.ts';
+import { decodePlan, encodePlan } from '../src/codec.ts';
+import { applyRows, loadTables, openMemoryPlan } from './helpers/sqliteStore.ts';
 import {
   accountBalance,
   adjustBalance,
@@ -625,6 +627,22 @@ describe('commands', () => {
       expect(() => setTarget(b.plan, ctx, { categoryId: rent, amount: usd(1), cadence: { kind: 'monthly', day: 1 }, behavior: 'haveBalance' })).toThrow();
       b.run(clearTarget(b.plan, ctx, { categoryId: groceries }));
       expect(b.plan.targets).toEqual([]);
+    });
+
+    it('a card’s payment category takes Pay Off Balance by Date or Pay Specific Amount Monthly only (T-12)', () => {
+      const payment = b.plan.categories.find((c) => c.creditCardAccountId === visa)?.id ?? '';
+      const due = { kind: 'custom' as const, due: '2026-12-31' as const };
+      b.run(setTarget(b.plan, ctx, { categoryId: payment, amount: usd(999), cadence: due, behavior: 'haveBalance', payOff: true }));
+      expect(findRecord(b.plan, 'targets', payment)).toMatchObject({ amount: 0, payOff: true, cadence: due });
+      b.run(setTarget(b.plan, ctx, { categoryId: payment, amount: usd(50), cadence: { kind: 'monthly', day: 'last' }, behavior: 'setAside' }));
+      expect(findRecord(b.plan, 'targets', payment)?.payOff).toBeUndefined();
+      expect(() => setTarget(b.plan, ctx, { categoryId: payment, amount: usd(50), cadence: { kind: 'monthly', day: 'last' }, behavior: 'refill' })).toThrow(/Pay Off Balance by Date/);
+      expect(() => setTarget(b.plan, ctx, { categoryId: groceries, amount: usd(50), cadence: due, behavior: 'haveBalance', payOff: true })).toThrow(/credit card payment category/);
+      // A pay-off target survives the file.
+      b.run(setTarget(b.plan, ctx, { categoryId: payment, amount: usd(0), cadence: due, behavior: 'haveBalance', payOff: true }));
+      const db = openMemoryPlan();
+      applyRows(db, encodePlan(b.plan));
+      expect(decodePlan(loadTables(db)).targets.find((t) => t.categoryId === payment)).toMatchObject({ payOff: true, amount: 0 });
     });
   });
 

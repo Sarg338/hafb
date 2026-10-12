@@ -352,6 +352,7 @@ function encodeAccount(a: AccountRecord): Row {
     fees: n(loan.fees),
     original_principal: n(loan.originalPrincipal),
     paired_category_id: n(loan.pairedCategoryId),
+    loan_charges_from: n(loan.chargesFrom),
     created_at: a.createdAt,
     deleted_at: n(a.deletedAt),
   };
@@ -364,6 +365,7 @@ function decodeAccount(r: Reader): AccountRecord {
   const fees = r.optMoney('fees');
   const originalPrincipal = r.optMoney('original_principal');
   const pairedCategoryId = r.optStr('paired_category_id');
+  const chargesFrom = r.optStr('loan_charges_from');
   const loan: LoanDetails = {
     ...(interestRateBps === undefined ? {} : { interestRateBps }),
     ...(minimumPayment === undefined ? {} : { minimumPayment }),
@@ -371,6 +373,7 @@ function decodeAccount(r: Reader): AccountRecord {
     ...(fees === undefined ? {} : { fees }),
     ...(originalPrincipal === undefined ? {} : { originalPrincipal }),
     ...(pairedCategoryId === undefined ? {} : { pairedCategoryId }),
+    ...(chargesFrom !== undefined && isMonth(chargesFrom) ? { chargesFrom } : {}),
   };
   const note = r.optStr('note');
   const lastReconciledAt = r.optStr('last_reconciled_at');
@@ -459,6 +462,7 @@ function encodeTarget(t: TargetRecord): Row {
     created_on: n(t.createdOn),
     snoozed_months: JSON.stringify(t.snoozedMonths ?? []),
     updated_at: n(t.updatedAt),
+    pay_off: b(t.payOff),
   };
 }
 
@@ -498,6 +502,7 @@ function decodeTarget(r: Reader): TargetRecord {
     ...(createdOn === undefined ? {} : { createdOn }),
     ...(snoozedMonths.length === 0 ? {} : { snoozedMonths }),
     ...(updatedAt === undefined ? {} : { updatedAt }),
+    ...(r.bool('pay_off') ? { payOff: true as const } : {}),
   };
 }
 

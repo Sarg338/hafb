@@ -12,6 +12,7 @@ pub const MIGRATIONS: &[&str] = &[
     include_str!("../../migrations/0004_display_decimals.sql"),
     include_str!("../../migrations/0005_attachment_thumbnails.sql"),
     include_str!("../../migrations/0006_credit_card_interest.sql"),
+    include_str!("../../migrations/0007_loans_and_card_targets.sql"),
 ];
 
 /// Marks a SQLite file as a plan (`PRAGMA application_id`, header offset 68): ASCII "HAFB".

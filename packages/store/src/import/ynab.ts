@@ -29,7 +29,7 @@ import {
   type YnabPlanRow,
   type YnabRegisterRow,
 } from '@hafb/engine';
-import { compareDates, isISODate, minor, type ISODate, type Minor } from '@hafb/shared';
+import { addMonths, compareDates, isISODate, minor, monthOf, type ISODate, type Minor } from '@hafb/shared';
 import type {
   AccountRecord,
   CategoryGroupRecord,
@@ -234,12 +234,15 @@ export function importYnabRows(
   const mapRef = (ref: CategoryRef): CategoryRef => (ref === null || ref === READY_TO_ASSIGN ? ref : idFor(ref));
 
   // ---- accounts ----------------------------------------------------------------------------------
+  // A loan's history already holds the interest YNAB posted: HAFB's charges start after the export.
+  const chargesFrom = addMonths(monthOf(options.today), 1);
   const accounts: AccountRecord[] = snap.accounts.map((a, i) => ({
     id: idFor(a.id),
     name: a.name,
     type: a.type,
     onBudget: a.onBudget,
     sortOrder: i,
+    ...(LOAN_TYPES.includes(a.type) ? { loan: { chargesFrom } } : {}),
     createdAt: now,
   }));
   const accountIdByName = new Map(snap.accounts.map((a) => [a.name, idFor(a.id)]));

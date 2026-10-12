@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addTransaction, closeAccount, createAccount, createCategory, createGroup, deleteTransactions, pairLoanCategory, postLoanCharges, recordLoanPayment } from '../src/commands/index.ts';
+import { addTransaction, closeAccount, createAccount, editAccount, createCategory, createGroup, deleteTransactions, pairLoanCategory, postLoanCharges, recordLoanPayment } from '../src/commands/index.ts';
 import { Bench, blankPlan, makeCtx, usd } from './helpers/harness.ts';
 
 describe('loans (§5.10, S6.4)', () => {
@@ -40,6 +40,15 @@ describe('loans (§5.10, S6.4)', () => {
       ['2026-12-01', 'Escrow', usd(-300), null],
     ]);
     expect(postLoanCharges(b.plan, later)).toBeNull(); // idempotent
+  });
+
+  it('a loan imported from YNAB (chargesFrom) is charged only from that month, not back through its history', () => {
+    const { ctx, b, house } = setup();
+    const a = b.plan.accounts.find((x) => x.id === house);
+    b.run(editAccount(b.plan, ctx, { accountId: house, loan: { ...a?.loan, chargesFrom: '2027-01' } }));
+    const cmd = postLoanCharges(b.plan, { ...ctx, today: '2027-02-03' });
+    if (cmd) b.run(cmd);
+    expect(charges(b, house).map(([date, name]) => `${String(date)} ${String(name)}`)).toEqual(['2027-01-01 Interest', '2027-01-01 Escrow', '2027-02-01 Interest', '2027-02-01 Escrow']);
   });
 
   it('a deleted charge is never posted again; payments lower the next month’s interest', () => {

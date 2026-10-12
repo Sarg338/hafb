@@ -102,7 +102,9 @@ export function editAccount(plan: PlanData, _ctx: CommandContext, args: EditAcco
   const name = args.name === undefined ? a.name : requireName(args.name, 'Account');
   const note = args.note === undefined ? a.note : args.note ?? undefined;
   const starred = args.starred ?? a.starred ?? false;
-  const loan = args.loan === undefined ? a.loan : args.loan ?? undefined;
+  // Where charges start isn't part of the details form: editing them keeps it.
+  const keep = a.loan?.chargesFrom === undefined ? {} : { chargesFrom: a.loan.chargesFrom };
+  const loan = args.loan === undefined ? a.loan : args.loan === null ? undefined : { ...keep, ...args.loan };
   d.put('accounts', {
     ...base,
     name,

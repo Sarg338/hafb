@@ -9,7 +9,12 @@ import {
   createAccount,
   createCategory,
   createGroup,
+  deletePayees,
+  editAndLearn,
   importBankRows,
+  keepImportedName,
+  learnRenameRule,
+  renamedByRule,
   matchTransactions,
   previewImport,
   rejectImports,
@@ -142,6 +147,49 @@ describe('bank file import (S6.5, §5.12)', () => {
     ]);
     expect(b.plan).toBe(before);
     expect(importBankRows(b.plan, ctx, { accountId: checking, rows, includeBeforeStart: true }).report.imported).toBe(2);
+  });
+
+  // YNAB (https://support.ynab.com/en_us/how-to-rename-payees-BkotNUSyo, 2026-09-17): editing an
+  // imported payee creates an IS rule; "Don't rename as" keeps the bank's name and removes the IS
+  // rules; deleting that payee in Manage Payees turns renaming back on.
+  it('renaming an imported payee learns an IS rule; Don’t rename keeps the bank’s name until that payee is deleted', () => {
+    const { ctx, b, checking } = setup();
+    const raw = 'MCDONALDS 576 NASHVILLE';
+    const importOne = (id: string, date: string) => {
+      b.run(importBankRows(b.plan, ctx, { accountId: checking, rows: [row(date, -8.5, raw, { importId: id })], includeBeforeStart: false }));
+      return live(b, checking).find((t) => t.importId === id);
+    };
+    const first = importOne('M1', '2026-10-05');
+    expect(payee(b, first?.payeeId)).toBe('Mcdonalds 576 Nashville');
+    // The user renames it: one undo step edits the payee and learns the rule.
+    b.run(editAndLearn(b.plan, ctx, { transactionId: first?.id ?? '', patch: { payeeName: 'McDonald’s' } }));
+    expect(b.plan.payeeRenameRules.map((r) => [r.match, r.pattern, payee(b, r.targetPayeeId)])).toEqual([['equals', raw, 'McDonald’s']]);
+    expect(payee(b, importOne('M2', '2026-10-06')?.payeeId)).toBe('McDonald’s');
+    // Renaming another one again updates the same rule instead of adding a second.
+    const third = importOne('M3', '2026-10-07');
+    b.run(editAndLearn(b.plan, ctx, { transactionId: third?.id ?? '', patch: { payeeName: 'McD' } }));
+    expect(b.plan.payeeRenameRules.map((r) => [r.pattern, payee(b, r.targetPayeeId)])).toEqual([[raw, 'McD']]);
+    // Nothing is learned for a payee the user typed (not imported), or for a payee that didn't change.
+    expect(learnRenameRule(b.plan, ctx, { transactionId: third?.id ?? '' })).toBeNull();
+
+    // Don't rename as McD: the bank's name becomes a payee, the IS rules go, and it stays put.
+    expect(renamedByRule(b.plan, third?.id ?? '')).toBe(true);
+    b.run(keepImportedName(b.plan, ctx, { transactionId: third?.id ?? '' }));
+    expect(renamedByRule(b.plan, third?.id ?? '')).toBe(false);
+    expect(b.plan.payees.some((p) => p.name.toUpperCase() === raw && p.deletedAt === undefined)).toBe(true);
+    expect(payee(b, importOne('M4', '2026-10-08')?.payeeId)?.toUpperCase()).toBe(raw);
+    // A contains rule added later doesn't override it, and editing a payee no longer learns a rule.
+    const mcd = b.plan.payees.find((p) => p.name === 'McD')?.id ?? '';
+    b.run(addRenameRule(b.plan, ctx, { payeeId: mcd, match: 'contains', pattern: 'MCDONALDS' }));
+    const fifth = importOne('M5', '2026-10-09');
+    expect(payee(b, fifth?.payeeId)?.toUpperCase()).toBe(raw);
+    b.run(editAndLearn(b.plan, ctx, { transactionId: fifth?.id ?? '', patch: { payeeName: 'McD' } }));
+    expect(b.plan.payeeRenameRules.filter((r) => r.match === 'equals').map((r) => payee(b, r.targetPayeeId)?.toUpperCase())).toEqual([raw]);
+
+    // Deleting that payee in Manage Payees turns renaming back on.
+    const kept = b.plan.payees.find((p) => p.name.toUpperCase() === raw)?.id ?? '';
+    b.run(deletePayees(b.plan, ctx, { payeeIds: [kept], replacementId: mcd }));
+    expect(payee(b, importOne('M6', '2026-10-10')?.payeeId)).toBe('McD');
   });
 
   it('remembers CSV settings per account', () => {

@@ -1,6 +1,6 @@
 // Category groups, categories, category notes and targets (CLAUDE.md §4, §5.4, §6.1, §6.7).
 import { READY_TO_ASSIGN, validateTarget, ValidationError, type Id, type Target } from '@hafb/engine';
-import { monthOf, type Month } from '@hafb/shared';
+import { minor, monthOf, type Month } from '@hafb/shared';
 import type { CategoryGroupRecord, CategoryRecord, PlanData, TargetRecord } from '../records.ts';
 import { Draft, liveCategory, nextSortOrder, requireName, type Command, type CommandContext, omit } from './context.ts';
 import { addAssigned, recordMove } from './plan.ts';
@@ -242,16 +242,23 @@ export function deleteGroup(plan: PlanData, ctx: CommandContext, args: { groupId
 export function setTarget(
   plan: PlanData,
   ctx: CommandContext,
-  args: { categoryId: Id; amount: Target['amount']; cadence: Target['cadence']; behavior: Target['behavior'] },
+  args: { categoryId: Id; amount: Target['amount']; cadence: Target['cadence']; behavior: Target['behavior']; payOff?: boolean },
 ): Command {
   const d = new Draft(plan);
   const c = liveCategory(d, args.categoryId);
   const prior = d.get('targets', c.id);
+  // A card's payment category takes YNAB's two card targets only (trial, 2026-10-12): "Pay Off
+  // Balance by Date" or "Pay Specific Amount Monthly" (a monthly Set aside).
+  const payment = c.creditCardAccountId !== undefined;
+  const monthlySetAside = args.cadence.kind === 'monthly' && args.behavior === 'setAside' && args.payOff !== true;
+  if (payment && args.payOff !== true && !monthlySetAside) throw new ValidationError(`${c.name} takes “Pay Off Balance by Date” or “Pay Specific Amount Monthly”`);
+  if (!payment && args.payOff === true) throw new ValidationError('“Pay Off Balance by Date” is for a credit card payment category');
   const target: TargetRecord = {
     categoryId: c.id,
-    amount: args.amount,
+    amount: args.payOff === true ? minor(0) : args.amount,
     cadence: args.cadence,
     behavior: args.behavior,
+    ...(args.payOff === true ? { payOff: true } : {}),
     startMonth: prior?.startMonth ?? monthOf(ctx.today),
     createdOn: prior?.createdOn ?? ctx.today,
     ...(prior?.snoozedMonths === undefined || prior.snoozedMonths.length === 0 ? {} : { snoozedMonths: prior.snoozedMonths }),
