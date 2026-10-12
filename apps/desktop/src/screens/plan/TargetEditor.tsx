@@ -7,7 +7,7 @@
 // payoff date → the payment) and the day payments are due.
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { LoanTerms, Target } from '@hafb/engine';
-import { formatMoney, ZERO as ZERO_MINOR, type ISODate, type Minor, type MoneyFormat } from '@hafb/shared';
+import { asMonth, compareMonths, formatMoney, monthOf, monthParts, ZERO as ZERO_MINOR, type ISODate, type Minor, type MoneyFormat } from '@hafb/shared';
 import { Button } from '../../ui/Button.tsx';
 import { Combobox } from '../../ui/Combobox.tsx';
 import { DateInput } from '../../ui/DateInput.tsx';
@@ -18,7 +18,7 @@ import { SegmentedControl } from '../../ui/SegmentedControl.tsx';
 import { Toggle } from '../../ui/Toggle.tsx';
 import { durationText, paymentForPayoff, payoffMonths, simulate } from '../shared/loanModel.ts';
 import { monthLong } from '../reflect/reflectModel.ts';
-import { behaviorOptions, behaviorPrompt, CADENCES, draftFor, toTargetArgs, WEEKDAYS, withCadence, type CadenceKind, type DraftResult, type TargetDraft } from './targetModel.ts';
+import { behaviorOptions, behaviorPrompt, CADENCES, CARD_TARGETS, cardDraftFor, cardTargetArgs, draftFor, toTargetArgs, WEEKDAYS, withCadence, type CadenceKind, type CardTargetDraft, type DraftResult, type TargetDraft } from './targetModel.ts';
 import styles from './Inspector.module.css';
 
 export interface TargetEditorProps {
@@ -230,7 +230,75 @@ export function TargetEditor({ target, today, fmt, dateFormat, suggestion, onSav
   );
 }
 
-/** A visible label over a picker (Combobox carries only an accessible name). */
+const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+/**
+ * A credit card payment category's target (T-12), as YNAB's (trial, 2026-10-12): "Pay Off Balance
+ * by Date" with a month and a year, or "Pay Specific Amount Monthly" with an amount.
+ */
+export function CardTargetEditor({ target, today, fmt, onSave, onDelete, onCancel }: Omit<TargetEditorProps, 'suggestion' | 'debt' | 'dateFormat'>) {
+  const [d, setD] = useState<CardTargetDraft>(() => cardDraftFor(target, today));
+  const [error, setError] = useState<string | null>(null);
+  const first = monthOf(today);
+  const { year: thisYear } = monthParts(first);
+  const { year, month } = monthParts(d.month);
+  const years = Array.from({ length: 31 }, (_, i) => thisYear + i);
+  const setMonth = (y: number, m: number): void => {
+    const picked = asMonth(`${String(y)}-${String(m).padStart(2, '0')}`);
+    setD({ ...d, month: compareMonths(picked, first) < 0 ? first : picked });
+    setError(null);
+  };
+  const save = (): void => {
+    const r = cardTargetArgs(d);
+    if (r.ok) onSave(r.args);
+    else setError(r.error);
+  };
+  return (
+    <div className={styles.targetEditor} role="group" aria-label="Target">
+      <Combobox
+        label="Target"
+        size="medium"
+        groups={[{ id: 'kinds', label: 'Credit card targets', options: CARD_TARGETS.map((k) => ({ id: k.id, label: k.label })) }]}
+        value={d.kind}
+        onChange={(id) => {
+          setD({ ...d, kind: id === 'monthly' ? 'monthly' : 'payOff' });
+          setError(null);
+        }}
+      />
+      {d.kind === 'payOff' ? (
+        <div className={styles.every}>
+          <Combobox label="Pay off by month" size="medium" groups={[{ id: 'm', label: 'Month', options: MONTH_NAMES.map((name, i) => ({ id: String(i + 1), label: name })) }]} value={String(month)} onChange={(id) => { setMonth(year, Number(id)); }} />
+          <Combobox label="Pay off by year" size="medium" groups={[{ id: 'y', label: 'Year', options: years.map((y) => ({ id: String(y), label: String(y) })) }]} value={String(year)} onChange={(id) => { setMonth(Number(id), month); }} />
+        </div>
+      ) : (
+        <MoneyInput label="Amount each month" variant="field" value={d.amount} format={fmt} onCommit={(amount) => { setD({ ...d, amount }); setError(null); }} onEnter={save} />
+      )}
+      <p className={styles.note}>
+        <Icon name="info" /> Making minimum payments? Choose Pay Specific Amount Monthly and enter your minimum payment.
+      </p>
+      {error !== null && (
+        <p className={styles.error} role="alert">
+          {error}
+        </p>
+      )}
+      <div className={styles.editorActions}>
+        {onDelete && (
+          <Button variant="danger" icon="dismiss" onClick={onDelete}>
+            Delete
+          </Button>
+        )}
+        <span className={styles.grow} />
+        <Button variant="toolbar" onClick={onCancel}>
+          Cancel
+        </Button>
+        <Button variant="primary" onClick={save}>
+          Save Target
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 /** YNAB's payoff calculator inside the Monthly Debt Payment target. */
 function DebtCalculator({ terms, today, payment, fmt, onPick }: { terms: LoanTerms; today: ISODate; payment: Minor; fmt: MoneyFormat; onPick: (amount: Minor) => void }) {
   const result = simulate(terms, today, payment, ZERO_MINOR);

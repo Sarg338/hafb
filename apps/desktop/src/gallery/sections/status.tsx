@@ -26,6 +26,9 @@ function Status() {
           <ProgressBar segments={5} fillPercent={100} spentPercent={58} state="funded" label="Weekly target, 5 weeks" />
           <ProgressBar segments={1} fillPercent={100} spentPercent={100} state="overspent" label="Overspent" />
           <ProgressBar segments={1} fillPercent={30} spentPercent={0} state="snoozed" label="Snoozed" />
+          <ProgressBar segments={2} weights={[2_500, 6_000]} fillPercent={29.4} spentPercent={0} state="underfunded" label="Set aside: $25 rolled over, $60 this month" />
+          <ProgressBar segments={2} weights={[6_000, 3_000]} fillPercent={100} spentPercent={30} state="funded" label="Assigned $30 past the target (extra)" />
+          <ProgressBar segments={2} weights={[15_000, 8_500]} fillPercent={100} spentPercent={100} state="funded" lastState="overspent" label="Overspent: $235 of $150" />
         </div>
       </Specimen>
       <Specimen label="Progress rings">

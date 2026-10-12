@@ -10,6 +10,14 @@ export interface ProgressBarProps {
   /** 0–100: the part of the fill already spent (drawn lighter). */
   spentPercent: number;
   state: MoneyState;
+  /**
+   * Relative segment widths (YNAB's progress bars guide): money rolled over gets its own first
+   * segment beside this month's, and spending or assigning past the target an extra last one.
+   * Absent = equal segments.
+   */
+  weights?: readonly number[] | undefined;
+  /** The last segment's own state: the extra section's red when spending ran past the money. */
+  lastState?: MoneyState | undefined;
   /** Accessible summary, e.g. "54% funded". When absent the bar is decorative. */
   label?: string;
 }
@@ -17,21 +25,28 @@ export interface ProgressBarProps {
 const unit = (v: number): number => Math.max(0, Math.min(1, v));
 
 /** The segmented target progress bar (DESIGN.md). Animates by transform, never width. */
-export function ProgressBar({ segments, fillPercent, spentPercent, state, label }: ProgressBarProps) {
+export function ProgressBar({ segments, fillPercent, spentPercent, state, weights, lastState, label }: ProgressBarProps) {
   const count = Math.max(1, Math.round(segments));
-  const per = 100 / count;
+  const w = weights?.length === count && weights.every((x) => x > 0) ? weights : Array.from({ length: count }, () => 1);
+  const total = w.reduce((a, b) => a + b, 0);
+  /** Where each segment starts, in percent of the bar. */
+  const starts = w.map((_, i) => (100 * w.slice(0, i).reduce((a, b) => a + b, 0)) / total);
   return (
     <div
       className={styles.bar}
       data-state={state}
       {...(label === undefined ? { 'aria-hidden': true } : { role: 'img', 'aria-label': label })}
     >
-      {Array.from({ length: count }, (_, i) => (
-        <span className={styles.seg} key={i}>
-          <span className={styles.fill} style={{ transform: `scaleX(${String(unit((fillPercent - i * per) / per))})` }} />
-          <span className={styles.spent} style={{ transform: `scaleX(${String(unit((spentPercent - i * per) / per))})` }} />
-        </span>
-      ))}
+      {w.map((weight, i) => {
+        const from = starts[i] ?? 0;
+        const per = (100 * weight) / total;
+        return (
+          <span className={styles.seg} key={i} style={weights === undefined ? undefined : { flexGrow: weight }} data-state={i === count - 1 && lastState !== undefined ? lastState : undefined}>
+            <span className={styles.fill} style={{ transform: `scaleX(${String(unit((fillPercent - from) / per))})` }} />
+            <span className={styles.spent} style={{ transform: `scaleX(${String(unit((spentPercent - from) / per))})` }} />
+          </span>
+        );
+      })}
     </div>
   );
 }

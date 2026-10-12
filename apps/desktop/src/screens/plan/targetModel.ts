@@ -5,7 +5,7 @@
 // months or years. Card: "Set Aside Another $300.00 Every 6 Months / By Feb 1 2027", a progress ring,
 // a box ("Assign $10.00 more this month to stay on track"), and lines that depend on the behavior.
 import { suggestTargetAmount, type CategoryMonth, type Id, type Target, type TargetBehavior, type TargetCadence, type TargetMonth, type TargetStatus } from '@hafb/engine';
-import { addMonths, dateParts, firstDayOfMonth, formatMoney, monthOf, ZERO, type ISODate, type Minor, type MoneyFormat } from '@hafb/shared';
+import { addMonths, dateParts, daysInMonth, firstDayOfMonth, formatMoney, makeDate, monthOf, monthParts, ZERO, type ISODate, type Minor, type MoneyFormat, type Month } from '@hafb/shared';
 import type { PlanModel } from './planModel.ts';
 
 export type CadenceKind = TargetCadence['kind'];
@@ -57,7 +57,7 @@ export function withCadence(d: TargetDraft, kind: CadenceKind): TargetDraft {
   return { ...d, kind, behavior: d.behavior === 'haveBalance' && kind !== 'custom' ? 'setAside' : d.behavior, ...(kind !== 'custom' ? { repeat: false } : {}) };
 }
 
-export type DraftResult = { ok: true; args: { amount: Minor; cadence: TargetCadence; behavior: TargetBehavior } } | { ok: false; error: string };
+export type DraftResult = { ok: true; args: { amount: Minor; cadence: TargetCadence; behavior: TargetBehavior; payOff?: boolean } } | { ok: false; error: string };
 
 export function toTargetArgs(d: TargetDraft): DraftResult {
   if (d.amount <= 0) return { ok: false, error: 'Enter how much you need.' };
@@ -172,6 +172,61 @@ export function targetCard(target: Target, tm: TargetMonth, cm: CategoryMonth, f
   if (target.behavior === 'haveBalance') lines = [{ label: 'Balance Needed', value: target.amount }, { label: 'Current Balance', value: tm.funded }];
   else if (target.behavior === 'refill') lines = [{ label: dueText !== null && c.kind !== 'monthly' && c.kind !== 'weekly' ? `Needed by ${dueText}` : 'Needed This Month', value: tm.needed }, { label: 'Funded', value: tm.funded }];
   else lines = [{ label: dueText !== null && c.kind !== 'monthly' && c.kind !== 'weekly' ? `Total to Assign by ${dueText}` : 'Needed This Month', value: tm.needed }, { label: 'Assigned So Far', value: tm.funded }];
+  lines.push({ label: 'To Go', value: tm.toGo });
+  return { heading, subline, percent: tm.progressPercent, status: tm.status, box, lines };
+}
+
+// ---- credit card payment targets (T-12; YNAB trial 2026-10-12) ---------------------------------
+// A payment category's target is "Pay Off Balance by Date" (a month and year) or "Pay Specific
+// Amount Monthly" (an amount). The first is the engine's pay-off target due on the month's last day;
+// the second is a monthly Set aside.
+
+export type CardTargetKind = 'payOff' | 'monthly';
+export const CARD_TARGETS: readonly { id: CardTargetKind; label: string }[] = [
+  { id: 'payOff', label: 'Pay Off Balance by Date' },
+  { id: 'monthly', label: 'Pay Specific Amount Monthly' },
+];
+
+export interface CardTargetDraft {
+  kind: CardTargetKind;
+  /** Pay off by the end of this month. */
+  month: Month;
+  amount: Minor;
+}
+
+/** YNAB's default: pay off by next month. */
+export function cardDraftFor(target: Target | undefined, today: ISODate): CardTargetDraft {
+  const next = addMonths(monthOf(today), 1);
+  if (!target) return { kind: 'payOff', month: next, amount: ZERO };
+  if (target.payOff === true && target.cadence.kind === 'custom' && target.cadence.due !== undefined) return { kind: 'payOff', month: monthOf(target.cadence.due), amount: ZERO };
+  return { kind: 'monthly', month: next, amount: target.amount };
+}
+
+export function cardTargetArgs(d: CardTargetDraft): DraftResult {
+  if (d.kind === 'payOff') {
+    const { year, month } = monthParts(d.month);
+    return { ok: true, args: { amount: ZERO, cadence: { kind: 'custom', due: makeDate(year, month, daysInMonth(year, month)) }, behavior: 'haveBalance', payOff: true } };
+  }
+  if (d.amount <= 0) return { ok: false, error: 'Enter how much to pay each month.' };
+  return { ok: true, args: { amount: d.amount, cadence: { kind: 'monthly', day: 'last' }, behavior: 'setAside' } };
+}
+
+/** The target card for a payment category, worded as YNAB's. */
+export function cardTargetCard(target: Target, tm: TargetMonth, fmt: MoneyFormat): TargetCard {
+  const money = (m: Minor): string => formatMoney(m, fmt);
+  const payOff = target.payOff === true;
+  const due = tm.dueDate;
+  const heading = payOff ? 'Pay Off Balance by Date' : 'Pay Specific Amount Monthly';
+  const subline = payOff ? `Pay off ${money(tm.toGo)}${due === undefined ? '' : ` by ${MONTHS[dateParts(due).month - 1] ?? ''} ${String(dateParts(due).year)}`}` : `${money(target.amount)} Each Month`;
+  let box: TargetCard['box'];
+  if (tm.status === 'snoozed') box = { tone: 'plain', text: 'Snoozed for this month: it asks for nothing until next month.' };
+  else if (tm.status === 'inactive') box = { tone: 'plain', text: 'This target’s date has passed.' };
+  else if (tm.underfunded > 0) box = { tone: 'warn', text: payOff ? `Assign ${money(tm.underfunded)} this month to stay on track` : `Assign ${money(tm.underfunded)} to meet your target`, assign: tm.underfunded };
+  else if (tm.toGo === 0) box = { tone: 'good', text: payOff ? 'You’ve set aside enough to pay off this card.' : 'You’ve met your target!' };
+  else box = { tone: 'good', text: 'On track.' };
+  const lines = payOff
+    ? [{ label: 'Needed for Payoff', value: tm.needed }, { label: 'Available for Payment', value: tm.funded }]
+    : [{ label: 'Amount to Assign This Month', value: tm.needed }, { label: 'Assigned So Far', value: tm.funded }];
   lines.push({ label: 'To Go', value: tm.toGo });
   return { heading, subline, percent: tm.progressPercent, status: tm.status, box, lines };
 }

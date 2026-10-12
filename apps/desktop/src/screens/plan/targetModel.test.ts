@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { evaluateTarget, type CategoryMonth, type Target, type TargetBehavior, type TargetCadence } from '@hafb/engine';
 import { minor, type Month } from '@hafb/shared';
-import { behaviorOptions, behaviorPrompt, draftFor, targetCard, toTargetArgs, withCadence } from './targetModel.ts';
+import { behaviorOptions, behaviorPrompt, cardDraftFor, cardTargetArgs, cardTargetCard, draftFor, targetCard, toTargetArgs, withCadence } from './targetModel.ts';
 
 const fmt = { decimals: 2, symbol: '$', placement: 'before' as const, numberFormat: '1,234.56' as const };
 const cm = (assigned: number, carriedIn = 0): CategoryMonth => ({
@@ -96,5 +96,34 @@ describe('the target card (YNAB trial, 2026-10-08)', () => {
     expect(funded.heading).toBe('Refill Up to $60.00 Each Month');
     expect(funded.subline).toBe('By the 20th');
     expect(funded.box?.tone).toBe('good');
+  });
+});
+
+describe('credit card payment targets (T-12, YNAB trial 2026-10-12)', () => {
+  const amex = (owed: number, available: number): CategoryMonth => ({ ...cm(0), available: minor(available), creditCard: { accountId: 'amex', fundedSpending: minor(available), payments: minor(0), balance: minor(-owed), unfundedSpending: minor(0), spending: minor(-owed), returns: minor(0), interest: minor(0) } });
+  const evalCard = (t: Target, c: CategoryMonth) => cardTargetCard(t, evaluateTarget(t, '2026-10', c, () => minor(0), { today: '2026-10-12' }), fmt);
+
+  it('Pay Off Balance by Date: YNAB’s defaults, text and lines', () => {
+    const d = cardDraftFor(undefined, '2026-10-12');
+    expect(d).toEqual({ kind: 'payOff', month: '2026-11', amount: 0 });
+    const r = cardTargetArgs(d);
+    if (!r.ok) throw new Error(r.error);
+    expect(r.args).toEqual({ amount: 0, cadence: { kind: 'custom', due: '2026-11-30' }, behavior: 'haveBalance', payOff: true });
+    const t: Target = { categoryId: 'c', startMonth: '2026-10', createdOn: '2026-10-12', ...r.args, payOff: true };
+    const c = evalCard(t, amex(5_000, 4_000));
+    expect([c.heading, c.subline, c.box?.text]).toEqual(['Pay Off Balance by Date', 'Pay off $10.00 by Nov 2026', 'Assign $5.00 this month to stay on track']);
+    expect(c.lines).toEqual([{ label: 'Needed for Payoff', value: 5_000 }, { label: 'Available for Payment', value: 4_000 }, { label: 'To Go', value: 1_000 }]);
+    expect(cardDraftFor(t, '2026-10-12')).toEqual({ kind: 'payOff', month: '2026-11', amount: 0 });
+  });
+
+  it('Pay Specific Amount Monthly: a monthly Set aside with YNAB’s card text', () => {
+    expect(cardTargetArgs({ kind: 'monthly', month: '2026-11', amount: minor(0) }).ok).toBe(false);
+    const r = cardTargetArgs({ kind: 'monthly', month: '2026-11', amount: minor(2_000) });
+    if (!r.ok) throw new Error(r.error);
+    const t: Target = { categoryId: 'c', startMonth: '2026-10', createdOn: '2026-10-12', amount: r.args.amount, cadence: r.args.cadence, behavior: r.args.behavior };
+    const c = evalCard(t, amex(5_000, 4_000));
+    expect([c.heading, c.subline, c.box?.text]).toEqual(['Pay Specific Amount Monthly', '$20.00 Each Month', 'Assign $20.00 to meet your target']);
+    expect(c.lines).toEqual([{ label: 'Amount to Assign This Month', value: 2_000 }, { label: 'Assigned So Far', value: 0 }, { label: 'To Go', value: 2_000 }]);
+    expect(cardDraftFor(t, '2026-10-12').kind).toBe('monthly');
   });
 });

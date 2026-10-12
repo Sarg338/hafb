@@ -8,7 +8,7 @@
 //   the card's Current Balance instead.
 // Every section collapses, and the choice is remembered on this PC.
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { limitToReadyToAssign, type Id, type LoanTerms } from '@hafb/engine';
+import { limitToReadyToAssign, type CreditCardMonth, type Id, type LoanTerms } from '@hafb/engine';
 import { addMonths, minor, monthParts, neg, ZERO, type Minor, type Month } from '@hafb/shared';
 import { applyPlanChange, clearTarget, setAssigned, setCategoryNote, setExpectedIncome, setTarget, snoozeTarget } from '@hafb/store';
 import type { Actions } from '../../design/DesignApp.tsx';
@@ -28,8 +28,8 @@ import { autoAssignChoices, costView, monthSummary, type AutoAssignChoice, type 
 import { monthName } from './PlanHeader.tsx';
 import type { SetupStep, SetupStepId } from './setupModel.ts';
 import type { PlanModel } from './planModel.ts';
-import { suggestion, targetCard } from './targetModel.ts';
-import { TargetEditor } from './TargetEditor.tsx';
+import { cardTargetCard, suggestion, targetCard } from './targetModel.ts';
+import { CardTargetEditor, TargetEditor } from './TargetEditor.tsx';
 import { currentTrack, loanProgress, loanTerms } from '../shared/loanModel.ts';
 import { monthLong } from '../reflect/reflectModel.ts';
 import styles from './Inspector.module.css';
@@ -363,16 +363,38 @@ function FutureCard({ future, shortfalls, money }: { future: readonly FutureMont
 }
 
 /** The Target card (YNAB trial): the target's summary, ring, box and lines; the editor inline; snooze. */
-function TargetSection({ model, id, name, actions, money, debt }: { model: PlanModel; id: Id; name: string; actions: Actions; money: MoneyText; debt?: LoanTerms | undefined }) {
+function TargetSection({ model, id, name, actions, money, debt, card: cardMonth }: { model: PlanModel; id: Id; name: string; actions: Actions; money: MoneyText; debt?: LoanTerms | undefined; /** A credit card payment category (T-12). */ card?: CreditCardMonth | undefined }) {
   const target = model.targets.get(id);
   const tm = model.evaluated[id];
   const cm = model.ms.categories[id];
   const [editing, setEditing] = useState(false);
-  const card = target && tm && cm ? targetCard(target, tm, cm, model.fmt) : null;
+  const card = target && tm && cm ? (cardMonth ? cardTargetCard(target, tm, model.fmt) : targetCard(target, tm, cm, model.fmt)) : null;
+  const view = model.views.get(id);
   const snoozed = target?.snoozedMonths?.includes(model.month) === true;
   return (
     <Section id="target" title={<><Icon name="target" /> Target</>}>
-      {editing ? (
+      {editing && cardMonth ? (
+        <CardTargetEditor
+          target={target}
+          today={model.today}
+          fmt={model.fmt}
+          onCancel={() => {
+            setEditing(false);
+          }}
+          onSave={(args) => {
+            setEditing(false);
+            actions.run((p, ctx) => setTarget(p, ctx, { categoryId: id, ...args }));
+          }}
+          {...(target
+            ? {
+                onDelete: () => {
+                  setEditing(false);
+                  actions.run((p, ctx) => clearTarget(p, ctx, { categoryId: id }), { announce: `Deleted the target for ${name}.` });
+                },
+              }
+            : {})}
+        />
+      ) : editing ? (
         <TargetEditor
           target={target}
           today={model.today}
@@ -439,6 +461,25 @@ function TargetSection({ model, id, name, actions, money, debt }: { model: PlanM
             />
           </div>
         </>
+      ) : cardMonth ? (
+        // YNAB: an underfunded card offers a debt payoff target ("Don't have more money to assign?"),
+        // and so does a month with Credit Card Interest (its "nudge", What's New 2026-10-07).
+        <>
+          {cardMonth.interest < 0 && (
+            <p className={styles.note}>
+              This card charged {money(neg(cardMonth.interest))} in interest this month. A debt payoff target plans how to pay it off.
+            </p>
+          )}
+          <p className={styles.sentence}>
+            <strong>{view?.state === 'underfunded' ? (cardMonth.unfundedSpending > 0 ? 'Can’t cover the overspent categories?' : 'Don’t have more money to assign?') : 'Plan to pay off this card'}</strong>
+          </p>
+          <p className={styles.note}>Pay it off by a date, or pay a set amount each month.</p>
+          <div className={styles.actions}>
+            <Button variant="secondary" icon="add" onClick={() => { setEditing(true); }}>
+              Create a Debt Payoff Target
+            </Button>
+          </div>
+        </>
       ) : (
         <>
           <p className={styles.sentence}>
@@ -498,7 +539,7 @@ function CategoryDetail({ model, id, actions, money, onRename }: { model: PlanMo
       >
         {payment && cm.creditCard ? (
           <>
-            {view.state === 'underfunded' && view.message && <p className={cx(styles.note, styles.warnNote)}>{view.message} in order to pay off the current balance.</p>}
+            {view.state === 'underfunded' && view.message && !model.targets.has(id) && <p className={cx(styles.note, styles.warnNote)}>{view.message} in order to pay off the current balance.</p>}
             <Line label="Cash Left Over From Last Month" value={money(cm.carriedIn)} />
             <Line label="Assigned" value={money(cm.assigned)} />
             <Line label="Funded Spending" value={money(cm.creditCard.fundedSpending)} />
@@ -557,7 +598,7 @@ function CategoryDetail({ model, id, actions, money, onRename }: { model: PlanMo
         </Section>
       )}
 
-      {!payment && <TargetSection model={model} id={id} name={category.name} actions={actions} money={money} debt={terms} />}
+      <TargetSection model={model} id={id} name={category.name} actions={actions} money={money} debt={terms} card={cm.creditCard} />
 
       <AutoAssign model={model} ids={[id]} selection actions={actions} money={money} />
 

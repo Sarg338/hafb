@@ -54,6 +54,21 @@
   background: var(--c-bar-snoozed);
 }
 
+/* The extra section's own state (spending past the money: YNAB's red end of the bar). */
+.bar .seg[data-state='overspent'] .fill,
+.bar .seg[data-state='overspent'] .spent {
+  background: var(--c-bar-overspent);
+}
+
+.bar .seg[data-state='creditOverspent'] .fill,
+.bar .seg[data-state='creditOverspent'] .spent {
+  background: var(--c-bar-underfunded);
+}
+
+:where([data-nocolor='true']) .bar .seg[data-state='overspent'] .fill {
+  background: repeating-linear-gradient(90deg, var(--c-bar-overspent) 0 4px, transparent 4px 6px);
+}
+
 :where([data-nocolor='true']) .bar[data-state='underfunded'] .fill {
   background: repeating-linear-gradient(135deg, var(--c-bar-underfunded) 0 3px, transparent 3px 5px);
 }

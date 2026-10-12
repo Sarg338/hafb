@@ -68,7 +68,7 @@ export function planModel(plan: PlanData, month: Month, today: ISODate): PlanMod
     for (const c of categories) {
       const cm = ms.categories[c.id];
       if (!cm) continue;
-      const view = c.creditCardAccountId !== undefined ? paymentView(cm, fmt, month === monthOf(today)) : categoryView(cm, fmt, targets.get(c.id), evaluated[c.id]);
+      const view = c.creditCardAccountId !== undefined ? paymentView(cm, fmt, month === monthOf(today), targets.get(c.id), evaluated[c.id]) : categoryView(cm, fmt, targets.get(c.id), evaluated[c.id]);
       const u = upcoming[c.id];
       views.set(c.id, u ? upcomingView(view, cm, u.amount, fmt) : view);
     }

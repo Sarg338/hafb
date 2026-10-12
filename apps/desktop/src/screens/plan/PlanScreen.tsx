@@ -530,7 +530,7 @@ function CategoryCell({ row, showBar, on }: { row: PlanCategoryRow; showBar: boo
       <span className={cx(styles.message, view.messageTone === 'warn' && styles.warn, view.messageTone === 'bad' && styles.bad)}>{view.message}</span>
       {showBar && view.bar && (
         <span className={styles.bar}>
-          <ProgressBar segments={view.bar.segments} fillPercent={view.bar.fillPercent} spentPercent={view.bar.spentPercent} state={view.barState} />
+          <ProgressBar segments={view.bar.segments} fillPercent={view.bar.fillPercent} spentPercent={view.bar.spentPercent} weights={view.bar.weights} lastState={view.bar.lastState} state={view.barState} />
         </span>
       )}
     </span>
