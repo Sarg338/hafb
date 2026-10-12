@@ -33,7 +33,7 @@ The first beta. It has YNAB's web app in full, except what needs YNAB's servers.
 - Import from YNAB's export, with every number to the cent. You confirm the account types first, and loans come across as loans. Export back to YNAB's CSV.
 - Backups run on every open and on demand, with restore, Save a copy, templates and Make a Fresh Start.
 - An optional password locks a plan (SQLCipher 4, AES-256). "Remember on this PC" stores it in Windows Credential Manager.
-- Several plans, each in its own file.
+- Several plans, each in its own file. HAFB starts in the plan you had open when you last quit.
 
 **Windows**
 - An installer (MSI) and a portable zip. Upgrades keep your data, and so does uninstalling. The installer doesn't make a System Restore point, so it takes seconds.

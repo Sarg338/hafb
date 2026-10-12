@@ -189,6 +189,26 @@ void describe('persistence across a relaunch', () => {
     assert.equal(await assignedText(second.page, 'Electric'), '$155.55');
     await second.close();
   });
+
+  // As YNAB goes straight to your last plan (Sarg, 2026-10-12); Close plan means start at the welcome screen.
+  void test('a launch with no plan named reopens the plan open at the last quit, unless it was closed', { timeout: 120_000 }, async () => {
+    const first = await launch(box, ['--open', box.planPath]);
+    await first.page.getByRole('treegrid', { name: 'Categories' }).waitFor();
+    await first.close();
+
+    const second = await launch(box);
+    await second.page.getByRole('treegrid', { name: 'Categories' }).waitFor();
+    assert.equal(await second.page.title(), 'Sample Household – HAFB');
+    await second.page.getByRole('navigation', { name: 'Plan navigation' }).locator('button').first().click();
+    await second.page.getByRole('menuitem', { name: 'Close plan' }).click();
+    await second.page.getByRole('heading', { name: 'Welcome to HAFB' }).waitFor();
+    await second.close();
+
+    const third = await launch(box);
+    await third.page.getByRole('heading', { name: 'Welcome to HAFB' }).waitFor();
+    assert.ok(await third.page.getByText('Sample Household').first().isVisible(), 'still in Recent plans');
+    await third.close();
+  });
 });
 
 // ---- S8.3: nothing leaves the PC -------------------------------------------------------------------
@@ -1939,8 +1959,8 @@ void describe('settings, templates and Fresh Start (Phase 7)', () => {
 
   void test('first run: from the welcome screen to a working plan, with Get started ticking off (S7.5)', { timeout: 300_000 }, async () => {
     const started = Date.now();
-    // No plan given and a fresh data folder: the welcome screen.
-    const app = await launch(box, [], { HAFB_SAVE_DIR: box.root });
+    // No plan given and a fresh data folder (the shared one would reopen the last plan): the welcome screen.
+    const app = await launch(box, [], { HAFB_SAVE_DIR: box.root, HAFB_DATA_DIR: join(box.root, 'first-run-data') });
     running.push(app);
     const { page } = app;
     try {

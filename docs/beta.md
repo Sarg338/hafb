@@ -88,5 +88,5 @@ The beta ends, and 1.0 follows, when every blocker and bug is fixed or explained
 | 1 | 2026-10-12 | Setting up a plan from a bills spreadsheet: pressing Enter in a money field saved the amount from before the typing (a target's amount, a card target's amount, expected income). | Blocker | Fixed in 0.9.0: Enter saves what was typed. Smoke test "Enter in a money field saves what was just typed". |
 | 2 | 2026-10-12 | The installer spent 80 seconds making a System Restore point. | Bug | Fixed in 0.9.0: no restore point (`MSIFASTINSTALL`, ADR 0011). |
 | 3 | 2026-10-12 | A loan's page read "Paired with Mortgage : payments…", with stray spaces. | Bug | Fixed in 0.9.0. |
-| 4 | 2026-10-12 | After quitting, HAFB starts on the welcome screen, not the plan you had open. YNAB goes straight to your last plan. | Parity | Open: Sarg to decide. |
+| 4 | 2026-10-12 | After quitting, HAFB starts on the welcome screen, not the plan you had open. YNAB goes straight to your last plan. | Parity | Fixed in 0.9.0: HAFB reopens the plan open at the last quit; Close plan before quitting starts at the welcome screen. |
 | 5 | 2026-10-12 | Each bill is entered three times: its category, its target and its scheduled payment. YNAB is the same. | Idea | After 1.0. |

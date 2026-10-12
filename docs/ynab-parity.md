@@ -220,7 +220,7 @@ A row is `done` only after Sarg validates it on hardware. The final audit (S8.5,
 
 | ID | Feature | Engine | UI | Status |
 |---|---|---|---|---|
-| PL-01 | Multiple plans: open, recent list, create | — | S2.5 / S7.2 | done (welcome screen recent list; plan menu New plan, Open plan and the five most recent plans) |
+| PL-01 | Multiple plans: open, recent list, create | — | S2.5 / S7.2 | done (welcome screen recent list; plan menu New plan, Open plan and the five most recent plans; launch reopens the plan open at the last quit, as YNAB does, unless it was closed) |
 | PL-02 | New-plan wizard: blank / template / import YNAB | — | S7.2 | done (YNAB's New Plan fields, then Start with a blank plan or a template, or import a YNAB export instead) |
 | PL-03 | Templates: bundled category sets; pick categories to import; never overwrite | — | S7.2 | done (12 bundled templates; YNAB's Import Category Template dialog with a checklist; new groups at the bottom, nothing overwritten; amounts become "Have a balance of" targets with no date, as YNAB does) |
 | PL-04 | Fresh Start (archive + new plan, §5.14; verify starting-balance rule) | S1.5 | S7.2 | done (YNAB's dialog; new file with accounts at $0 today, groups, categories, targets, scheduled, payees, expected income; the old file is renamed "(Archived on …)" and keeps its history) |

@@ -143,6 +143,7 @@ fn open_into(app: &AppHandle, state: &PlanState, path: &Path, backup_on_open: bo
     }
     let info = plan.info(&report)?;
     recent::add(&recent_file(app)?, &info.path)?;
+    crate::startup::remember_open(&data_dir(app)?, path);
     *slot = Some(OpenPlan::new(plan, report, backup_dir, backup_on_open.then_some(keep)));
     Ok(info)
 }
@@ -230,9 +231,12 @@ pub async fn plan_current(state: State<'_, PlanState>) -> Result<Option<PlanInfo
     slot.as_ref().map(|o| o.plan.info(&o.report)).transpose()
 }
 
+/// Close plan, from the plan menu. Quitting doesn't come here, so the plan open at a quit reopens
+/// at the next launch; a closed one doesn't (startup.rs).
 #[tauri::command]
-pub async fn plan_close(state: State<'_, PlanState>) -> Result<()> {
+pub async fn plan_close(app: AppHandle, state: State<'_, PlanState>) -> Result<()> {
     *state.open.lock().map_err(lock_err)? = None;
+    crate::startup::forget_open(&data_dir(&app)?);
     Ok(())
 }
 

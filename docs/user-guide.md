@@ -43,6 +43,8 @@ The first time HAFB starts you see **Welcome to HAFB**:
 - **Start a new plan…** asks for a **Plan Name**, the **Currency** (with its **Currency Placement**), the **Number Format** and the **Date Format**, then whether to **Start with** **A blank plan** or **A template** (a ready-made set of categories). **Create Plan** then asks where to save the file.
 - **Recent plans** lists what you opened before.
 
+After that, HAFB starts in the plan you had open when you last quit, as YNAB does. If you chose **Close plan** before quitting, it starts at the welcome screen instead.
+
 Once a plan is open, click its name at the top of the sidebar for the plan menu. **New plan…**, **Open plan…** and your five most recent plans are there, as is **Close plan**. Opening another plan replaces the one in the window; double-clicking a plan file starts another HAFB window for it. A plan already open in another window says so instead of opening twice.
 
 ## 2. The Plan screen

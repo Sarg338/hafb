@@ -20,8 +20,7 @@ const CAPTION_BUTTON_WIDTH: u32 = 46;
 
 pub fn run() {
     let main_started_ms = diagnostics::ms_since_process_start();
-    let startup_plan = startup::plan_path_from_args(std::env::args_os().skip(1));
-    let preload_plan = startup_plan.clone();
+    let named_plan = startup::plan_path_from_args(std::env::args_os().skip(1));
 
     tauri::Builder::default()
         .plugin(
@@ -35,7 +34,7 @@ pub fn run() {
         .manage(diagnostics::LaunchTiming::new(main_started_ms))
         .manage(commands::PlanState::default())
         .manage(window_state::WindowTracker::default())
-        .manage(startup::StartupPlan(std::sync::Mutex::new(startup_plan)))
+        .manage(startup::StartupPlan::default())
         .invoke_handler(tauri::generate_handler![
             commands::plan_create,
             commands::plan_open,
@@ -78,9 +77,14 @@ pub fn run() {
             titlebar::set_titlebar_mode,
         ])
         .setup(move |app| {
-            // Read the plan named at launch while the webview starts (S8.1). Before this returns, no
-            // IPC is served, so the UI's plan_open always finds the preload.
-            if let Some(path) = preload_plan {
+            // The plan named at launch, else the one open at the last quit (startup.rs). It's read
+            // while the webview starts (S8.1). Before this returns, no IPC is served, so the UI's
+            // plan_open always finds the preload.
+            let launch_plan = named_plan.or_else(|| paths::app_data_dir(app.handle()).and_then(|data| startup::last_open(&data)));
+            if let Some(path) = launch_plan {
+                if let Ok(mut slot) = app.state::<startup::StartupPlan>().0.lock() {
+                    *slot = Some(path.clone());
+                }
                 commands::preload(app.handle(), path);
             }
             // The main window is built here, not from config, so its WebView2 environment carries
