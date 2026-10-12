@@ -5,7 +5,7 @@ HAFB comes in two forms. Both are the same app.
 | | Installer (`HAFB_<version>_x64_en-US.msi`) | Portable (`HAFB_<version>_x64_portable.zip`) |
 |---|---|---|
 | Where it goes | `C:\Program Files\HAFB`, for everyone on the PC | Any folder you unzip it to: a USB stick, a synced folder |
-| Needs an administrator | Yes, once, to install | No |
+| Needs an administrator | Yes, once, to install (no System Restore point is made) | No |
 | Start menu and desktop shortcuts | Yes | No |
 | Double-click a `.hafb` plan to open it | Yes | No (use Open in HAFB) |
 | Settings, recent plans, backups | `%LOCALAPPDATA%\app.hafb.desktop` | The `HAFB Data` folder beside `HAFB.exe` |

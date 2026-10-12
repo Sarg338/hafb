@@ -58,7 +58,9 @@
       "webviewInstallMode": { "type": "skip" },
       "allowDowngrades": false,
       "wix": {
-        "upgradeCode": "1c28ff98-a600-55b8-89eb-89a19e51ee75"
+        "upgradeCode": "1c28ff98-a600-55b8-89eb-89a19e51ee75",
+        "fragmentPaths": ["wix/no-restore-point.wxs"],
+        "componentGroupRefs": ["HafbNoRestorePoint"]
       }
     }
   }

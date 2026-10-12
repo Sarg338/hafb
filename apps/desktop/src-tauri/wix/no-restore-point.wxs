@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Windows Installer makes a System Restore point before every per-machine install unless
+  MSIFASTINSTALL says not to. Creating one took about 80 s of a 4 MB install, for an app that
+  touches nothing outside its own folder (Sarg, 2026-10-12: "That's too much").
+  1 = no restore point; file costing and progress messages are unchanged.
+  The empty component group exists only so tauri.conf.json can reference this fragment, which
+  is what links the property into the MSI.
+-->
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Fragment>
+    <Property Id="MSIFASTINSTALL" Value="1" />
+    <ComponentGroup Id="HafbNoRestorePoint" />
+  </Fragment>
+</Wix>

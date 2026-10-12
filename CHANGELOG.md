@@ -36,7 +36,7 @@ The first beta. It has YNAB's web app in full, except what needs YNAB's servers.
 - Several plans, each in its own file.
 
 **Windows**
-- An installer (MSI) and a portable zip. Upgrades keep your data, and so does uninstalling.
+- An installer (MSI) and a portable zip. Upgrades keep your data, and so does uninstalling. The installer doesn't make a System Restore point, so it takes seconds.
 - Every YNAB keyboard shortcut plus Windows' own. Light, dark, high-contrast and Windows contrast themes, text up to 200%, and WCAG 2.2 AA.
 - Fast with large plans: a 20,000-transaction plan opens in under 1.5 seconds on a 2019-era laptop.
 
