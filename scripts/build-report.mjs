@@ -7,8 +7,9 @@
 //
 // `node scripts/build-report.mjs aarch64-pc-windows-msvc` reports a cross-compiled ARM64 build.
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
-import { dirname, join, relative } from 'node:path';
+import { basename, dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -76,3 +77,11 @@ if (msis.length === 0) {
   console.error(`build-report: no ${version} .msi found in bundle/msi.`);
   process.exit(1);
 }
+
+// Checksums for the release page and beta testers (docs/install.md "Checking a download"):
+// PowerShell's Get-FileHash prints the same upper-case SHA-256.
+const sha256 = (path) => createHash('sha256').update(readFileSync(path)).digest('hex').toUpperCase();
+const sums = join(bundle, `SHA256SUMS_${version}_${arch}.txt`);
+const files = [...msis.map((f) => join(msiDir, f)), zip];
+writeFileSync(sums, files.map((f) => `${sha256(f)}  ${basename(f)}\r\n`).join(''));
+console.log(`  ${'SHA-256 checksums'.padEnd(28)} ${''.padStart(10)}  ${relative(root, sums)}`);

@@ -260,6 +260,8 @@ export function ImportTypesDialog({ planName, accounts, onContinue, onCancel }: 
   );
 }
 
+const plural = (n: number, one: string, many = `${one}s`): string => `${n.toLocaleString()} ${n === 1 ? one : many}`;
+
 export function ImportReportDialog({ report, onClose, onAddTargets }: { report: ImportReport | undefined; onClose: () => void; onAddTargets?: () => void }) {
   if (!report) return null;
   const c = report.counts;
@@ -269,7 +271,7 @@ export function ImportReportDialog({ report, onClose, onAddTargets }: { report: 
       onClose={onClose}
       size="wide"
       title="Your YNAB plan is in"
-      description={`${String(c.accounts)} accounts, ${String(c.categories)} categories and ${c.transactions.toLocaleString()} transactions came across, with ${String(c.months)} months of assigned money.`}
+      description={`${plural(c.accounts, 'account')}, ${plural(c.categories, 'category', 'categories')} and ${plural(c.transactions, 'transaction')} came across, with ${plural(c.months, 'month')} of assigned money.`}
       footer={
         <>
           {onAddTargets && report.targetsToReenter.length > 0 && <Button onClick={onAddTargets}>Add targets…</Button>}
@@ -291,7 +293,7 @@ export function ImportReportDialog({ report, onClose, onAddTargets }: { report: 
         {report.targetsToReenter.length > 0 && (
           <p>Targets aren’t in the export. Add them again for any of your {report.targetsToReenter.length} categories with Add targets, or later from each category.</p>
         )}
-        {report.scheduledWithoutRepeat > 0 && <p>{report.scheduledWithoutRepeat} upcoming transactions came across as one-offs; set their repeat when you see them.</p>}
+        {report.scheduledWithoutRepeat > 0 && <p>{report.scheduledWithoutRepeat === 1 ? '1 upcoming transaction came across as a one-off; set its repeat when you see it.' : `${String(report.scheduledWithoutRepeat)} upcoming transactions came across as one-offs; set their repeat when you see them.`}</p>}
         {report.warnings.length > 0 && (
           <ul className={styles.warnings}>
             {report.warnings.map((w) => (

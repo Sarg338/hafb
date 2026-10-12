@@ -29,6 +29,21 @@ export const HELP_TOPICS: readonly HelpTopic[] = [
     ],
   },
   {
+    id: 'ynab',
+    title: 'Moving from YNAB',
+    blocks: [
+      'In YNAB, click your plan’s name at the top left and choose Export Plan. YNAB saves a zip file with your plan and every transaction.',
+      'In HAFB, choose Import YNAB export on the welcome screen or in the plan menu, and pick that zip. Check the account types (YNAB’s export doesn’t include them), then choose where to save your plan.',
+      {
+        list: [
+          'Comes across: accounts and balances, every transaction with its splits, transfers, flags and cleared state, your categories and groups, and what you assigned in every month. Every number matches YNAB to the cent.',
+          'Doesn’t come across, because YNAB’s export leaves it out: targets, loan details, notes, payee settings and renaming rules, flag names, and how scheduled transactions repeat. Add targets again from the import summary; upcoming transactions arrive as one-offs.',
+        ],
+      },
+      'You can run both side by side for a while. Enter new transactions in both, or import the same bank file into each, and compare.',
+    ],
+  },
+  {
     id: 'rta',
     title: 'Ready to Assign',
     blocks: [
