@@ -54,6 +54,27 @@ describe('planRows', () => {
     for (const id of model.views.keys()) expect(matchesFilter('all', model, id)).toBe(true);
   });
 
+  it('the built-in views Underfunded, Overfunded and Snoozed pick exactly their categories (P-22)', () => {
+    const model = planModel(sample.plan, month, SAMPLE_TODAY);
+    const ids = (filter: 'underfunded' | 'overfunded' | 'snoozed') => categoryRows(planRows(model, filter)).map((c) => c.id).sort();
+    const where = (test: (id: string) => boolean) => [...model.views.keys()].filter(test).sort();
+    expect(ids('underfunded')).toEqual(where((id) => model.views.get(id)?.state === 'underfunded'));
+    expect(ids('underfunded').length).toBeGreaterThan(0);
+    expect(ids('overfunded')).toEqual(where((id) => (model.evaluated[id]?.overfunded ?? 0) > 0));
+    expect(ids('overfunded').length).toBeGreaterThan(0);
+    expect(ids('snoozed')).toEqual(where((id) => model.views.get(id)?.state === 'snoozed'));
+  });
+
+  it('unhiding brings a category back to its own group (P-06)', () => {
+    const groceries = sample.ids.categories.Groceries;
+    if (groceries === undefined) throw new Error('sample has Groceries');
+    const hidden = apply(sample.plan, (p) => setCategoryHidden(p, ctx, { categoryId: groceries, hidden: true }));
+    const back = apply(hidden, (p) => setCategoryHidden(p, ctx, { categoryId: groceries, hidden: false }));
+    const row = (plan: PlanData) => planRows(planModel(plan, month, SAMPLE_TODAY), 'all').find((r) => r.id === groceries);
+    expect(row(hidden)?.groupId).toBe(HIDDEN_SECTION_ID);
+    expect(row(back)?.groupId).toBe(sample.plan.categories.find((c) => c.id === groceries)?.groupId);
+  });
+
   it('collects hidden categories and hidden groups into a Hidden Categories section, last', () => {
     const groceries = sample.ids.categories.Groceries;
     if (groceries === undefined) throw new Error('sample has Groceries');

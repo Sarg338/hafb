@@ -311,7 +311,7 @@ function keepsName(plan: PlanData, rule: { targetPayeeId: Id; pattern: string })
 export function learnRenameRule(plan: PlanData, ctx: CommandContext, args: { transactionId: Id }): Command | null {
   const t = plan.transactions.find((x) => x.id === args.transactionId && x.deletedAt === undefined);
   const raw = t?.importedPayee?.trim() ?? '';
-  if (!t || raw === '' || t.payeeId === undefined || t.payeeId === null) return null;
+  if (!t || raw === '' || t.payeeId === undefined) return null;
   const payee = plan.payees.find((p) => p.id === t.payeeId && p.deletedAt === undefined);
   if (!payee) return null;
   const rules = isRulesFor(plan, raw);

@@ -9,7 +9,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { basename, join } from 'node:path';
 import { netWorth, spendingBreakdown } from '@hafb/engine';
 import { addDays, addMonths, addMonthsToDate, compareMonths, formatMoney, minor, monthOf } from '@hafb/shared';
-import { addScheduled, applyChanges, budgetSnapshot, postLoanCharges, readZip, type PlanData } from '@hafb/store';
+import { addScheduled, applyChanges, budgetSnapshot, postLoanCharges, readZip, ynabExport, type PlanData } from '@hafb/store';
 import { buildSamplePlan } from '../src/design/sample.ts';
 import { EXE, launch, makeSandbox, type App, type Sandbox } from './harness.ts';
 import { buildLargePlan, LARGE_PLAN_TRANSACTIONS } from './largePlan.ts';
@@ -1208,7 +1208,7 @@ void describe('register power', () => {
     const { page } = app;
     const grid = page.locator('[aria-label="All transactions"]');
     await grid.waitFor();
-    const search = page.getByRole('textbox', { name: 'Search transactions' });
+    const search = page.getByRole('combobox', { name: 'Search transactions' });
     const cells = async (col: string): Promise<string[]> => (await grid.locator(`[role=row][data-row-id]:not([data-row-id="__scheduled__"]) [data-col=${col}]`).allInnerTexts()).map(norm);
     const table: [string, string, (v: string) => boolean][] = [
       ['Payee: Taco', 'payee', (v) => v.includes('Taco')],
@@ -2241,5 +2241,198 @@ void describe('packaging', () => {
     } finally {
       await app.close();
     }
+  });
+});
+
+// S8.5 parity audit: the gaps it closed and the UI it found untested, in the release app.
+const RENAME_CSV = (rows: string[]): string => `Date,Description,Debit,Credit\n${rows.join('\n')}\n`;
+
+void describe('parity audit (S8.5)', () => {
+  let box: Sandbox;
+  const running: App[] = [];
+  const plan: PlanData = { ...buildSamplePlan().plan, scheduled: [] };
+  const open = async (env: Record<string, string> = {}, args: string[] = ['--open']): Promise<App> => {
+    const a = await launch(box, args[0] === '--open' ? ['--open', box.planPath] : args, env);
+    running.push(a);
+    return a;
+  };
+  before(() => {
+    box = makeSandbox(plan);
+    writeFileSync(join(box.root, 'fuel1.csv'), RENAME_CSV(['10/09/2026,QUICKFUEL 4471 NASHVILLE TN,41.00,']));
+    writeFileSync(join(box.root, 'fuel2.csv'), RENAME_CSV(['10/10/2026,QUICKFUEL 4471 NASHVILLE TN,38.50,']));
+    writeFileSync(join(box.root, 'fuel3.csv'), RENAME_CSV(['10/11/2026,QUICKFUEL 4471 NASHVILLE TN,36.25,']));
+    const zip = ynabExport(plan, todayLocal(), '2026-10-12 08-00');
+    writeFileSync(join(box.root, 'export.zip'), zip.bytes);
+  });
+  after(async () => {
+    for (const a of running) await a.close().catch(() => undefined);
+    box.cleanup();
+  });
+  const sidebar = (page: Page) => page.getByRole('navigation', { name: 'Plan navigation' });
+
+  void test('YNAB import from the welcome screen: account types are checked first; a loan lands in Loans; the numbers match', { timeout: 300_000 }, async () => {
+    const zip = join(box.root, 'export.zip');
+    mkdirSync(join(box.root, 'imported'), { recursive: true });
+    const app = await open({ HAFB_PICK_FILES: zip, HAFB_SAVE_DIR: join(box.root, 'imported') }, []);
+    const { page } = app;
+    try {
+      await page.getByRole('heading', { name: 'Welcome to HAFB' }).waitFor();
+      await page.getByRole('button', { name: /Import YNAB export/ }).click();
+      const types = page.getByRole('dialog', { name: 'Check your account types' });
+      await types.waitFor();
+      // HAFB's guesses: the mortgage is off-budget with a debt, so a Liability; it can become a Mortgage.
+      const mortgage = types.getByRole('combobox', { name: 'Home Mortgage account type' });
+      assert.equal(await mortgage.inputValue(), 'Liability');
+      await mortgage.click();
+      await page.getByRole('option', { name: 'Mortgage', exact: true }).click();
+      // Only same-kind types are offered: a cash account can't become a loan.
+      await types.getByRole('combobox', { name: 'Rainy Day Savings account type' }).click();
+      assert.deepEqual((await page.getByRole('option').allInnerTexts()).map(norm), ['Checking', 'Savings', 'Cash']);
+      await page.getByRole('option', { name: 'Savings', exact: true }).click();
+      await types.getByRole('button', { name: 'Continue' }).click();
+      const report = page.getByRole('dialog', { name: 'Your YNAB plan is in' });
+      await report.waitFor();
+      assert.match(norm(await report.innerText()), /Home Mortgage: Mortgage \(as you chose\).*Rainy Day Savings: Savings \(as you chose\)/);
+      await report.getByRole('button', { name: 'Start planning' }).click();
+      assert.match(norm(await sidebar(page).locator('[data-section=loans]').innerText()), /Home Mortgage/);
+      // Ready to Assign is what the same export gives through the store: types never change a number.
+      const imported = await importExport(zip);
+      const month = monthOf(todayLocal());
+      assert.equal(await rta(page), expectedReadyToAssign(imported, month, todayLocal()));
+    } finally {
+      await app.close();
+    }
+  });
+
+  void test('a card’s payment category: Pay Off Balance by Date, the pill follows it, and it survives a relaunch', { timeout: 300_000 }, async () => {
+    const app = await open();
+    const { page } = app;
+    const grid = page.getByRole('treegrid', { name: 'Categories' });
+    await grid.waitFor();
+    const visa = grid.locator('[role=row]', { has: page.locator('[data-col=category]', { hasText: /^Visa Rewards/ }) });
+    await visa.locator('[data-col=category]').click({ position: { x: 200, y: 10 } });
+    const inspector = page.getByRole('complementary', { name: 'Inspector' });
+    await inspector.getByRole('button', { name: 'Create a Debt Payoff Target' }).click();
+    await inspector.getByRole('button', { name: 'Save Target' }).click();
+    await inspector.getByText('Pay Off Balance by Date').waitFor();
+    assert.match(norm(await inspector.innerText()), /Needed for Payoff \$[\d,]+\.\d\d Available for Payment \$[\d,]+\.\d\d To Go \$[\d,]+\.\d\d/);
+    assert.match(norm(await visa.innerText()), /more needed by/);
+    await app.close();
+    const again = await open();
+    const g2 = again.page.getByRole('treegrid', { name: 'Categories' });
+    await g2.waitFor();
+    const v2 = g2.locator('[role=row]', { has: again.page.locator('[data-col=category]', { hasText: /^Visa Rewards/ }) });
+    await v2.locator('[data-col=category]').click({ position: { x: 200, y: 10 } });
+    await again.page.getByRole('complementary', { name: 'Inspector' }).getByText('Pay Off Balance by Date').waitFor();
+    await again.close();
+  });
+
+  void test('search suggests criteria as you type; Show Images hides the photo column', { timeout: 300_000 }, async () => {
+    const app = await open();
+    const { page } = app;
+    await sidebar(page).getByRole('link', { name: 'All Accounts' }).click();
+    const search = page.getByRole('combobox', { name: 'Search transactions' });
+    await search.click();
+    await page.keyboard.type('gro');
+    const list = page.getByRole('listbox', { name: 'Search suggestions' });
+    assert.deepEqual((await list.getByRole('option').allInnerTexts()).map(norm), ['Category: Groceries', 'Find “gro” in any field', 'Payee: Find “gro” in the Payee', 'Category: Find “gro” in the Category', 'Memo: Find “gro” in the Memo']);
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('Enter');
+    assert.equal(await search.inputValue(), 'Category: Groceries, ');
+    const grid = page.locator('[aria-label="All transactions"]');
+    const cats = (await grid.locator('[role=row][data-row-id] [data-col=category]').allInnerTexts()).map(norm).filter((c) => c !== '');
+    assert.ok(cats.length > 0 && cats.every((c) => c.includes('Groceries') || c.startsWith('Split')), cats.join(' | '));
+    await search.fill('');
+    const photoHeaders = async (): Promise<number> => grid.locator('[data-col=photo]').count();
+    assert.ok((await photoHeaders()) > 0, 'the photo column shows by default');
+    await page.getByRole('button', { name: 'View', exact: true }).click();
+    const view = page.getByRole('dialog', { name: 'View Options' });
+    await view.getByRole('checkbox', { name: 'Show Images' }).uncheck();
+    await view.getByRole('button', { name: 'Apply' }).click();
+    await page.waitForTimeout(300);
+    assert.equal(await photoHeaders(), 0, 'Show Images off hides it');
+    await app.close();
+  });
+
+  void test('renaming an imported payee learns it for the next import; Don’t rename as keeps the bank’s name', { timeout: 300_000 }, async () => {
+    const importFile = async (file: string): Promise<App> => {
+      const a = await open({ HAFB_PICK_FILES: join(box.root, file) });
+      await sidebar(a.page).getByText('Everyday Checking').first().click();
+      await a.page.getByRole('button', { name: 'File Import' }).click();
+      const dlg = a.page.getByRole('dialog', { name: 'Import Transactions' });
+      await dlg.getByRole('button', { name: 'Import 1' }).click();
+      await a.page.waitForTimeout(400);
+      return a;
+    };
+    const grid = (page: Page) => page.getByRole('treegrid', { name: /Everyday Checking transactions/ });
+    const row = (page: Page, amount: string) => grid(page).locator('[role=row][data-row-id]', { hasText: amount }).first();
+
+    const first = await importFile('fuel1.csv');
+    // Rename the imported payee in the register: the rule is learned in the same step.
+    await row(first.page, '$41.00').locator('[data-col=date]').click();
+    await first.page.keyboard.press('Enter');
+    const payee = grid(first.page).getByRole('combobox', { name: 'Payee' });
+    await payee.fill('QuickFuel');
+    await first.page.waitForTimeout(150);
+    await first.page.keyboard.press('Enter');
+    await first.page.keyboard.press('Enter');
+    await first.page.getByText(/Future imports of .*QUICKFUEL 4471 NASHVILLE TN.* get this payee too/).waitFor();
+    await first.close();
+
+    const second = await importFile('fuel2.csv');
+    assert.match(norm(await row(second.page, '$38.50').innerText()), /QuickFuel/);
+    // Bank Import Details: Don't rename as QuickFuel.
+    await row(second.page, '$38.50').click({ button: 'right' });
+    await second.page.getByRole('menuitem', { name: 'Bank Import Details' }).click();
+    const details = second.page.getByRole('dialog', { name: 'Bank Import Details' });
+    await details.getByRole('button', { name: 'Don’t rename as QuickFuel' }).click();
+    await second.page.waitForTimeout(300);
+    assert.doesNotMatch(norm(await row(second.page, '$38.50').innerText()), /QuickFuel/);
+    await second.close();
+
+    const third = await importFile('fuel3.csv');
+    assert.doesNotMatch(norm(await row(third.page, '$36.25').innerText()), /QuickFuel/, 'the bank’s name stays');
+    await third.close();
+  });
+
+  void test('reconcile with a difference: No, the bank’s balance, Create Adjustment & Finish; a lock unlocks one transaction', { timeout: 300_000 }, async () => {
+    const app = await open();
+    const { page } = app;
+    await sidebar(page).locator('[data-section=cash]', { hasText: 'Wallet' }).click();
+    const grid = page.getByRole('treegrid', { name: /Wallet transactions/ });
+    await grid.waitFor();
+    await page.keyboard.press('Shift+E');
+    const pop = page.getByRole('dialog', { name: 'Reconcile' });
+    await pop.getByRole('button', { name: 'No' }).click();
+    await pop.getByLabel('Current balance at your bank').fill('50.00');
+    await pop.getByRole('button', { name: 'Next' }).click();
+    await page.getByRole('button', { name: 'Create Adjustment & Finish' }).click();
+    await page.waitForTimeout(500);
+    assert.ok((await grid.locator('[role=row]', { hasText: 'Reconciliation Balance Adjustment' }).count()) > 0, 'the adjustment');
+    assert.match(norm(await page.getByRole('main').innerText()), /\$50\.00 Cleared Balance/);
+    const locks = grid.getByRole('button', { name: 'Reconciled. Unlock' });
+    const before = await locks.count();
+    await locks.first().click();
+    await page.getByRole('dialog', { name: 'Unlock this transaction?' }).getByRole('button', { name: 'Unlock' }).click();
+    await page.waitForTimeout(300);
+    assert.equal(await locks.count(), before - 1, 'only that one is unlocked');
+    await app.close();
+  });
+
+  void test('Reflect: Spending Trends, Income v Expense and Age of Money open and show the plan', { timeout: 300_000 }, async () => {
+    const app = await open();
+    const { page } = app;
+    await sidebar(page).getByRole('link', { name: 'Reflect' }).click();
+    for (const [tab, pattern] of [
+      ['Spending Trends', /Average/],
+      ['Income v Expense', /Net Income/],
+      ['Age of Money', /days?|Age of Money/],
+    ] as const) {
+      await page.getByRole('tab', { name: tab }).click();
+      const panel = page.getByRole('tabpanel', { name: tab });
+      await panel.waitFor();
+      assert.match(norm(await panel.innerText()), pattern, tab);
+    }
+    await app.close();
   });
 });

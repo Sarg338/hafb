@@ -236,8 +236,8 @@ describe('§6.11 credit card payment targets (T-12)', () => {
 
   it('pay-off targets need a card and a date, and only they may have no amount', () => {
     expect(() => evalT(payOff('2026-11-30'), '2026-10', cm({ available: 0 }))).toThrow(ValidationError);
-    expect(() => validateTarget(target({ amount: minor(0), cadence: { kind: 'custom' }, behavior: 'haveBalance', payOff: true }))).toThrow(ValidationError);
-    expect(() => validateTarget(target({ amount: minor(0), cadence: { kind: 'custom', due: asISODate('2026-11-30') }, behavior: 'haveBalance' }))).toThrow(ValidationError);
+    expect(() => { validateTarget(target({ amount: minor(0), cadence: { kind: 'custom' }, behavior: 'haveBalance', payOff: true })); }).toThrow(ValidationError);
+    expect(() => { validateTarget(target({ amount: minor(0), cadence: { kind: 'custom', due: asISODate('2026-11-30') }, behavior: 'haveBalance' })); }).toThrow(ValidationError);
   });
 });
 
