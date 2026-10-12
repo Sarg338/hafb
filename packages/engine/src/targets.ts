@@ -54,6 +54,12 @@ export interface Target {
    */
   createdOn?: ISODate;
   snoozedMonths?: readonly Month[];
+  /**
+   * YNAB's "Pay Off Balance by Date" on a credit card payment category (T-12, trial 2026-10-12):
+   * the amount is whatever the card owes, due by `cadence.due`. Stored as a non-repeating custom
+   * "Have a balance of" with amount 0. ("Pay Specific Amount Monthly" is a monthly Set aside.)
+   */
+  payOff?: true;
 }
 
 /**
@@ -93,8 +99,14 @@ export interface TargetMonth {
 }
 
 export function validateTarget(t: Target): void {
-  if (t.amount <= 0) throw new ValidationError(`Target for ${t.categoryId}: amount must be positive`);
   const c = t.cadence;
+  if (t.payOff === true) {
+    if (t.behavior !== 'haveBalance' || c.kind !== 'custom' || c.due === undefined || c.repeatEveryMonths !== undefined) {
+      throw new ValidationError(`Target for ${t.categoryId}: "Pay Off Balance by Date" needs a date`);
+    }
+    return;
+  }
+  if (t.amount <= 0) throw new ValidationError(`Target for ${t.categoryId}: amount must be positive`);
   if (t.behavior === 'haveBalance' && (c.kind !== 'custom' || c.repeatEveryMonths !== undefined)) {
     throw new ValidationError(`Target for ${t.categoryId}: "Have a balance of" needs a non-repeating custom target`);
   }
@@ -290,7 +302,16 @@ export function evaluateTarget(
     monthsRemaining = monthsBetween(month, period.dueMonth) + 1;
     needed = A;
     effectiveNeeded = A;
-    if (target.behavior === 'setAside') {
+    if (target.payOff === true) {
+      // Pay off what the card owes by the due month, spread evenly from what was set aside before
+      // this month's assignment (trial: owes $50, $40 available, due next month → $5 this month).
+      if (!cm.creditCard) throw new ValidationError(`Target for ${target.categoryId}: "Pay Off Balance by Date" is for a credit card payment category`);
+      const owed = Math.max(0, 0 - cm.creditCard.balance);
+      needed = owed;
+      effectiveNeeded = owed;
+      funded = cm.available;
+      neededThisMonth = ceilDiv(owed - (cm.available - assigned), monthsRemaining);
+    } else if (target.behavior === 'setAside') {
       const periodStart = addMonths(period.dueMonth, -(period.length - 1));
       let before = 0;
       for (let m = compareMonths(periodStart, target.startMonth) < 0 ? target.startMonth : periodStart; compareMonths(m, month) < 0; m = addMonths(m, 1)) {

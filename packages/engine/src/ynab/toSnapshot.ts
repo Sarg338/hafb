@@ -113,7 +113,7 @@ export function ynabExportToSnapshot(
     const forced = options.accountTypes?.[name];
     if (forced !== undefined) {
       const onBudget = forced === 'checking' || forced === 'savings' || forced === 'cash' || isCreditAccountType(forced);
-      return { name, type: forced, onBudget, reason: 'set by import options' };
+      return { name, type: forced, onBudget, reason: 'as you chose' };
     }
     if (cardNames.has(name)) return { name, type: 'creditCard', onBudget: true, reason: 'has a Credit Card Payments category' };
     if (categorized.has(name)) return { name, type: 'checking', onBudget: true, reason: 'has categorized transactions' };

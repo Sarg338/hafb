@@ -99,6 +99,10 @@ describe('search: documented criteria', () => {
     ['is: split', ['split']],
     ['is: flagged', ['dine', 'split']],
     ['is: unflagged', ['groc', 'gas', 'pay', 'xfer', 'none']],
+    // YNAB's suggestion list (trial, 2026-10-12): combined states
+    ['is: cleared or reconciled', ['groc', 'gas', 'pay', 'xfer', 'split', 'none']],
+    ['is: needs category', ['none']],
+    ['Is: Unapproved or Needs Category', ['pay', 'none']],
     // free text: payee, category, memo, account, or an exact amount
     ['kroger', ['groc', 'dine', 'split']],
     ['deli', ['split']],
@@ -115,6 +119,25 @@ describe('search: documented criteria', () => {
 
   it('spacing must match exactly (YNAB: "Grocery  Store" ≠ "Grocery Store")', () => {
     expect(ids('Memo: weekly  shop')).toEqual([]);
+  });
+
+  it('Needs Category leaves out off-budget accounts, which never take one', () => {
+    const offBudget: SearchContext = { ...ctx, accountOnBudget: (id) => id !== 'checking' };
+    expect(filterTransactions(register, parseSearch('is: needs category'), offBudget).map((x) => x.id)).toEqual([]);
+    expect(filterTransactions(register, parseSearch('Category: Uncategorized'), offBudget).map((x) => x.id)).toEqual(['none']);
+  });
+
+  it('Income: <month> is the month’s Ready to Assign inflows and starting balances (YNAB trial, 2026-10-12)', () => {
+    const rows = [
+      ...register,
+      t('start', { categoryId: null, amount: minor(0), isStartingBalance: true, date: asISODate('2026-03-01'), accountId: 'visa' }),
+      t('aprPay', { categoryId: READY_TO_ASSIGN, amount: minor(1_000), date: asISODate('2026-04-01') }),
+    ];
+    const income = (q: string) => filterTransactions(rows, parseSearch(q, ctx), ctx).map((x) => x.id);
+    expect(income('Income: March 2026')).toEqual(['pay', 'start']);
+    expect(income('income: mar 2026')).toEqual(['pay', 'start']);
+    expect(income('Income: April 2026')).toEqual(['aprPay']);
+    expect(() => parseSearch('Income: Smarch 2026')).toThrow(ValidationError);
   });
 
   it('honours the plan date format for Before/After/On', () => {

@@ -195,6 +195,52 @@ describe('§6.4 validation and Cost to Be Me', () => {
   });
 });
 
+// YNAB trial, 2026-10-12 (amex: owes $50, $40 available for payment, nothing assigned in October;
+// a target saved, read and deleted again). A payment category takes "Pay Off Balance by Date" or
+// "Pay Specific Amount Monthly"; either replaces the plain pay-in-full alert (§5.3, T-12).
+describe('§6.11 credit card payment targets (T-12)', () => {
+  const card = (p: { owed: number; available: number; assigned?: number }): CategoryMonth => ({
+    ...cm({ available: p.available, assigned: p.assigned ?? 0 }),
+    creditCard: { accountId: 'amex', fundedSpending: minor(0), payments: minor(0), balance: minor(-p.owed), unfundedSpending: minor(0), spending: minor(0), returns: minor(0), interest: minor(0) },
+  });
+  const payOff = (due: string): Target => target({ amount: minor(0), cadence: { kind: 'custom', due: asISODate(due) }, behavior: 'haveBalance', payOff: true, startMonth: '2026-10' });
+
+  it('Pay Off Balance by Date, November: $50 needed, $40 available, $10 to go, $5.00 this month', () => {
+    expect(evalT(payOff('2026-11-30'), '2026-10', card({ owed: 5_000, available: 4_000 }))).toMatchObject({
+      needed: 5_000,
+      funded: 4_000,
+      toGo: 1_000,
+      neededThisMonth: 500,
+      underfunded: 500,
+      monthsRemaining: 2,
+      status: 'underfunded',
+      monthlyCost: 500,
+    });
+  });
+
+  it('pays the rest in the due month, counts this month’s assignment, and is funded once the card is covered', () => {
+    expect(evalT(payOff('2026-10-31'), '2026-10', card({ owed: 5_000, available: 4_000 }))).toMatchObject({ neededThisMonth: 1_000, underfunded: 1_000 });
+    expect(evalT(payOff('2026-11-30'), '2026-10', card({ owed: 5_000, available: 4_300, assigned: 300 }))).toMatchObject({ neededThisMonth: 500, underfunded: 200, toGo: 700 });
+    expect(evalT(payOff('2026-11-30'), '2026-10', card({ owed: 5_000, available: 5_000 }))).toMatchObject({ toGo: 0, underfunded: 0, status: 'funded', progressPercent: 100 });
+    expect(evalT(payOff('2026-11-30'), '2026-10', card({ owed: 0, available: 0 }))).toMatchObject({ needed: 0, toGo: 0, status: 'funded' });
+  });
+
+  it('is inactive after its month, like any non-repeating target', () => {
+    expect(evalT(payOff('2026-11-30'), '2026-12', card({ owed: 5_000, available: 0 })).status).toBe('inactive');
+  });
+
+  it('Pay Specific Amount Monthly is a monthly Set aside: $20.00 to assign, $0.00 so far, $20.00 to go', () => {
+    const monthly = target({ amount: minor(2_000), cadence: { kind: 'monthly', day: 'last' }, behavior: 'setAside', startMonth: '2026-10' });
+    expect(evalT(monthly, '2026-10', card({ owed: 5_000, available: 4_000 }))).toMatchObject({ neededThisMonth: 2_000, funded: 0, toGo: 2_000, underfunded: 2_000 });
+  });
+
+  it('pay-off targets need a card and a date, and only they may have no amount', () => {
+    expect(() => evalT(payOff('2026-11-30'), '2026-10', cm({ available: 0 }))).toThrow(ValidationError);
+    expect(() => validateTarget(target({ amount: minor(0), cadence: { kind: 'custom' }, behavior: 'haveBalance', payOff: true }))).toThrow(ValidationError);
+    expect(() => validateTarget(target({ amount: minor(0), cadence: { kind: 'custom', due: asISODate('2026-11-30') }, behavior: 'haveBalance' }))).toThrow(ValidationError);
+  });
+});
+
 describe('§6.10 legacy goal types (CLAUDE.md §5.4 mapping; T-10)', () => {
   // YNAB's pre-2024 goal types, as its API still names them (goal_type, goal_cadence,
   // goal_cadence_frequency, goal_day, goal_needs_whole_amount). Its CSV export carries none.

@@ -2,7 +2,7 @@
 // Source: https://support.ynab.com/en_us/searching-transactions-a-guide-r1gxyQryj
 // Worked examples: docs/budget-math.md §8.3. Choices the article leaves open are marked
 // "(assumption)" below.
-import { asISODate, compareDates, minor, type ISODate, type Minor } from '@hafb/shared';
+import { asISODate, asMonth, compareDates, minor, monthOf, type ISODate, type Minor, type Month } from '@hafb/shared';
 import { ValidationError } from './errors.ts';
 import { CREDIT_CARD_INTEREST, READY_TO_ASSIGN, type Id, type Transaction } from './model.ts';
 import { parseAmount, parseDate, type DateOrder } from './ynab/csv.ts';
@@ -24,8 +24,13 @@ export type SearchState =
   | 'split'
   | 'flagged'
   | 'unflagged'
-  | 'uncategorized';
-const STATES: readonly SearchState[] = [
+  | 'uncategorized'
+  // YNAB's search suggestions (trial, 2026-10-12): "Is: Cleared or Reconciled", "Is: Needs Category",
+  // "Is: Unapproved or Needs Category".
+  | 'cleared or reconciled'
+  | 'needs category'
+  | 'unapproved or needs category';
+export const SEARCH_STATES: readonly SearchState[] = [
   'cleared',
   'uncleared',
   'reconciled',
@@ -38,7 +43,13 @@ const STATES: readonly SearchState[] = [
   'flagged',
   'unflagged',
   'uncategorized',
+  'cleared or reconciled',
+  'needs category',
+  'unapproved or needs category',
 ];
+const STATES = SEARCH_STATES;
+
+const MONTH_NAMES = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
 
 export type TextField = 'any' | 'payee' | 'category' | 'memo' | 'account';
 
@@ -51,7 +62,9 @@ export type SearchCriterion =
   /** Before/After are inclusive ("on or before" / "on or after"). */
   | { kind: 'date'; op: 'before' | 'after' | 'on'; date: ISODate }
   | { kind: 'flag'; color: FlagColor }
-  | { kind: 'state'; state: SearchState };
+  | { kind: 'state'; state: SearchState }
+  /** "Income: October 2026": that month's Ready to Assign inflows and starting balances (YNAB trial, 2026-10-12). */
+  | { kind: 'income'; month: Month };
 
 /** All criteria must match ("additive, but not subtractive"). No exclusion, no wildcards. */
 export interface SearchQuery {
@@ -74,6 +87,8 @@ export interface SearchContext extends SearchOptions {
   payeeName?: (id: Id) => string | undefined;
   categoryName?: (id: Id) => string | undefined;
   accountName?: (id: Id) => string | undefined;
+  /** Off-budget accounts never need a category (absent = every account is on budget). */
+  accountOnBudget?: (id: Id) => boolean;
 }
 
 const DEFAULT_DECIMALS = 2;
@@ -101,6 +116,15 @@ function flagOf(text: string, options: SearchOptions, query: string): FlagColor 
     if (v === color || options.flagNames?.[color]?.toLowerCase() === v) return color;
   }
   throw new ValidationError(`Unknown flag in search "${query}": "${text}"`);
+}
+
+/** "October 2026" or "Oct 2026" (case-insensitive). */
+function monthOfText(text: string, query: string): Month {
+  const m = /^([a-z]+)\s+(\d{4})$/i.exec(text.trim());
+  const name = m?.[1]?.toLowerCase() ?? '';
+  const index = name.length >= 3 ? MONTH_NAMES.findIndex((n) => n.startsWith(name)) : -1;
+  if (!m || index < 0) throw new ValidationError(`Not a month in search "${query}": "${text}" (try "Income: October 2026")`);
+  return asMonth(`${m[2] ?? ''}-${String(index + 1).padStart(2, '0')}`);
 }
 
 const KEYWORDS = new Map<string, SearchCriterion>([
@@ -154,6 +178,8 @@ function parseTerm(term: string, options: SearchOptions, query: string): SearchC
     case 'flag':
     case 'flag is':
       return { kind: 'flag', color: flagOf(value, options, query) };
+    case 'income':
+      return { kind: 'income', month: monthOfText(value, query) };
     case 'is': {
       const state = STATES.find((s) => s === value.toLowerCase());
       if (!state) throw new ValidationError(`Unknown state in search "${query}": "is: ${value}"`);
@@ -232,9 +258,11 @@ function accountTexts(tx: Transaction, ctx: SearchContext): string[] {
 
 const containsText = (haystacks: readonly string[], needle: string) => haystacks.some((h) => h.toLowerCase().includes(needle));
 
-function matchesState(tx: SearchableTransaction, state: SearchState): boolean {
+function matchesState(tx: SearchableTransaction, state: SearchState, ctx: SearchContext): boolean {
   const approved = tx.approved !== false;
   const flagged = tx.flag !== undefined && tx.flag !== null;
+  const uncategorized = !isSplit(tx) && tx.categoryId === null && tx.transferAccountId === undefined;
+  const needsCategory = uncategorized && tx.isStartingBalance !== true && ctx.accountOnBudget?.(tx.accountId) !== false;
   switch (state) {
     case 'cleared': // (assumption) exactly "cleared": reconciled has its own filter
       return tx.cleared === 'cleared';
@@ -259,7 +287,13 @@ function matchesState(tx: SearchableTransaction, state: SearchState): boolean {
     case 'unflagged':
       return !flagged;
     case 'uncategorized':
-      return !isSplit(tx) && tx.categoryId === null && tx.transferAccountId === undefined;
+      return uncategorized;
+    case 'cleared or reconciled':
+      return tx.cleared !== 'uncleared';
+    case 'needs category':
+      return needsCategory;
+    case 'unapproved or needs category':
+      return !approved || needsCategory;
   }
 }
 
@@ -289,7 +323,9 @@ function matchesCriterion(tx: SearchableTransaction, c: SearchCriterion, ctx: Se
     case 'flag':
       return tx.flag === c.color;
     case 'state':
-      return matchesState(tx, c.state);
+      return matchesState(tx, c.state, ctx);
+    case 'income':
+      return monthOf(tx.date) === c.month && (tx.categoryId === READY_TO_ASSIGN || tx.isStartingBalance === true);
   }
 }
 
