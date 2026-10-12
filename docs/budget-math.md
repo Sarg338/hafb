@@ -131,7 +131,7 @@ Payments and Inflows (returns + payments, +70).
   Card Interest*. The interest stays out of the spending plan and doesn't overspend a category; the
   payment category's details show the interest transactions and the month's interest cost, with a
   prompt for a payoff target. **Not in the trial account yet** (its category picker has no such
-  option, checked 2026-10-09), so nothing below is verified against YNAB.
+  option, checked 2026-10-09 and again 2026-10-12), so nothing below is verified against YNAB.
 - **Rule (HAFB):** `CREDIT_CARD_INTEREST` is a category reference like `READY_TO_ASSIGN`, allowed only on
   credit accounts. Its lines are treated like a card's starting debt (§3.12): no category activity,
   no Ready to Assign, nothing moves into the payment category. The card's balance grows, so the
@@ -313,13 +313,14 @@ These are the worked examples behind `packages/engine/src/{scheduled,reconcile,s
 | daily / weekly / everyOtherWeek / every4Weeks | +1 / +7 / +14 / +28 days | 2026-12-20 (every4Weeks) → 2027-01-17 |
 | monthly / everyOtherMonth / every3Months / every4Months | +1 / +2 / +3 / +4 months | 2026-11-10 (everyOtherMonth) → 2027-01-10 |
 | twiceAYear / yearly / everyOtherYear | +6 / +12 / +24 months | 2026-01-01 (yearly) → 2027-01-01 |
-| twiceAMonth | the anchor day, then exactly 15 days later | 5th → 20th → next 5th |
+| twiceAMonth | two fixed days 15 apart: the anchor and +15, or −15 when the anchor is past the 15th | 5th → 20th → next 5th; 31st → 16th → last day |
 
 - **Month-end clamping.** A schedule created on the 31st repeats on the last day of shorter months and returns to the 31st afterwards. The schedule keeps an `anchorDay` for this: Jan 31 → Feb 28 → Mar 31 → Apr 30. With anchor day 29, Feb 29 2024 → Feb 28 2025, and every other year → Feb 29 2028. Source: [YNAB scheduled transactions guide](https://support.ynab.com/en_us/scheduled-transactions-a-guide-BygrAIFA9), "it will repeat on the last day of shorter months".
-- **Twice a month.** YNAB says the second date is "15 days later … regardless of the month's end".
-  - Anchor 20th → Mar 20 → **Apr 4** → Apr 20.
-  - Anchor 31st → Feb 28 → Mar 15 → Mar 31.
-  - **Assumption:** the first date of each month is the anchor day clamped to the month's length. YNAB documents only the 5th/20th example.
+- **Twice a month** (verified in the YNAB trial, 2026-10-12). YNAB's help says the second date is "15 days later … regardless of the month's end", but YNAB actually repeats on two fixed days of the month, 15 apart. They are the anchor and the day 15 after it, or the day 15 before it when the anchor is past the 15th. A day past the month's end clamps to the last day, so the dates never drift.
+  - Started Oct 20 → Nov 5 → Nov 20 (15 days later would be Nov 4).
+  - Started Oct 31 → Nov 16 → Nov 30 → Dec 16 → Dec 31 → Jan 16 → Jan 31 → Feb 16 → Feb 28 (every step walked in YNAB with Enter Now).
+  - Anchor 15th → the 15th and the 30th; in February, the 15th and the 28th.
+  - *Corrected 2026-10-12:* HAFB used to add exactly 15 days (Mar 20 → Apr 4, Oct 31 → Nov 15). YNAB's fixed days are also the better rule for paydays and bills, so HAFB follows them.
 - **YNAB quirk not reproduced.** YNAB says the 31st rule only works "if you create the schedule during a month with 31 days". HAFB applies the rule whenever `anchorDay` is 31.
 
 **Entering due transactions** (`dueTransactions`, roadmap D3). Every occurrence dated on or before `today` becomes a real transaction. There's no review prompt.
@@ -329,7 +330,7 @@ These are the worked examples behind `packages/engine/src/{scheduled,reconcile,s
 - *Example 8.1.2:* a one-time (`never`) schedule creates its transaction, and its next date becomes `null` (used up).
 
 **Entering by hand** (the store's `enterScheduledNow`, `skipScheduled`, `makeRepeating`; S5.4).
-- *Enter Now* enters the next occurrence and moves the schedule on. **Assumption** (YNAB's help is silent): an occurrence still in the future is dated **today** (YNAB's "pay early" case); one already due keeps its date. It is approved, since the user entered it.
+- *Enter Now* enters the next occurrence and moves the schedule on. An occurrence still in the future is dated **today** (YNAB's "pay early" case); one already due keeps its date. It is approved, since the user entered it. *Verified in the YNAB trial (2026-10-12):* Enter Now on a bill scheduled for Oct 31 entered it on Oct 12, the day it was used, and moved the schedule on. A one-time schedule is used up.
 - *Skip Next* moves the schedule on without entering anything; a one-time schedule is used up.
 - *Make Repeating* (Shift+T) schedules a copy of a transaction one period after its date, keeping its day of the month as the anchor.
 - A new row dated after today is saved as a one-time schedule; dated today or earlier with a repeat, it is entered and its next occurrence scheduled.
@@ -545,7 +546,8 @@ So the required payment is **$507.51**. Paying it all in January takes $1,010.00
 
 YNAB "calculates the monthly interest charge and applies it automatically"; past and current charges can be edited, and escrow works the same way ([Loan Accounts](https://support.ynab.com/en_us/loan-accounts-in-ynab-a-guide-HkNSkPHJi)). It doesn't say when the charge is posted.
 
-- **ASSUMPTION:** each month from the one after the loan's first transaction, charges are posted on the 1st (a loan imported from YNAB starts the month after the export instead, `chargesFrom`, migration 0007: its history already holds YNAB's charges):
+- **First month (verified in the YNAB trial, 2026-10-12):** charges start the month after the loan is **added**, never earlier. Moving the trial mortgage's Starting Balance from Oct 8 back to Jul 8 posted nothing for August, September or October; each month stayed at −$200,000.00. So HAFB records `chargesFrom` (the month after the day the loan is added) on every new loan, and a back-dated starting balance doesn't get catch-up charges. A loan's opening balance is what is owed today, so catch-up interest would count those months twice. A loan imported from YNAB also starts the month after the export (migration 0007), because its history already holds YNAB's charges. Loans added before this rule have no `chargesFrom` and start the month after their first transaction.
+- **ASSUMPTION:** from then on, charges are posted on the 1st:
   - **Interest** on the balance at the end of the previous month (rule 1);
   - **Escrow** and **Fees** at their monthly amounts.
 - Each charge is an ordinary transaction (payee Interest, Escrow or Fees; no category: the account is off budget). It can be edited, and once deleted it is never posted again for that month.
@@ -675,7 +677,7 @@ Spending is outflows net of refunds; it's negative when refunds win.
 **Result (2026-10-08): 5,821 of 5,916 values (98.4%) match YNAB to the cent.**
 - **Every regular category:** Activity and Available both match in every month (5,220 values).
 - **Credit card payment categories:** 601 of 696 values match. The 95 that differ are documented, and the test fails if any *new* difference appears:
-  - **The converted card.** One account became a credit card in 2023-08. From then on, YNAB's payment-category activity for it follows none of the documented card rules: payments, refunds and cash advances are counted inconsistently. This is probably legacy behavior for converted account types. Unexplained.
+  - **The converted card.** One account became a credit card in 2023-08. From then on, YNAB's payment-category activity for it follows none of the documented card rules: payments, refunds and cash advances are counted inconsistently. This is legacy behavior: today's YNAB can't change an account's type (its Edit Account has no type field, checked in the trial 2026-10-12), so no new plan can have such an account. HAFB imports these plans with these values kept as documented differences.
   - **Spillover onto other cards.** Differences on other cards occur only in months when the converted card also differs (shared overspent categories), plus the carry-over of those differences into Available.
   - **One isolated case.** In May 2023, YNAB funded $89.52 less of one card's spending although none of its categories ended the month overspent. Unexplained.
 
@@ -737,9 +739,9 @@ Each item needs real YNAB behavior to confirm. The optional YNAB free-trial scen
 | Q4 | Target formulas | ✅ **Verified** on 19 cards across 8 behaviors, plus the weekly creation-date rule: Groceries at $350 shows "Assign $50.00 more", as predicted (the "spending counts" alternative would have shown it met) |
 | Q5 | Average Assigned/Spent window | ✅ **Verified:** months the plan has |
 | Q6 | Underfunded with scheduled transactions | ✅ **Verified:** funded to the bill's total, current month only |
-| Q7 | Loan interest accrual | ✅ **Simulator totals verified to the cent** (2026-10-09, §10.5): YNAB uses the closed-form annuity, not a schedule sum, which explains the old $0.50 gap and YNAB's own $0.01 disagreement. Checked at two payments. Still open: YNAB's first posted monthly interest after 2026-11-01 (§10.4; roadmap Timed follow-ups) |
-| Q8 | Converted-account card behavior (public export, 95 values) | ❓ Unexplained; optional trial extra |
+| Q7 | Loan interest accrual | ✅ **Simulator totals verified to the cent** (2026-10-09, §10.5): YNAB uses the closed-form annuity, not a schedule sum, which explains the old $0.50 gap and YNAB's own $0.01 disagreement. Checked at two payments. ✅ **Charges start the month after a loan is added**, with no catch-up for a back-dated balance (2026-10-12, §10.4). Still open: the date and amount of YNAB's first posted interest, after 2026-11-01 (§10.4; roadmap Timed follow-ups) |
+| Q8 | Converted-account card behavior (public export, 95 values) | ✅ **Closed as legacy** (2026-10-12): today's YNAB can't change an account's type, so only old plans have such an account. Its 95 values stay documented differences (§12.1) |
 | Q9 | Split rows in the export | ✅ **Verified:** `Split (k/n)` rows, recombined on import |
-| Q10 | YNAB "Credit Card Interest" categorization | ⏳ Rolling out; not in the trial yet. Modeled behind a preference from YNAB's description (§3.15); its reports, export format and payoff prompt are assumptions |
-| Q11 | Recurrence edge cases (twice a month, 31st) | ⏳ Month-end and leap-year clamping checked in the app (S5.4); twice a month is still documented only. Enter Now dating an early entry today is an assumption (§8.1) |
+| Q10 | YNAB "Credit Card Interest" categorization | ⏳ Rolling out; still not in the trial (rechecked 2026-10-12), and YNAB's help center has no article on it yet. Modeled behind a preference from YNAB's description (§3.15); its reports, export format and payoff prompt are assumptions |
+| Q11 | Recurrence edge cases (twice a month, 31st) | ✅ **Verified** (2026-10-12, §8.1): twice a month uses two fixed days 15 apart (Oct 31 → Nov 16 → Nov 30 … Feb 16 → Feb 28; Oct 20 → Nov 5), not "15 days later"; HAFB now does the same. Enter Now dates an early entry today. Month-end and leap-year clamping were checked in the app (S5.4) |
 | Q12 | Reports | ✅ **Verified** for October: Spending Breakdown, Income v Expense, Net Worth |

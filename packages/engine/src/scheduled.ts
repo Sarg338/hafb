@@ -67,7 +67,13 @@ const MONTH_STEPS: Partial<Record<Frequency, number>> = {
   everyOtherYear: 24,
 };
 
-/** YNAB: "twice a month" repeats on the chosen day and exactly 15 days later, regardless of month end. */
+/**
+ * "Twice a month" repeats on two fixed days of the month, 15 apart: the chosen day and the one 15
+ * after it (5th → 5th and 20th), or 15 before it when that's past the 15th (31st → 16th and 31st).
+ * A day past a month's end clamps to its last day. Verified in the YNAB trial (2026-10-12):
+ * Oct 31 → Nov 16 → Nov 30 → … → Feb 16 → Feb 28, and Oct 20 → Nov 5 → Nov 20. YNAB's help
+ * says "15 days later", but its dates don't drift with month length.
+ */
 const TWICE_A_MONTH_GAP = 15;
 
 /**
@@ -81,11 +87,12 @@ export function nextOccurrence(frequency: Frequency, date: ISODate, anchorDay?: 
   const anchor = anchorDay ?? dateParts(date).day;
   const months = MONTH_STEPS[frequency];
   if (months !== undefined) return addMonthsToDate(date, months, anchor);
-  // twiceAMonth: candidates are (anchor, anchor + 15 days) in the previous, current and next month.
+  // twiceAMonth: the earliest of its two days, in this month or the next, after `date`.
+  const pair = anchor > TWICE_A_MONTH_GAP ? [anchor - TWICE_A_MONTH_GAP, anchor] : [anchor, anchor + TWICE_A_MONTH_GAP];
   let best: ISODate | null = null;
-  for (const offset of [-1, 0, 1]) {
-    const first = clampedDate(addMonths(monthOf(date), offset), anchor);
-    for (const candidate of [first, addDays(first, TWICE_A_MONTH_GAP)]) {
+  for (const offset of [0, 1]) {
+    for (const day of pair) {
+      const candidate = clampedDate(addMonths(monthOf(date), offset), day);
       if (compareDates(candidate, date) > 0 && (best === null || compareDates(candidate, best) < 0)) best = candidate;
     }
   }

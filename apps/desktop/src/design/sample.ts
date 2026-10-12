@@ -73,8 +73,9 @@ export function buildSamplePlan(): SamplePlan {
 
   // ---- accounts -------------------------------------------------------------------------------
   const acct: Record<string, Id> = {};
+  // Added when the plan began, so the loans have been charged since September.
   const account = (key: string, name: string, type: Parameters<typeof createAccount>[2]['type'], start: number): void => {
-    acct[key] = run((p) => createAccount(p, ctx, { name, type, startingBalance: $(start), date: '2026-08-01' })).accountId;
+    acct[key] = run((p) => createAccount(p, { ...ctx, today: '2026-08-01' }, { name, type, startingBalance: $(start), date: '2026-08-01' })).accountId;
   };
   account('checking', 'Everyday Checking', 'checking', 3200);
   account('savings', 'Rainy Day Savings', 'savings', 6500);

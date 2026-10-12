@@ -4,10 +4,11 @@
 // charges can be edited; escrow is handled the same way; a paired category is used only for its
 // loan's payments and enables Record Payment; closing a loan unpairs its category.
 //
-// ASSUMPTIONS (budget-math §10.4): each month's charges are posted on the 1st, interest on the
-// balance at the end of the previous month (the engine's amortization rule); the first charges
-// come the month after the loan's first transaction (or from `chargesFrom`, set on loans imported
-// from YNAB, migration 0007); a charge the user deleted is never posted
+// Charges start from `chargesFrom`: the month after the loan was added (YNAB trial, 2026-10-12:
+// no catch-up for a back-dated balance) or after a YNAB export (migration 0007). Loans added before
+// that have none and start the month after their first transaction. ASSUMPTIONS (budget-math
+// §10.4): each month's charges are posted on the 1st, interest on the balance at the end of the
+// previous month (the engine's amortization rule); a charge the user deleted is never posted
 // again. YNAB's first posting in the trial (after 2026-11-01) will confirm the date and amount.
 import { monthlyInterest, READY_TO_ASSIGN, ValidationError, type Id } from '@hafb/engine';
 import { addMonths, compareDates, compareMonths, firstDayOfMonth, minor, monthOf, neg, type ISODate, type Minor, type Month } from '@hafb/shared';

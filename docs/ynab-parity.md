@@ -135,7 +135,7 @@ A row is `done` only after Sarg validates it on hardware. The final audit (S8.5,
 | S-01 | All 13 frequencies; 31st → last day of month | S1.6 | S5.4 | done |
 | S-02 | Collapsible Scheduled section in register; no plan impact until due | S1.6 | S5.4 | done |
 | S-03 | Due items appear bold and unapproved | S1.6 | S5.4 | done |
-| S-04 | Enter Now / Skip | S1.6 | S5.4 | done (Enter Now dates an early entry today: an assumption, budget-math §8.1; Skip Next is in the right-click menu) |
+| S-04 | Enter Now / Skip | S1.6 | S5.4 | done (Enter Now dates an early entry today, verified in YNAB 2026-10-12, budget-math §8.1; Skip Next is in the right-click menu) |
 | S-05 | Make repeating (Shift+T); recurring icon | — | S5.4 | done |
 | S-06 | Upcoming shortfall: calendar icon on Available | S1.6 | S5.4 | done |
 | S-07 | Scheduled splits and transfers | S1.6 | S5.4 | done |

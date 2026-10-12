@@ -110,8 +110,9 @@ export function buildLargePlan(today: ISODate, count = LARGE_PLAN_TRANSACTIONS):
 
   // ---- accounts ---------------------------------------------------------------------------------
   const start = day(first, 1);
+  // Added when the plan began, so the loans have been charged every month since.
   const account = (name: string, type: Parameters<typeof createAccount>[2]['type'], balance: number): Id =>
-    run((p) => createAccount(p, ctx, { name, type, startingBalance: minor(balance * 100), date: start })).accountId;
+    run((p) => createAccount(p, { ...ctx, today: start }, { name, type, startingBalance: minor(balance * 100), date: start })).accountId;
   const checking = account('Everyday Checking', 'checking', 6_000);
   const savings = account('Savings', 'savings', 15_000);
   const wallet = account('Wallet', 'cash', 200);

@@ -1,6 +1,6 @@
 // Account commands (CLAUDE.md §4 Account, §5.3, §6.3).
-import { CASH_ACCOUNT_TYPES, CREDIT_ACCOUNT_TYPES, isCreditAccountType, READY_TO_ASSIGN, ValidationError, type AccountType, type Id } from '@hafb/engine';
-import { minor, type ISODate, type Minor } from '@hafb/shared';
+import { CASH_ACCOUNT_TYPES, CREDIT_ACCOUNT_TYPES, isCreditAccountType, LOAN_ACCOUNT_TYPES, READY_TO_ASSIGN, ValidationError, type AccountType, type Id } from '@hafb/engine';
+import { addMonths, minor, monthOf, type ISODate, type Minor } from '@hafb/shared';
 import type { AccountRecord, CategoryGroupRecord, LoanDetails, PlanData } from '../records.ts';
 import { Draft, liveAccount, nextSortOrder, requireName, type Command, type CommandContext, omit } from './context.ts';
 import { CREDIT_CARD_PAYMENTS_GROUP_NAME } from './plan.ts';
@@ -44,6 +44,9 @@ export function createAccount(plan: PlanData, ctx: CommandContext, args: CreateA
   const name = requireName(args.name, 'Account');
   const onBudget = isOnBudgetType(args.type);
   const id = ctx.newId();
+  // YNAB charges a loan from the month after it's added, even when its starting balance is dated
+  // earlier: no catch-up charges (YNAB trial, 2026-10-12; budget-math §10.4).
+  const loan: LoanDetails | undefined = LOAN_ACCOUNT_TYPES.includes(args.type) ? { ...args.loan, chargesFrom: addMonths(monthOf(ctx.today), 1) } : args.loan;
   const account: AccountRecord = {
     id,
     name,
@@ -51,7 +54,7 @@ export function createAccount(plan: PlanData, ctx: CommandContext, args: CreateA
     onBudget,
     ...(args.note === undefined || args.note === '' ? {} : { note: args.note }),
     sortOrder: nextSortOrder(d.all('accounts')),
-    ...(args.loan === undefined || Object.keys(args.loan).length === 0 ? {} : { loan: args.loan }),
+    ...(loan === undefined || Object.keys(loan).length === 0 ? {} : { loan }),
     createdAt: ctx.now,
   };
   d.put('accounts', account);

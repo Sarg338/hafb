@@ -51,6 +51,22 @@ describe('loans (§5.10, S6.4)', () => {
     expect(charges(b, house).map(([date, name]) => `${String(date)} ${String(name)}`)).toEqual(['2027-01-01 Interest', '2027-01-01 Escrow', '2027-02-01 Interest', '2027-02-01 Escrow']);
   });
 
+  it('a back-dated loan is charged from the month after it was added, with no catch-up (YNAB trial, 2026-10-12)', () => {
+    const ctx = makeCtx(); // today 2026-10-08
+    const b = new Bench(blankPlan(ctx));
+    const car = b.run(
+      createAccount(b.plan, ctx, { name: 'Car', type: 'autoLoan', startingBalance: usd(-12000), date: '2026-07-08', loan: { interestRateBps: 600 } }),
+    ).accountId;
+    expect(b.plan.accounts.find((a) => a.id === car)?.loan?.chargesFrom).toBe('2026-11');
+    expect(postLoanCharges(b.plan, ctx)).toBeNull(); // no Aug, Sep or Oct charges
+    const cmd = postLoanCharges(b.plan, { ...ctx, today: '2026-11-02' });
+    if (cmd) b.run(cmd);
+    expect(charges(b, car)).toEqual([['2026-11-01', 'Interest', usd(-60), null]]);
+    // A loan with no details yet still remembers when it was added.
+    const bare = b.run(createAccount(b.plan, ctx, { name: 'Bare', type: 'otherDebt', startingBalance: usd(-500) })).accountId;
+    expect(b.plan.accounts.find((a) => a.id === bare)?.loan).toEqual({ chargesFrom: '2026-11' });
+  });
+
   it('a deleted charge is never posted again; payments lower the next month’s interest', () => {
     const { ctx, b, checking, house, payment } = setup();
     b.run(pairLoanCategory(b.plan, ctx, { accountId: house, categoryId: payment }));

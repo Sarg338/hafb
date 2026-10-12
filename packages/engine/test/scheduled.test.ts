@@ -57,16 +57,26 @@ describe('nextOccurrence: every frequency', () => {
     expect(nextOccurrence('everyOtherYear', d('2026-02-28'), 29)).toBe('2028-02-29');
   });
 
-  it('twice a month: the anchor day, then exactly 15 days later (even across month end)', () => {
+  it('twice a month: two fixed days 15 apart, the later one clamped to month end (YNAB trial, 2026-10-12)', () => {
+    const walk = (from: string, anchor: number, n: number): string[] => {
+      const out: string[] = [];
+      let date = d(from);
+      for (let i = 0; i < n; i += 1) {
+        const next = nextOccurrence('twiceAMonth', date, anchor);
+        if (next === null) break;
+        out.push(next);
+        date = next;
+      }
+      return out;
+    };
     // YNAB's example: the 5th and the 20th.
-    expect(nextOccurrence('twiceAMonth', d('2026-03-05'), 5)).toBe('2026-03-20');
-    expect(nextOccurrence('twiceAMonth', d('2026-03-20'), 5)).toBe('2026-04-05');
-    // Anchor on the 20th: second occurrence is 15 days later, in the next month.
-    expect(nextOccurrence('twiceAMonth', d('2026-03-20'), 20)).toBe('2026-04-04');
-    expect(nextOccurrence('twiceAMonth', d('2026-04-04'), 20)).toBe('2026-04-20');
-    // Anchor on the 31st: Feb's first occurrence is the 28th, second is March 15.
-    expect(nextOccurrence('twiceAMonth', d('2026-02-15'), 31)).toBe('2026-02-28');
-    expect(nextOccurrence('twiceAMonth', d('2026-02-28'), 31)).toBe('2026-03-15');
+    expect(walk('2026-03-05', 5, 3)).toEqual(['2026-03-20', '2026-04-05', '2026-04-20']);
+    // Started Oct 20 in YNAB: Nov 5, Nov 20 (not "15 days later", which would give Nov 4).
+    expect(walk('2026-10-20', 20, 2)).toEqual(['2026-11-05', '2026-11-20']);
+    // Started Oct 31 in YNAB: the 16th and the last day, every month.
+    expect(walk('2026-10-31', 31, 8)).toEqual(['2026-11-16', '2026-11-30', '2026-12-16', '2026-12-31', '2027-01-16', '2027-01-31', '2027-02-16', '2027-02-28']);
+    // The 15th pairs with the 30th, and February's 30th is its last day.
+    expect(walk('2027-01-30', 15, 3)).toEqual(['2027-02-15', '2027-02-28', '2027-03-15']);
   });
 });
 
