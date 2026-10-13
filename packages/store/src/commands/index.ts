@@ -11,3 +11,4 @@ export * from './loans.ts';
 export * from './settings.ts';
 export * from './lifecycle.ts';
 export * from './bankImport.ts';
+export * from './bankSync.ts';

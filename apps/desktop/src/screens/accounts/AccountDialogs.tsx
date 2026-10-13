@@ -3,11 +3,14 @@
 //   loans also ask for the interest rate and the monthly payment the lender requires.
 // - Edit: nickname, notes, working balance (a change adds a Manual Balance Adjustment), loan details,
 //   and Close Account (a balance is zeroed with an adjustment, after a warning) or Reopen.
+// - Edit also links the account to a SimpleFIN account for bank sync (S8.6, ADR 0006), where YNAB
+//   offers Link Account for its own providers.
 import { useState } from 'react';
 import type { AccountType } from '@hafb/engine';
 import { minor, type Minor, type MoneyFormat } from '@hafb/shared';
 import type { AccountRecord, CreateAccountArgs, LoanDetails } from '@hafb/store';
 import { Button } from '../../ui/Button.tsx';
+import { Combobox } from '../../ui/Combobox.tsx';
 import { Dialog, useConfirm } from '../../ui/Dialog.tsx';
 import { Icon } from '../../ui/Icon.tsx';
 import { MoneyInput } from '../../ui/MoneyInput.tsx';
@@ -247,6 +250,99 @@ export interface AccountEdits {
   note: string;
   workingBalance: Minor;
   loan?: LoanDetails | null;
+  /** Present when the bank sync link changed: the SimpleFIN account, or null to unlink. */
+  bankLink?: { id: string; name: string } | null;
+}
+
+/** A SimpleFIN account to link to (S8.6). */
+export interface BankChoice {
+  id: string;
+  name: string;
+  /** Decimal text, as SimpleFIN sends it. */
+  balance: string;
+}
+
+/** Edit Account's link to bank sync (S8.6); absent in the browser preview. */
+export interface AccountBankControls {
+  /** SimpleFIN is linked on this PC (Preferences → Bank sync). */
+  linked: boolean;
+  /** SimpleFIN's accounts (asks SimpleFIN once per run). */
+  list: () => Promise<BankChoice[]>;
+  /** SimpleFIN accounts already linked to other accounts. */
+  taken: ReadonlySet<string>;
+  /** Decimal text to a balance shown like the plan's amounts. */
+  balanceText: (decimal: string) => string;
+}
+
+/** Which SimpleFIN account this one syncs from. The list is fetched only when asked for. */
+function BankLinkField({ bank, value, onChange }: { bank: AccountBankControls; value: { id: string; name: string } | null; onChange: (v: { id: string; name: string } | null) => void }) {
+  const [choices, setChoices] = useState<BankChoice[] | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const load = (): void => {
+    setLoading(true);
+    setError(null);
+    bank
+      .list()
+      .then(setChoices, (e: unknown) => {
+        setError(typeof e === 'object' && e !== null && 'message' in e && typeof e.message === 'string' ? e.message : String(e));
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  };
+  const NONE = '';
+  const options = (choices ?? []).filter((c) => !bank.taken.has(c.id) || c.id === value?.id);
+  return (
+    <div className={styles.field}>
+      <span className={styles.fieldLabel}>Bank sync</span>
+      {choices !== null && bank.linked ? (
+        <Combobox
+          label="Bank account to sync from"
+          size="medium"
+          renderMeta={(o) => o.meta}
+          groups={[
+            {
+              id: 'bank',
+              label: 'SimpleFIN accounts',
+              options: [{ id: NONE, label: 'Not linked' }, ...options.map((c) => ({ id: c.id, label: c.name, meta: bank.balanceText(c.balance) }))],
+            },
+          ]}
+          value={value?.id ?? NONE}
+          onChange={(id) => {
+            const c = options.find((o) => o.id === id);
+            onChange(c ? { id: c.id, name: c.name } : null);
+          }}
+        />
+      ) : (
+        <>
+          <p className={styles.blurb}>{value ? `Syncs from ${value.name}.` : 'Not linked to a bank account.'}</p>
+          <div>
+            {bank.linked ? (
+              <Button size="small" icon="link" disabled={loading} onClick={load}>
+                {loading ? 'Asking SimpleFIN…' : value ? 'Change bank account…' : 'Link to a bank account…'}
+              </Button>
+            ) : value ? (
+              <Button
+                size="small"
+                onClick={() => {
+                  onChange(null);
+                }}
+              >
+                Unlink
+              </Button>
+            ) : null}
+          </div>
+          {!bank.linked && <p className={styles.blurb}>To sync this account with your bank, link SimpleFIN in Preferences, under Bank sync.</p>}
+        </>
+      )}
+      {error !== null && (
+        <p className={styles.blurb} role="alert">
+          {error}
+        </p>
+      )}
+    </div>
+  );
 }
 
 export function EditAccountDialog({
@@ -258,6 +354,7 @@ export function EditAccountDialog({
   onSave,
   onCloseAccount,
   onReopen,
+  bank,
 }: {
   account: AccountRecord;
   workingBalance: Minor;
@@ -267,12 +364,15 @@ export function EditAccountDialog({
   onSave: (edits: AccountEdits) => void;
   onCloseAccount: (zeroOut: boolean) => void;
   onReopen: () => void;
+  bank?: AccountBankControls | undefined;
 }) {
   const confirm = useConfirm();
   const [name, setName] = useState(account.name);
   const [note, setNote] = useState(account.note ?? '');
   const [balance, setBalance] = useState<Minor>(workingBalance);
   const [loanDraft, setLoanDraft] = useState<LoanDraft>(() => loanDraftOf(account.loan));
+  const [bankLink, setBankLink] = useState<{ id: string; name: string } | null>(account.bankLink ? { id: account.bankLink.id, name: account.bankLink.name } : null);
+  const bankChanged = (bankLink?.id ?? null) !== (account.bankLink?.id ?? null);
   const loanType = isLoanType(account.type);
   const valid = name.trim() !== '' && loanDraftValid(loanDraft);
   const closed = account.closed === true;
@@ -282,7 +382,7 @@ export function EditAccountDialog({
     // The pairing isn't on this form: keep it.
     const loan: LoanDetails | null = loanType ? loanFromDraft(loanDraft, account.loan, account.type === 'mortgage') : null;
     onClose();
-    onSave({ name: name.trim(), note, workingBalance: balance, ...(loanType ? { loan } : {}) });
+    onSave({ name: name.trim(), note, workingBalance: balance, ...(loanType ? { loan } : {}), ...(bankChanged ? { bankLink } : {}) });
   };
 
   const close = async (): Promise<void> => {
@@ -362,6 +462,7 @@ export function EditAccountDialog({
           help="Changing it adds a Manual Balance Adjustment transaction for the difference."
         />
         {loanType && <LoanFields draft={loanDraft} setDraft={setLoanDraft} mortgage={account.type === 'mortgage'} format={format} />}
+        {bank && !closed && <BankLinkField bank={bank} value={bankLink} onChange={setBankLink} />}
       </form>
     </Dialog>
   );

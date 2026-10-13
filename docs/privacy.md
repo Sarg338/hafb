@@ -1,19 +1,22 @@
 # Privacy statement
 
 HAFB keeps your plan on your PC. It has no account, no server, no telemetry, no analytics, no crash
-reporting and no update checks, and it works with the network cable unplugged. This page says
-exactly what does and doesn't leave the PC, and how that was checked (roadmap S8.3, 2026-10-10).
+reporting and no update checks, and it works with the network cable unplugged. The one
+exception is optional bank sync, which goes online only after you link it. This page says exactly
+what does and doesn't leave the PC, and how that was checked (roadmap S8.3, 2026-10-10; bank sync
+S8.6, 2026-10-12).
 
-## What HAFB itself sends: nothing
+## What HAFB itself sends: nothing, unless you link bank sync
 
 - **Your data stays in files you own.** A plan is one `.hafb` file where you saved it. Backups,
   the recent-plans list and settings live in `%LOCALAPPDATA%\app.hafb.desktop\`. Nothing is copied
   anywhere else unless you put the file in a synced folder yourself.
-- **There is no network code in the app.**
-  - The Rust side has no HTTP, TLS or socket libraries. `cargo tree` for the shipped app lists no
-    `reqwest`, `hyper`, `ureq`, `rustls` or `native-tls`, and `tokio` is built without its `net`
-    feature. OpenSSL is compiled in for one job: SQLCipher's ciphers for plan passwords (ADR 0010).
-    Only its crypto library is linked; its TLS code is left out by the linker.
+- **There is no network code in the app, except optional bank sync** (below).
+  - The Rust side has one HTTP client, `ureq` with `rustls`, used only by `src/bank_sync.rs` for
+    SimpleFIN. Nothing calls it until you link SimpleFIN. `cargo tree` lists no other HTTP or socket
+    library (`reqwest`, `hyper`, `native-tls`), and `tokio` is built without its `net` feature.
+    OpenSSL is compiled in for one job: SQLCipher's ciphers for plan passwords (ADR 0010). Only
+    its crypto library is linked; its TLS code is left out by the linker.
   - The interface's code (`dist/assets/index-*.js`) calls no network API: no `XMLHttpRequest`,
     `WebSocket`, `EventSource` or `sendBeacon`. Its one `fetch` is Vite's module preloader loading
     HAFB's own script files. The only web addresses in it are XML namespaces and React's
@@ -23,8 +26,29 @@ exactly what does and doesn't leave the PC, and how that was checked (roadmap S8
   in-process IPC. It also forbids plugins, `<base>` changes and form submissions.
 - **The installer downloads nothing.** It doesn't fetch the WebView2 runtime
   (`webviewInstallMode: skip`); WebView2 is part of Windows 11 and up-to-date Windows 10.
-- **Optional bank sync (planned, S8.6)** will be the one exception, off by default: when you turn
-  it on, HAFB contacts only the SimpleFIN Bridge server you link (ADR 0006).
+## Bank sync (optional, off until you link it)
+
+Bank sync through SimpleFIN Bridge (S8.6, ADR 0006) is the one time HAFB itself goes online, and
+only after you paste a SimpleFIN setup token into **Preferences**.
+
+- **One server, nothing else.** HAFB talks only to the SimpleFIN server your token names, over
+  HTTPS, from the Rust side. There's no proxy and it never follows a redirect to another server.
+  The webview still can't reach the network. Certificates are checked against Mozilla's root
+  list built into HAFB, so Windows doesn't fetch revocation lists from other servers on HAFB's
+  behalf. Checked 2026-10-12 against SimpleFIN's live demo, with the connection watcher the smoke
+  suite uses: `hafb.exe` connected only to the SimpleFIN server (and WebView2 only to its
+  documented account lookup below).
+- **What's sent:** a request for your accounts and their transactions since a date. **What comes
+  back:** account names, balances and posted transactions, which go into the plan like a bank file.
+- **No bank password, ever.** You log in to your bank on SimpleFIN's site. HAFB holds only the
+  read-only access link SimpleFIN gives it. That link is kept in Windows Credential Manager when
+  you tick **Remember on this PC**, or only in memory until HAFB closes when you don't. It is never
+  written to the plan, settings, logs, backups or error messages, and it never reaches the
+  interface. **Unlink** deletes it; turning the link off on SimpleFIN's site revokes it.
+- **The plan stores only** which SimpleFIN account each account syncs from, its name, and when it
+  last synced.
+- **When:** on opening a plan (if the last sync is over an hour old), about every 6 hours while
+  it's open, and on **Sync Now**. Never while HAFB is closed.
 
 ## Plan passwords (optional)
 

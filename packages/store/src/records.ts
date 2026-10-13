@@ -57,6 +57,16 @@ export interface LoanDetails {
   chargesFrom?: Month;
 }
 
+/** The SimpleFIN account an account syncs from (S8.6, ADR 0006, migration 0008). No secrets. */
+export interface BankLink {
+  /** SimpleFIN's account id. */
+  id: string;
+  /** What SimpleFIN calls it, with the bank's name. */
+  name: string;
+  /** The last sync that brought transactions in. */
+  syncedAt?: Timestamp;
+}
+
 export interface AccountRecord extends Account {
   starred?: boolean;
   note?: string;
@@ -64,6 +74,8 @@ export interface AccountRecord extends Account {
   lastReconciledAt?: Timestamp;
   /** Loan accounts only. */
   loan?: LoanDetails;
+  /** Linked for bank sync. */
+  bankLink?: BankLink;
   createdAt: Timestamp;
   deletedAt?: Timestamp;
 }

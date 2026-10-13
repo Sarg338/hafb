@@ -1,7 +1,9 @@
 // Preferences (S7.1): settings of this PC rather than of the plan. Text size, keyboard shortcuts,
-// Hide Amounts, the account new transactions start in (for this plan) and the plans folder.
+// Hide Amounts, the account new transactions start in (for this plan), the plans folder and the
+// SimpleFIN link for bank sync (S8.6).
 import { useEffect, useState } from 'react';
 import type { AccountRecord } from '@hafb/store';
+import { BankSyncSection, type BankSyncControls } from './BankSyncSection.tsx';
 import { prefs, TEXT_SCALES, usePrefs, type TextScale } from '../../shell/prefs.ts';
 import { Button } from '../../ui/Button.tsx';
 import { Combobox } from '../../ui/Combobox.tsx';
@@ -24,11 +26,14 @@ export function PreferencesDialog({
   planPath,
   accounts,
   folders,
+  bank,
 }: {
   onClose: () => void;
   planPath: string;
   accounts: readonly AccountRecord[];
   folders?: PlanFolderControls;
+  /** Bank sync through SimpleFIN (S8.6); absent in the browser preview. */
+  bank?: BankSyncControls;
 }) {
   const p = usePrefs();
   const [folder, setFolder] = useState<string | null | undefined>(undefined);
@@ -153,6 +158,7 @@ export function PreferencesDialog({
             </p>
           )}
         </section>
+        <BankSyncSection bank={bank} />
       </div>
     </Dialog>
   );

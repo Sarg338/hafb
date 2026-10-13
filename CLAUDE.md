@@ -92,6 +92,7 @@ Entities (table ≈ TS type ≈ Rust struct; keep them in lockstep via `packages
     - **Closed.**
   - Loan accounts also carry: interest rate (bps), escrow amount, fees, minimum payment, original principal, payment schedule, `paired_category_id` (optional; one loan per category), and `loan_charges_from` (the first month charges post; set on loans imported from YNAB, migration 0007).
   - Transactions in cash-type accounts are created **cleared** by default.
+  - Bank sync (S8.6, migration 0008): `bank_sync_id`, `bank_sync_name` and `bank_synced_at`. These record which SimpleFIN account it syncs from and when transactions last came in. No secrets.
 - **CategoryGroup:** name, hidden, sort order, `system_kind` (`inflow` | `creditCardPayments` | `hidden`; NULL for user groups; ADR 0002 §3).
   - The system groups are *Credit Card Payments* and *Hidden Categories*, plus the implicit *Inflow* group that holds *Ready to Assign*.
 - **Category:** group, name, hidden, note, sort order, `credit_card_account_id` (set only for CC payment categories).
@@ -422,6 +423,13 @@ Mark phase status here when it changes:
     - Guides: `docs/user-guide.md`, `docs/migrating-from-ynab.md` and `docs/beta.md`, plus `CHANGELOG.md`. A test keeps the guides' quoted labels real.
     - The final audit is in `docs/parity-audit.md`. It found seven gaps, now built: card payment targets, progress-bar sections, search suggestions, Show Images, learned renaming and Don't rename, and the YNAB import's account-type step (migration 0007). Only S8.6's two rows are open.
     - Still needed: the beta itself, which needs Sarg to find YNAB users.
+  - S8.6 optional bank sync done in code 2026-10-12 (ADR 0006 "As built", roadmap notes):
+    - SimpleFIN Bridge, linked in Preferences → Bank sync. Each account chooses its SimpleFIN account in Edit Account. Sync Now is in the register.
+    - Rust `src/bank_sync.rs` (ureq + rustls) is HAFB's only network code. It talks only to the host the token names.
+    - Imports go through the bank-file pipeline as one undo step.
+    - Tested against SimpleFIN's live demo: 99 transactions, no duplicates in one answer, `hafb.exe` connected only to SimpleFIN. A smoke test runs on a saved answer (`HAFB_SIMPLEFIN_FIXTURE`).
+    - Every parity row that doesn't need YNAB's servers is now `done`.
+    - Still needed: Sarg's SimpleFIN sign-up, to check his real banks.
 
 ---
 

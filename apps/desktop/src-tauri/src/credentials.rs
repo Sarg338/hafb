@@ -1,7 +1,8 @@
-//! "Remember on this PC" for plan passwords (S8.3b, ADR 0010): the password is kept in Windows
-//! Credential Manager as a generic credential for this PC only (it doesn't roam with the Windows
-//! account), protected by Windows for the signed-in user. One credential per plan file, keyed by
-//! its full path, so a copy of the plan elsewhere (a synced folder, a USB stick) still asks.
+//! Secrets kept in Windows Credential Manager as generic credentials for this PC only (they don't
+//! roam with the Windows account), protected by Windows for the signed-in user.
+//! - "Remember on this PC" for plan passwords (S8.3b, ADR 0010): one credential per plan file,
+//!   keyed by its full path, so a copy of the plan elsewhere (a synced folder, a USB stick) still asks.
+//! - The SimpleFIN access URL for bank sync (S8.6, ADR 0006), through `save_secret` and friends.
 
 use hafb_store::Password;
 use std::path::Path;
@@ -17,7 +18,6 @@ fn target(plan: &Path) -> String {
 #[cfg(windows)]
 mod imp {
     use super::MAX_BYTES;
-    use hafb_store::Password;
     use windows_sys::Win32::Security::Credentials::{
         CRED_PERSIST_LOCAL_MACHINE, CRED_TYPE_GENERIC, CREDENTIALW, CredDeleteW, CredFree, CredReadW, CredWriteW,
     };
@@ -26,10 +26,10 @@ mod imp {
         s.encode_utf16().chain(std::iter::once(0)).collect()
     }
 
-    pub fn save(target: &str, password: &Password) -> Result<(), String> {
-        let mut blob = password.as_str().as_bytes().to_vec();
+    pub fn save(target: &str, secret: &str) -> Result<(), String> {
+        let mut blob = secret.as_bytes().to_vec();
         if blob.len() > MAX_BYTES {
-            return Err("That password is too long for Windows to remember.".to_owned());
+            return Err("That is too long for Windows to remember.".to_owned());
         }
         let mut name = wide(target);
         let mut user = wide("HAFB");
@@ -46,10 +46,10 @@ mod imp {
             CredWriteW(&cred, 0)
         };
         blob.fill(0);
-        if ok == 0 { Err(format!("Windows couldn't remember the password ({}).", std::io::Error::last_os_error())) } else { Ok(()) }
+        if ok == 0 { Err(format!("Windows couldn't remember it ({}).", std::io::Error::last_os_error())) } else { Ok(()) }
     }
 
-    pub fn load(target: &str) -> Option<Password> {
+    pub fn load(target: &str) -> Option<String> {
         let name = wide(target);
         let mut found: *mut CREDENTIALW = std::ptr::null_mut();
         // SAFETY: CredReadW fills `found` with a buffer we free with CredFree; the blob is read
@@ -61,7 +61,7 @@ mod imp {
             let cred = &*found;
             let bytes = std::slice::from_raw_parts(cred.CredentialBlob, cred.CredentialBlobSize as usize).to_vec();
             CredFree(found.cast());
-            String::from_utf8(bytes).ok().and_then(|s| Password::new(s).ok())
+            String::from_utf8(bytes).ok()
         }
     }
 
@@ -76,11 +76,10 @@ mod imp {
 
 #[cfg(not(windows))]
 mod imp {
-    use hafb_store::Password;
-    pub fn save(_: &str, _: &Password) -> Result<(), String> {
-        Err("Remembering passwords needs Windows.".to_owned())
+    pub fn save(_: &str, _: &str) -> Result<(), String> {
+        Err("Remembering this needs Windows.".to_owned())
     }
-    pub fn load(_: &str) -> Option<Password> {
+    pub fn load(_: &str) -> Option<String> {
         None
     }
     pub fn delete(_: &str) {}
@@ -88,17 +87,32 @@ mod imp {
 
 /// Remember `password` for the plan at `plan` on this PC.
 pub fn remember(plan: &Path, password: &Password) -> Result<(), String> {
-    imp::save(&target(plan), password)
+    imp::save(&target(plan), password.as_str())
 }
 
 /// The password remembered for `plan`, if any.
 pub fn recall(plan: &Path) -> Option<Password> {
-    imp::load(&target(plan))
+    imp::load(&target(plan)).and_then(|s| Password::new(s).ok())
 }
 
 /// Forget the password remembered for `plan` (nothing happens if there is none).
 pub fn forget(plan: &Path) {
     imp::delete(&target(plan));
+}
+
+/// Keep `secret` under `target` on this PC.
+pub fn save_secret(target: &str, secret: &str) -> Result<(), String> {
+    imp::save(target, secret)
+}
+
+/// The secret kept under `target`, if any.
+pub fn load_secret(target: &str) -> Option<String> {
+    imp::load(target)
+}
+
+/// Delete the secret kept under `target` (nothing happens if there is none).
+pub fn delete_secret(target: &str) {
+    imp::delete(target);
 }
 
 #[cfg(all(test, windows))]
@@ -121,5 +135,17 @@ mod tests {
         remember(&plan, &longest).unwrap();
         assert_eq!(recall(&plan), Some(longest));
         forget(&plan);
+    }
+
+    #[test]
+    fn a_secret_is_saved_loaded_and_deleted() {
+        let target = format!("HAFB test secret {}", std::process::id());
+        delete_secret(&target);
+        assert!(load_secret(&target).is_none());
+        save_secret(&target, "https://user:pass@example.org/simplefin").unwrap();
+        assert_eq!(load_secret(&target).as_deref(), Some("https://user:pass@example.org/simplefin"));
+        delete_secret(&target);
+        assert!(load_secret(&target).is_none());
+        assert!(save_secret(&target, &"x".repeat(MAX_BYTES + 1)).is_err());
     }
 }

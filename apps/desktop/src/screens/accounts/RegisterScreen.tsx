@@ -31,6 +31,7 @@ import {
   editTransactions,
   enterDueScheduled,
   enterScheduledNow,
+  linkedAccounts,
   makeRepeating,
   mergeChangeSets,
   planBudget,
@@ -200,9 +201,11 @@ export interface RegisterScreenProps {
   focusTransactionId?: string;
   /** All Accounts: the account new transactions and imports start in (Preferences, S7.1). */
   defaultAccountId?: Id;
+  /** Bank sync's Sync Now (S8.6); absent in the browser preview. */
+  bankSync?: { syncing: boolean; run: () => void };
 }
 
-export function RegisterScreen({ plan, today, accountId, actions, history, focusTransactionId, defaultAccountId }: RegisterScreenProps) {
+export function RegisterScreen({ plan, today, accountId, actions, history, focusTransactionId, defaultAccountId, bankSync }: RegisterScreenProps) {
   const p = usePrefs();
   const fmt = moneyFormat(plan);
   const money = useMemo(() => moneyText(fmt, p.hideAmounts), [fmt, p.hideAmounts]);
@@ -1341,6 +1344,17 @@ export function RegisterScreen({ plan, today, accountId, actions, history, focus
         >
           File Import
         </Button>
+        {bankSync && (account ? account.bankLink !== undefined && account.closed !== true : linkedAccounts(plan).length > 0) && (
+          <Button
+            variant="toolbar"
+            icon="sync"
+            disabled={bankSync.syncing}
+            title={account?.bankLink ? `Get new transactions from ${account.bankLink.name} through SimpleFIN` : 'Get new transactions for every linked account through SimpleFIN'}
+            onClick={bankSync.run}
+          >
+            {bankSync.syncing ? 'Syncing…' : 'Sync Now'}
+          </Button>
+        )}
         {card && account && (
           <Button
             variant="toolbar"

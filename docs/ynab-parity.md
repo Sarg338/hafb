@@ -97,7 +97,7 @@ A row is `done` only after Sarg validates it on hardware. The final audit (S8.5,
 | AC-08 | Reorder accounts; account notes | — | S4.4 | done |
 | AC-09 | Register header: cleared + uncleared = working balance | S1.6 | S4.4 | done |
 | AC-10 | Cash-type transactions auto-marked cleared | S1.6 | S4.5 | done |
-| AC-11 | Linked accounts, optional, via SimpleFIN Bridge instead of YNAB's providers (ADR 0006) | — | S8.6 | todo |
+| AC-11 | Linked accounts, optional, via SimpleFIN Bridge instead of YNAB's providers (ADR 0006) | — | S8.6 | done (Preferences → Bank sync; Edit Account links each account; tested against SimpleFIN's live demo 2026-10-12, Sarg's own banks still to come) |
 
 ## 6. Register ([split](https://support.ynab.com/en_us/split-transactions-a-guide-SJLEKwY0q), [search](https://support.ynab.com/en_us/searching-transactions-a-guide-r1gxyQryj), [shortcuts](https://support.ynab.com/en_us/keyboard-shortcuts-Skw9Xp9A9))
 
@@ -213,7 +213,7 @@ A row is `done` only after Sarg validates it on hardware. The final audit (S8.5,
 | IE-09 | Export to YNAB-format CSV (round-trip verified) | S1.8 | S6.6 | done (Plan.csv + Register.csv in YNAB's layout; round-trips through the YNAB importer to the cent. YNAB has no whole-plan import; its File Import read our Register.csv into an account, mapping Date, Payee, Memo, Outflow and Inflow by itself: trial, 2026-10-09, previewed and cancelled) |
 | IE-10 | Raw SQLite copy ("save a copy") | — | S2.5 | done (Save a copy…, S2.5) |
 | IE-11 | Automatic backups on open (keep N), manual backup, restore | — | S2.5 / S6.6 | done (keep 3–100, a chosen folder, Back up now, restore) |
-| IE-12 | Bank sync, optional, via SimpleFIN Bridge: on open, every ~6 h while open, Sync now; same review pipeline as file import (ADR 0006) | S1.6 | S8.6 | todo |
+| IE-12 | Bank sync, optional, via SimpleFIN Bridge: on open, every ~6 h while open, Sync now; same review pipeline as file import (ADR 0006) | S1.6 | S8.6 | done (Sync Now; windows of at most 45 days; store and release-app smoke tests) |
 | IE-13 | Pending transactions | — | — | wontfix (server) |
 
 ## 14. Plans, settings, lifecycle ([resets & fresh starts](https://support.ynab.com/en_us/plan-resets-and-fresh-starts-HkXYR_c0q), [templates](https://support.ynab.com/en_us/creating-a-plan-template-ByZJZx_R9))

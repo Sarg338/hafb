@@ -158,7 +158,11 @@ Loan accounts (Mortgage, Auto Loan and the rest) track what you owe outside the 
 
 ## 10. Importing from your bank
 
-HAFB never connects to your bank. Download a file from your bank's website and choose **File Import** in the account's register.
+There are two ways in: a file you download from your bank's website, or optional bank sync through SimpleFIN Bridge. HAFB never sees your bank password either way. Both go through the same steps below: new transactions arrive unapproved, matches and renaming work the same, and nothing comes in twice.
+
+### Bank files
+
+Choose **File Import** in the account's register.
 
 - **Formats:** CSV, OFX and QFX (several files at once), and QIF.
 - **CSV:** pick which column is which once; HAFB detects the delimiter, date order and decimal mark, and remembers the mapping for that account.
@@ -166,6 +170,18 @@ HAFB never connects to your bank. Download a file from your bank's website and c
 - Imported transactions arrive unapproved: check them, then **Approve** (`A`), or **Reject** (Shift+R) one that shouldn't be there; it never comes back. Unapproved transactions still count in your plan.
 - **Matching:** a transaction you entered, or a scheduled one, matches an import with the same amount within 10 days. The bank's amount wins; your payee, memo and date stay. **Match** (`M`) and **Unmatch** (Shift+U) do it by hand.
 - **Payee names:** HAFB cleans up the bank's names. Change an imported payee and HAFB remembers it for future imports of that bank text; **Manage Payees** lists those renaming rules. **Bank Import Details** (right-click) shows what the bank sent, and **Don’t rename as** (with the payee's name) keeps the bank's name from then on.
+
+### Bank sync (optional)
+
+YNAB connects to banks through its own paid providers. HAFB uses [SimpleFIN Bridge](https://bridge.simplefin.org) instead: a service you sign up for yourself, about $15 a year paid to SimpleFIN, that connects to your banks and credit cards. You log in to your bank on SimpleFIN's site; HAFB only gets a read-only link that you can turn off there at any time. Bank sync is off until you link it, and until then HAFB never goes online.
+
+1. On SimpleFIN's site, connect your banks, then create a setup token for a new app and copy it.
+2. In HAFB, open **Preferences** (Ctrl+,), paste it into **SimpleFIN setup token** under **Bank sync**, and choose **Link**. **Remember on this PC** keeps the link in Windows Credential Manager; without it, HAFB forgets the link when it closes. A token works once.
+3. Open **Edit Account** on each account you want synced, choose **Link to a bank account…**, pick the bank account, and **Save**. Its recent transactions come in straight away (up to the last 89 days, from the account's start).
+
+After that, HAFB brings in new transactions when a plan opens (if the last sync is over an hour old), about every 6 hours while it's open, and when you choose **Sync Now** in a linked account's register. Nothing happens while HAFB is closed; the next open catches up. Banks send transactions to SimpleFIN about once a day, so new ones usually show up the next day. Pending transactions don't come in, only posted ones.
+
+Problems SimpleFIN reports, such as a bank that needs you to log in again on SimpleFIN's site, show as a message after the sync. To stop syncing an account, choose **Not linked** in **Edit Account**; to stop altogether, choose **Unlink** in **Preferences**. Transactions already imported stay.
 
 ## 11. Reconciling
 

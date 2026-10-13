@@ -2,7 +2,7 @@
 
 The roadmap's S8.5 exit asks for a final audit of [ynab-parity.md](ynab-parity.md) that leaves only the S8.6 rows open. This is that audit: what was checked, what it found, and what was done about it.
 
-**Result:** 160 rows. 154 are `done`, 4 are `wontfix` (they need YNAB's servers), and 2 are `todo`: AC-11 and IE-12, the optional SimpleFIN bank sync that is S8.6. The audit found 7 real gaps, and all 7 are now built and tested.
+**Result:** 160 rows. 154 are `done`, 4 are `wontfix` (they need YNAB's servers), and 2 are `todo`: AC-11 and IE-12, the optional SimpleFIN bank sync that is S8.6. The audit found 7 real gaps, and all 7 are now built and tested. *Since then (2026-10-12):* S8.6 built those two, so all 156 non-server rows are `done`.
 
 ## How it was checked
 

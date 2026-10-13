@@ -36,6 +36,16 @@ hafb-store = { path = "store" }
 # depends only on log, raw-window-handle 0.6 and windows-sys 0.61 (both already in the tree); no
 # network, process or file APIs. Default features (xdg-portal, wayland) are Linux-only and disabled.
 rfd = { version = "=0.17.2", default-features = false }
+# Optional bank sync through SimpleFIN Bridge (S8.6, ADR 0006): the ONLY crate allowed to make
+# network calls, and only from src/bank_sync.rs, to the host the user's SimpleFIN token names.
+# ureq is a small blocking client with no telemetry, no background threads and no update checks.
+# Features: rustls with ring and the bundled Mozilla roots (webpki-roots), so certificate checks
+# never make Windows fetch revocation lists from other hosts. No gzip, cookies, proxy or JSON.
+ureq = { version = "=3.4.2", default-features = false, features = ["rustls"] }
+# Already in the tree (Tauri). Setup tokens are base64; Basic auth for the access URL.
+base64 = "0.22.1"
+# Already in the tree (hafb-store). SimpleFIN's answers are passed to the webview as JSON.
+serde_json = "1.0.151"
 
 [target.'cfg(windows)'.dependencies]
 # Already in the tree via tauri-plugin-frame; used directly for the process start time, COM

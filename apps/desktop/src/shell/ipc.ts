@@ -143,6 +143,25 @@ export const fileIpc = {
   saveExport: (fileName: string, bytes: Uint8Array) => invoke<string | null>('save_export', bytes, { headers: { 'x-file-name': encodeURIComponent(fileName) } }),
 };
 
+/** Whether SimpleFIN is linked on this PC (S8.6, ADR 0006). The access link itself never leaves Rust. */
+export interface BankStatus {
+  linked: boolean;
+  /** Kept in Windows Credential Manager; else only until HAFB closes. */
+  remembered: boolean;
+  /** The SimpleFIN server linked. */
+  host: string | null;
+}
+
+/** Bank sync through SimpleFIN Bridge (src-tauri/src/bank_sync.rs): the only commands that go online. */
+export const bankIpc = {
+  status: () => invoke<BankStatus>('bank_status'),
+  /** Claim a setup token (it works once) and keep the access link on this PC or for this run. */
+  link: (token: string, remember: boolean) => invoke<BankStatus>('bank_link', { token, remember }),
+  unlink: () => invoke<BankStatus>('bank_unlink'),
+  /** SimpleFIN's account set as it came (read it with readSimplefin). Unix seconds; `end` is exclusive, null = now. */
+  fetch: (start: number | null, end: number | null, balancesOnly: boolean) => invoke<unknown>('bank_fetch', { start, end, balancesOnly }),
+};
+
 export type TitlebarMode = 'custom' | 'native';
 
 export interface LaunchTiming {

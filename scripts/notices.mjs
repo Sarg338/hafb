@@ -18,9 +18,10 @@ const out = join(root, 'THIRD-PARTY-NOTICES.txt');
 const TARGETS = ['x86_64-pc-windows-msvc', 'aarch64-pc-windows-msvc'];
 
 // Permissive licenses, plus MPL-2.0 (file-level copyleft: it asks only that the source of those
-// files stays available, which crates.io does; the notices say so). In order of preference when a
-// component offers a choice.
-const ALLOWED = ['MIT', 'Apache-2.0', 'BSD-3-Clause', 'BSD-2-Clause', 'ISC', 'Zlib', '0BSD', 'Unicode-3.0', 'Unicode-DFS-2016', 'BSL-1.0', 'CC0-1.0', 'Unlicense', 'MPL-2.0'];
+// files stays available, which crates.io does; the notices say so), and CDLA-Permissive-2.0 (a
+// permissive data license: Mozilla's root certificates in webpki-roots, for bank sync, S8.6; it
+// asks only that its text goes with the data). In order of preference when a component offers a choice.
+const ALLOWED = ['MIT', 'Apache-2.0', 'BSD-3-Clause', 'BSD-2-Clause', 'ISC', 'Zlib', '0BSD', 'Unicode-3.0', 'Unicode-DFS-2016', 'BSL-1.0', 'CC0-1.0', 'Unlicense', 'MPL-2.0', 'CDLA-Permissive-2.0'];
 const ALLOWED_EXCEPTIONS = ['LLVM-exception'];
 
 // ---- SPDX expressions: pick the preferred allowed choice ----
@@ -87,6 +88,7 @@ function classify(text) {
   if (/This software is provided 'as-is'/i.test(text)) return 'Zlib';
   if (/Redistribution and use in source and binary forms/i.test(text)) return /Neither the name|names of its contributors/i.test(text) ? 'BSD-3-Clause' : 'BSD-2-Clause';
   if (/CC0|Creative Commons Zero/i.test(text)) return 'CC0-1.0';
+  if (/Community Data License Agreement - Permissive - Version 2\.0/i.test(text)) return 'CDLA-Permissive-2.0';
   return null;
 }
 

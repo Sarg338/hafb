@@ -40,6 +40,9 @@
      "original_principal": null,
      "paired_category_id": null,
      "loan_charges_from": null,
+     "bank_sync_id": "ACT-1",
+     "bank_sync_name": "Regions Bank · Checking",
+     "bank_synced_at": "2026-10-08T12:00:00.000Z",
      "created_at": "2026-10-08T12:00:00.000Z",
      "deleted_at": null
     },
@@ -60,6 +63,9 @@
      "original_principal": null,
      "paired_category_id": null,
      "loan_charges_from": null,
+     "bank_sync_id": null,
+     "bank_sync_name": null,
+     "bank_synced_at": null,
      "created_at": "2026-10-08T12:00:00.000Z",
      "deleted_at": null
     },
@@ -80,6 +86,9 @@
      "original_principal": 20000000,
      "paired_category_id": "c-rent",
      "loan_charges_from": null,
+     "bank_sync_id": null,
+     "bank_sync_name": null,
+     "bank_synced_at": null,
      "created_at": "2026-10-08T12:00:00.000Z",
      "deleted_at": null
     },
@@ -100,6 +109,9 @@
      "original_principal": null,
      "paired_category_id": null,
      "loan_charges_from": null,
+     "bank_sync_id": null,
+     "bank_sync_name": null,
+     "bank_synced_at": null,
      "created_at": "2026-10-08T12:00:00.000Z",
      "deleted_at": "2026-10-08T12:00:00.000Z"
     }

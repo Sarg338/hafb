@@ -59,7 +59,7 @@ Screenshot: (optional; hide amounts first with the eye button if you like)
 ## Known limits of this beta
 
 - **Not code-signed.** Windows warns on first run ([install.md](install.md)).
-- **No bank connections yet.** Import files from your bank instead. Optional sync through SimpleFIN Bridge is planned before 1.0; YNAB's own bank connections (Plaid, MX) never will be.
+- **Bank sync is new.** Optional sync through SimpleFIN Bridge (**Preferences…** → Bank sync) has been tested against SimpleFIN's demo bank, not yet a real one. If you try it, tell us your bank and what came in. Bank files still work as before. YNAB's own bank connections (Plaid, MX) will never be in HAFB.
 - **Not built:** YNAB Together (shared plans), mobile apps and cloud sync. They need servers HAFB doesn't have. Your plan is a file you can keep in OneDrive or Syncthing.
 - **Early or unconfirmed against YNAB:**
   - *Credit Card Interest* (off by default in **Preferences…**). YNAB is still rolling it out, so HAFB's version follows YNAB's announcement.

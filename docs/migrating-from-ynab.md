@@ -87,7 +87,7 @@ You don't have to switch in one go. Keep entering transactions in both, or impor
 
 ## What HAFB doesn't do
 
-HAFB has everything in YNAB's web app except what needs YNAB's servers: there are no linked bank connections (download a file from your bank and use **File Import**), no YNAB Together sharing, no mobile apps and no cloud sync. Your plan is a file on your PC; put it in a OneDrive or Syncthing folder if you want it on another PC.
+HAFB has everything in YNAB's web app except what needs YNAB's servers: YNAB's linked bank connections are replaced by optional bank sync through SimpleFIN Bridge, a service you pay for yourself ([user-guide.md §10](user-guide.md#bank-sync-optional)), or a file from your bank and **File Import**. There's no YNAB Together sharing, no mobile apps and no cloud sync. Your plan is a file on your PC; put it in a OneDrive or Syncthing folder if you want it on another PC.
 
 ## Going back
 

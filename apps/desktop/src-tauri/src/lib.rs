@@ -1,3 +1,4 @@
+mod bank_sync;
 mod commands;
 mod credentials;
 mod diagnostics;
@@ -35,7 +36,12 @@ pub fn run() {
         .manage(commands::PlanState::default())
         .manage(window_state::WindowTracker::default())
         .manage(startup::StartupPlan::default())
+        .manage(bank_sync::BankState::default())
         .invoke_handler(tauri::generate_handler![
+            bank_sync::bank_status,
+            bank_sync::bank_link,
+            bank_sync::bank_unlink,
+            bank_sync::bank_fetch,
             commands::plan_create,
             commands::plan_open,
             commands::plan_current,

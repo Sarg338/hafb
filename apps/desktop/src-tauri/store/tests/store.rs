@@ -194,10 +194,12 @@ fn an_older_file_is_backed_up_then_migrated() {
             r.remove("display_decimals");
         }
     }
-    // 0007: accounts.loan_charges_from and targets.pay_off.
+    // 0007: accounts.loan_charges_from and targets.pay_off; 0008: the accounts' bank sync link.
     for t in v1.upserts.iter_mut().filter(|t| t.table == "accounts") {
         for r in &mut t.rows {
-            r.remove("loan_charges_from");
+            for c in ["loan_charges_from", "bank_sync_id", "bank_sync_name", "bank_synced_at"] {
+                r.remove(c);
+            }
         }
     }
     for t in v1.upserts.iter_mut().filter(|t| t.table == "targets") {

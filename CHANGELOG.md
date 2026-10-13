@@ -40,4 +40,9 @@ The first beta. It has YNAB's web app in full, except what needs YNAB's servers.
 - Every YNAB keyboard shortcut plus Windows' own. Light, dark, high-contrast and Windows contrast themes, text up to 200%, and WCAG 2.2 AA.
 - Fast with large plans: a 20,000-transaction plan opens in under 1.5 seconds on a 2019-era laptop.
 
-**Known limits:** see [docs/beta.md](docs/beta.md#known-limits-of-this-beta). Bank sync through SimpleFIN Bridge is optional and comes before 1.0.
+**Bank sync (optional)**
+- Sync banks and credit cards through SimpleFIN Bridge, a service you sign up for yourself (about $15 a year, paid to SimpleFIN). Link it in Preferences, then choose each account's bank account in Edit Account.
+- New transactions come in when a plan opens, about every 6 hours while it's open, and on Sync Now. They go through the same steps as bank files: unapproved, matched to your own entries, never twice. Pending transactions stay out.
+- HAFB never sees your bank password. It talks only to SimpleFIN's server, and only once you've linked it. The link is kept in Windows Credential Manager, or until HAFB closes.
+
+**Known limits:** see [docs/beta.md](docs/beta.md#known-limits-of-this-beta).

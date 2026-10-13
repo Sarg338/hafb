@@ -52,7 +52,10 @@
    "paired_category_id",
    "created_at",
    "deleted_at",
-   "loan_charges_from"
+   "loan_charges_from",
+   "bank_sync_id",
+   "bank_sync_name",
+   "bank_synced_at"
   ],
   "rows": [
    [
@@ -72,6 +75,9 @@
     null,
     null,
     "2026-10-08T12:00:00.000Z",
+    null,
+    null,
+    null,
     null,
     null
    ],
@@ -93,7 +99,10 @@
     null,
     "2026-10-08T12:00:00.000Z",
     null,
-    null
+    null,
+    "ACT-1",
+    "Regions Bank · Checking",
+    "2026-10-08T12:00:00.000Z"
    ],
    [
     "a-home",
@@ -112,6 +121,9 @@
     20000000,
     "c-rent",
     "2026-10-08T12:00:00.000Z",
+    null,
+    null,
+    null,
     null,
     null
    ],
@@ -133,6 +145,9 @@
     null,
     "2026-10-08T12:00:00.000Z",
     "2026-10-08T12:00:00.000Z",
+    null,
+    null,
+    null,
     null
    ]
   ]

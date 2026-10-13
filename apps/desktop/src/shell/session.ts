@@ -19,11 +19,15 @@ import {
   historyUndo,
   importTemplate,
   importYnabExport,
+  linkedAccounts,
+  mergeSimplefin,
   newPlan,
   normalizePlan,
   planBudget,
+  readSimplefin,
   readZip,
   redoLabel,
+  syncBankAccounts,
   undoLabel,
   type CategoryTemplate,
   type Command,
@@ -33,11 +37,13 @@ import {
   type ImportReport,
   type PlanData,
   type PlanSettings,
+  type SimplefinAccount,
 } from '@hafb/store';
 import type { AccountType, InferredAccount } from '@hafb/engine';
 import { isTauri } from '@tauri-apps/api/core';
 import { makeDate, monthOf, uuidv7Generator, type ISODate, type Month } from '@hafb/shared';
-import { appIpc, errorKind, errorMessage, planIpc, type BackupInfo, type PasswordChanged, type PasswordStatus, type PlanInfo, type RecentPlan, type RelockReport } from './ipc.ts';
+import { appIpc, bankIpc, errorKind, errorMessage, planIpc, type BackupInfo, type BankStatus, type PasswordChanged, type PasswordStatus, type PlanInfo, type RecentPlan, type RelockReport } from './ipc.ts';
+import { dueOnOpen, fetchWindows, localDate, nextDelay, syncSummary } from './bankSync.ts';
 import { backupTime } from './format.ts';
 import { photos } from './photos.ts';
 
@@ -89,6 +95,10 @@ export interface SessionState {
   passwordPrompt: PasswordPrompt | null;
   /** A YNAB export read and waiting for its account types to be checked (S8.5). */
   importTypes: { planName: string; accounts: readonly InferredAccount[] } | null;
+  /** Whether SimpleFIN is linked on this PC (S8.6); null until asked. */
+  bank: BankStatus | null;
+  /** A bank sync is running. */
+  syncing: boolean;
 }
 
 export interface DamagedPlan {
@@ -130,7 +140,7 @@ export type NewPlanSettings = Omit<PlanSettings, 'createdAt' | 'firstMonth'>;
 
 
 class PlanSession {
-  private state: SessionState = { recent: [], open: null, busy: null, toast: null, damaged: null, passwordPrompt: null, importTypes: null };
+  private state: SessionState = { recent: [], open: null, busy: null, toast: null, damaged: null, passwordPrompt: null, importTypes: null, bank: null, syncing: false };
   private pendingImport: { csv: { planCsv: string; registerCsv: string }; planName: string; today: ISODate } | null = null;
   private readonly listeners = new Set<() => void>();
   private readonly sessionId = newId();
@@ -139,6 +149,12 @@ class PlanSession {
   private toastId = 0;
   /** The day due schedules were last entered (§5.11); a new day enters the next ones. */
   private dueCheckedOn: ISODate | null = null;
+  /** The next automatic bank sync (S8.6). */
+  private bankTimer: number | null = null;
+  /** When this run last asked SimpleFIN (ms), so reopening a plan doesn't ask again at once. */
+  private lastBankCheck: number | null = null;
+  /** SimpleFIN's accounts, for choosing a link; asked once per run. */
+  private bankAccountList: SimplefinAccount[] | null = null;
 
   subscribe = (listener: () => void): (() => void) => {
     this.listeners.add(listener);
@@ -221,6 +237,7 @@ class PlanSession {
     photos.refresh().catch(() => undefined);
     if (info.migratedFrom !== null) this.notify(`Updated the file from version ${String(info.migratedFrom)}. A copy of the old file was kept.`);
     this.enterDue();
+    this.startBankSync();
   }
 
   /**
@@ -400,6 +417,7 @@ class PlanSession {
       return Promise.resolve();
     }
     return this.task('Closing…', async () => {
+      this.stopBankSync();
       await this.writes;
       await planIpc.close();
       photos.clear();
@@ -480,6 +498,102 @@ class PlanSession {
   async removeRecent(path: string): Promise<void> {
     await planIpc.removeRecent(path);
     await this.refreshRecent();
+  }
+
+  // ---- bank sync (S8.6, ADR 0006) ----------------------------------------------------------------
+
+  /** Whether SimpleFIN is linked on this PC. Reads Credential Manager; never goes online. */
+  async refreshBankStatus(): Promise<BankStatus | null> {
+    if (!isTauri()) return null;
+    try {
+      const status = await bankIpc.status();
+      this.set({ bank: status });
+      return status;
+    } catch {
+      return null;
+    }
+  }
+
+  /** Claim a SimpleFIN setup token. Errors go to the caller (Preferences shows them). */
+  async linkBank(token: string, remember: boolean): Promise<void> {
+    const status = await bankIpc.link(token, remember);
+    this.bankAccountList = null;
+    this.set({ bank: status });
+  }
+
+  async unlinkBank(): Promise<void> {
+    const status = await bankIpc.unlink();
+    this.bankAccountList = null;
+    this.set({ bank: status });
+  }
+
+  /** SimpleFIN's accounts and balances, for Edit Account's choice (asked once per run unless `refresh`). */
+  async bankAccounts(refresh = false): Promise<SimplefinAccount[]> {
+    if (this.bankAccountList && !refresh) return this.bankAccountList;
+    const answer = readSimplefin(await bankIpc.fetch(null, null, true));
+    if (answer.messages.length > 0) this.notify(`SimpleFIN: ${answer.messages.join(' ')}`, 'error');
+    this.bankAccountList = answer.accounts;
+    return answer.accounts;
+  }
+
+  /** On open: sync if the last one is over an hour old, then about every 6 hours while open. */
+  private startBankSync(): void {
+    this.stopBankSync();
+    if (this.state.open?.inMemory === true) return;
+    void this.refreshBankStatus().then((status) => {
+      const open = this.state.open;
+      if (status?.linked === true && open && dueOnOpen(open.plan, Date.now(), this.lastBankCheck)) void this.syncBanks(false);
+    });
+    const next = (): void => {
+      this.bankTimer = window.setTimeout(() => {
+        void this.syncBanks(false).finally(next);
+      }, nextDelay(Math.random()));
+    };
+    next();
+  }
+
+  private stopBankSync(): void {
+    if (this.bankTimer !== null) window.clearTimeout(this.bankTimer);
+    this.bankTimer = null;
+  }
+
+  /**
+   * Bring in new transactions for every linked account (Sync Now, and automatically). New ones
+   * arrive unapproved, as one undo step; a sync with nothing new changes nothing. `manual` reports
+   * "nothing new" and setup problems; problems SimpleFIN reports are always shown.
+   */
+  async syncBanks(manual: boolean): Promise<void> {
+    const open = this.state.open;
+    if (!open || open.inMemory === true || this.state.syncing) return;
+    if (linkedAccounts(open.plan).length === 0) {
+      if (manual) this.notify('No account is linked to the bank yet. Link one in Edit Account.');
+      return;
+    }
+    const status = this.state.bank ?? (await this.refreshBankStatus());
+    if (status?.linked !== true) {
+      if (manual) this.notify('SimpleFIN isn’t linked on this PC. Link it in Preferences, under Bank sync.', 'error');
+      return;
+    }
+    this.set({ syncing: true });
+    try {
+      const answers = [];
+      for (const w of fetchWindows(open.plan, Date.now())) answers.push(readSimplefin(await bankIpc.fetch(w.start, w.end, false)));
+      this.lastBankCheck = Date.now();
+      // Edits made while SimpleFIN answered are kept: the import runs on the plan as it is now.
+      const now = this.state.open;
+      if (now?.info.path !== open.info.path) return;
+      const { command, report } = syncBankAccounts(now.plan, context(), { answer: mergeSimplefin(answers), dateOf: localDate });
+      if (command) this.commit(historyDo(now.history, now.plan, command.changes, command.label));
+      const counts = report.accounts.reduce((s, r) => ({ imported: s.imported + r.imported, matched: s.matched + r.matched }), { imported: 0, matched: 0 });
+      const summary = syncSummary(counts, manual);
+      if (report.messages.length > 0) this.notify([summary, ...report.messages].filter((m) => m !== null).join(' '), 'error');
+      else if (summary !== null) this.notify(summary);
+    } catch (e) {
+      this.lastBankCheck = Date.now();
+      this.notify(`Bank sync: ${errorMessage(e)}`, 'error');
+    } finally {
+      this.set({ syncing: false });
+    }
   }
 
   // ---- commands and undo -------------------------------------------------------------------------

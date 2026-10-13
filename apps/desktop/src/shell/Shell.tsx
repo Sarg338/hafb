@@ -6,6 +6,7 @@ import { getCurrentWebview } from '@tauri-apps/api/webview';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import type { Month } from '@hafb/shared';
 import { minor } from '@hafb/shared';
+import { parseBankAmount } from '@hafb/engine';
 import {
   adjustBalance,
   applyChanges,
@@ -16,6 +17,7 @@ import {
   editAccount,
   editPlanSettings,
   importTemplate,
+  linkBankAccount,
   setTargets,
   TEMPLATES,
   mergeChangeSets,
@@ -29,7 +31,7 @@ import {
 import type { Actions, Screen } from '../design/DesignApp.tsx';
 import { ReflectScreen } from '../screens/reflect/ReflectScreen.tsx';
 import { reportTab } from '../screens/reflect/reflectModel.ts';
-import { AddAccountDialog, EditAccountDialog, type AccountEdits } from '../screens/accounts/AccountDialogs.tsx';
+import { AddAccountDialog, EditAccountDialog, type AccountBankControls, type AccountEdits } from '../screens/accounts/AccountDialogs.tsx';
 import { RegisterScreen } from '../screens/accounts/RegisterScreen.tsx';
 import { ManagePayeesDialog } from '../screens/payees/ManagePayees.tsx';
 import { stepAccount } from '../screens/accounts/accountsModel.ts';
@@ -271,6 +273,7 @@ function PlanFrame({ open, system, recent }: { open: OpenPlan; /** A Windows-col
   const [titlebarMode, setTitlebarMode] = useState<TitlebarMode>('custom');
   const content = useRef<HTMLDivElement>(null);
   const path = open.info.path;
+  const { bank, syncing } = useSyncExternalStore(session.subscribe, session.getState);
   useReadyMark(open.timings);
 
   // Reopen where the user left off in this plan, then remember every move.
@@ -377,9 +380,28 @@ function PlanFrame({ open, system, recent }: { open: OpenPlan; /** A Windows-col
       const e = editAccount(pl, ctx, { accountId: id, name: edits.name, note: edits.note.trim() === '' ? null : edits.note, ...(edits.loan === undefined ? {} : { loan: edits.loan }) });
       const next = applyChanges(pl, e.changes).plan;
       const b = adjustBalance(next, ctx, { accountId: id, workingBalance: edits.workingBalance });
-      return { label: `Edit account: ${accountName(id)}`, changes: mergeChangeSets(e.changes, b.changes) };
+      const link = edits.bankLink === undefined ? null : linkBankAccount(applyChanges(next, b.changes).plan, ctx, { accountId: id, link: edits.bankLink });
+      return { label: `Edit account: ${accountName(id)}`, changes: mergeChangeSets(e.changes, b.changes, ...(link ? [link.changes] : [])) };
     });
+    // A new link brings its transactions in now rather than at the next automatic sync.
+    if (edits.bankLink) void session.syncBanks(false);
   };
+  // Edit Account's bank sync field (S8.6); the installed app only.
+  const accountBank = (accountId: string): AccountBankControls | undefined =>
+    isTauri()
+      ? {
+          linked: bank?.linked === true,
+          list: () => session.bankAccounts(),
+          taken: new Set(open.plan.accounts.flatMap((a) => (a.id !== accountId && a.deletedAt === undefined && a.bankLink ? [a.bankLink.id] : []))),
+          balanceText: (decimal) => {
+            try {
+              return money(parseBankAmount(decimal, '.', open.plan.settings.currencyDecimals));
+            } catch {
+              return decimal;
+            }
+          },
+        }
+      : undefined;
   const accountActionRef = useRef(onAccountAction);
   useEffect(() => {
     accountActionRef.current = onAccountAction;
@@ -555,6 +577,7 @@ function PlanFrame({ open, system, recent }: { open: OpenPlan; /** A Windows-col
             actions={actions}
             history={history}
             {...(route.tx === undefined ? {} : { focusTransactionId: route.tx })}
+            {...(isTauri() ? { bankSync: { syncing, run: syncNow } } : {})}
           />
         ) : (
           <PlanScreen
@@ -695,6 +718,7 @@ function PlanFrame({ open, system, recent }: { open: OpenPlan; /** A Windows-col
           planPath={path}
           accounts={open.plan.accounts}
           {...(FOLDER_CONTROLS ? { folders: FOLDER_CONTROLS } : {})}
+          {...(isTauri() ? { bank: { status: bank, link: (token: string, remember: boolean) => session.linkBank(token, remember), unlink: () => session.unlinkBank() } } : {})}
           onClose={() => {
             setDialog(null);
           }}
@@ -760,6 +784,7 @@ function PlanFrame({ open, system, recent }: { open: OpenPlan; /** A Windows-col
               onReopen={() => {
                 session.run((pl, ctx) => reopenAccount(pl, ctx, { accountId: account.id }), { announce: `Reopened “${account.name}”.` });
               }}
+              bank={accountBank(account.id)}
             />
           );
         })()}
@@ -780,6 +805,9 @@ function PlanFrame({ open, system, recent }: { open: OpenPlan; /** A Windows-col
 }
 
 const loadBackups = () => session.listBackups();
+const syncNow = (): void => {
+  void session.syncBanks(true);
+};
 
 /** The password dialog's link to the open plan (S8.3b). */
 const passwordControls: PasswordControls = {

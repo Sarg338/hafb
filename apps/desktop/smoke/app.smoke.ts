@@ -2495,3 +2495,94 @@ void describe('parity audit (S8.5)', () => {
     await app.close();
   });
 });
+
+// ---- S8.6: optional bank sync through SimpleFIN Bridge (ADR 0006) ---------------------------------
+// HAFB_SIMPLEFIN_FIXTURE stands in for SimpleFIN: the link is accepted without going online (its
+// own Credential Manager name, never the real one) and every fetch returns the saved answer.
+const SIMPLEFIN_DEMO_TOKEN = 'aHR0cHM6Ly9iZXRhLWJyaWRnZS5zaW1wbGVmaW4ub3JnL3NpbXBsZWZpbi9jbGFpbS9ERU1PLXYyLTkzN0UyOTA2NzRGNDAyOUI3RTJD';
+
+void describe('bank sync (S8.6)', () => {
+  let box: Sandbox;
+  const running: App[] = [];
+  const plan: PlanData = { ...buildSamplePlan().plan, scheduled: [] };
+  const fixture = (): string => join(box.root, 'simplefin.json');
+  const open = async (): Promise<App> => {
+    const a = await launch(box, ['--open', box.planPath], { HAFB_SIMPLEFIN_FIXTURE: fixture() });
+    running.push(a);
+    await a.page.getByRole('navigation', { name: 'Plan navigation' }).waitFor();
+    return a;
+  };
+  before(() => {
+    box = makeSandbox(plan);
+    const now = Math.floor(Date.now() / 1000);
+    const tx = (id: string, daysAgo: number, amount: string, description: string, pending = false) => ({ id, posted: pending ? 0 : now - daysAgo * 86_400, amount, description, ...(pending ? { pending: true } : {}) });
+    writeFileSync(
+      fixture(),
+      JSON.stringify({
+        errlist: [],
+        connections: [{ conn_id: 'CON-FX', name: 'Fixture', org_id: 'fixture', org_name: 'Fixture Bank', sfin_url: 'https://simplefin.invalid/simplefin' }],
+        accounts: [
+          {
+            id: 'FX-CHK',
+            name: 'Checking',
+            conn_id: 'CON-FX',
+            currency: 'USD',
+            balance: '1234.56',
+            'balance-date': now,
+            transactions: [tx('T1', 3, '-23.40', 'Corner Bakery'), tx('T2', 2, '1500.00', 'Fixture Payroll'), tx('T3', 0, '-4.75', 'Pending Coffee', true)],
+          },
+        ],
+      }),
+    );
+  });
+  after(async () => {
+    for (const a of running) await a.close().catch(() => undefined);
+    box.cleanup();
+  });
+  const sidebar = (page: Page) => page.getByRole('navigation', { name: 'Plan navigation' });
+  /** Info toasts are status messages; error toasts are alerts. */
+  const toast = (page: Page, text: RegExp) => page.locator('[role=status], [role=alert]', { hasText: text }).first();
+  const rowTexts = async (page: Page): Promise<string[]> => (await page.locator('[role=treegrid], [role=grid]').first().locator('[role=row]').allInnerTexts()).map(norm);
+
+  void test('link SimpleFIN for this run, link an account, sync once and never twice; the PC forgets the link at quit', { timeout: 300_000 }, async () => {
+    const app = await open();
+    const { page } = app;
+    await sidebar(page).getByText('Everyday Checking').first().click();
+    assert.equal(await page.getByRole('button', { name: 'Sync Now' }).count(), 0, 'no Sync Now before an account is linked');
+
+    await sidebar(page).locator('button').first().click();
+    await page.getByRole('menuitem', { name: 'Preferences…' }).click();
+    const prefs = page.getByRole('dialog', { name: 'Preferences' });
+    await prefs.getByRole('textbox', { name: 'SimpleFIN setup token' }).fill(SIMPLEFIN_DEMO_TOKEN);
+    await prefs.getByRole('checkbox', { name: 'Remember on this PC' }).uncheck();
+    await prefs.getByRole('button', { name: 'Link', exact: true }).click();
+    await prefs.getByText(/^Linked\. Now open Edit Account/).waitFor();
+    await prefs.getByText('Linked to SimpleFIN until HAFB closes.').waitFor();
+    await prefs.getByRole('button', { name: 'Done' }).click();
+
+    await page.getByRole('button', { name: 'Edit Everyday Checking' }).click();
+    const edit = page.getByRole('dialog', { name: 'Edit Account' });
+    await edit.getByRole('button', { name: 'Link to a bank account…' }).click();
+    await edit.getByRole('combobox', { name: 'Bank account to sync from' }).click();
+    await page.getByRole('option', { name: /Fixture Bank · Checking/ }).click();
+    await edit.getByRole('button', { name: 'Save' }).click();
+    await toast(page, /From the bank: 2 new transactions to approve/).waitFor();
+    const rows = await rowTexts(page);
+    assert.ok(rows.some((t) => t.includes('Corner Bakery') && t.includes('$23.40')), 'the purchase came in');
+    assert.ok(rows.some((t) => t.includes('Fixture Payroll') && t.includes('Ready to Assign')), 'the inflow goes to Ready to Assign');
+    assert.ok(!rows.some((t) => t.includes('Pending Coffee')), 'pending transactions stay out');
+
+    await page.getByRole('button', { name: 'Sync Now' }).click();
+    await toast(page, /Up to date: nothing new from the bank/).waitFor();
+    await app.close();
+
+    // The link to the SimpleFIN account is in the plan; SimpleFIN itself was linked for that run only.
+    const again = await open();
+    await sidebar(again.page).getByText('Everyday Checking').first().click();
+    await again.page.getByRole('button', { name: 'Sync Now' }).click();
+    await toast(again.page, /SimpleFIN isn’t linked on this PC/).waitFor();
+    const later = await rowTexts(again.page);
+    assert.equal(later.filter((t) => t.includes('Corner Bakery')).length, 1, 'imported once');
+    await again.close();
+  });
+});

@@ -8,6 +8,7 @@ import { CREDIT_CARD_INTEREST, READY_TO_ASSIGN, ValidationError, type AccountTyp
 import { isISODate, isMonth, minor, type ISODate, type Minor, type Month } from '@hafb/shared';
 import type {
   AccountRecord,
+  BankLink,
   BuiltinFocusedView,
   CategoryGroupRecord,
   CategoryRecord,
@@ -353,6 +354,9 @@ function encodeAccount(a: AccountRecord): Row {
     original_principal: n(loan.originalPrincipal),
     paired_category_id: n(loan.pairedCategoryId),
     loan_charges_from: n(loan.chargesFrom),
+    bank_sync_id: n(a.bankLink?.id),
+    bank_sync_name: n(a.bankLink?.name),
+    bank_synced_at: n(a.bankLink?.syncedAt),
     created_at: a.createdAt,
     deleted_at: n(a.deletedAt),
   };
@@ -378,6 +382,10 @@ function decodeAccount(r: Reader): AccountRecord {
   const note = r.optStr('note');
   const lastReconciledAt = r.optStr('last_reconciled_at');
   const deletedAt = r.optStr('deleted_at');
+  const bankSyncId = r.optStr('bank_sync_id');
+  const bankSyncedAt = r.optStr('bank_synced_at');
+  const bankLink: BankLink | undefined =
+    bankSyncId === undefined ? undefined : { id: bankSyncId, name: r.optStr('bank_sync_name') ?? bankSyncId, ...(bankSyncedAt === undefined ? {} : { syncedAt: bankSyncedAt }) };
   return {
     id: r.str('id'),
     name: r.str('name'),
@@ -389,6 +397,7 @@ function decodeAccount(r: Reader): AccountRecord {
     sortOrder: r.int('sort_order'),
     ...(lastReconciledAt === undefined ? {} : { lastReconciledAt }),
     ...(Object.keys(loan).length === 0 ? {} : { loan }),
+    ...(bankLink === undefined ? {} : { bankLink }),
     createdAt: r.str('created_at'),
     ...(deletedAt === undefined ? {} : { deletedAt }),
   };

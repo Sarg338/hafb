@@ -21,7 +21,17 @@ export function samplePlan(): PlanData {
       createdAt: T0,
     },
     accounts: [
-      { id: 'a-chk', name: 'Checking', type: 'checking', onBudget: true, sortOrder: 0, starred: true, note: 'main', createdAt: T0 },
+      {
+        id: 'a-chk',
+        name: 'Checking',
+        type: 'checking',
+        onBudget: true,
+        sortOrder: 0,
+        starred: true,
+        note: 'main',
+        bankLink: { id: 'ACT-1', name: 'Regions Bank · Checking', syncedAt: T0 },
+        createdAt: T0,
+      },
       { id: 'a-cc', name: 'Visa', type: 'creditCard', onBudget: true, sortOrder: 1, lastReconciledAt: T0, createdAt: T0 },
       {
         id: 'a-home',
