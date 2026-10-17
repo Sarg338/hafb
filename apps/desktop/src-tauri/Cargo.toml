@@ -1,6 +1,6 @@
 [package]
 name = "hafb"
-version = "0.9.0"
+version = "0.9.1"
 description = "HAFB - Here's A Free Budget"
 license = "MIT"
 edition = "2024"

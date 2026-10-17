@@ -2,6 +2,10 @@
 
 HAFB's releases, newest first. Versions follow `MAJOR.MINOR.PATCH`; betas are 0.9.x, and 1.0.0 is the first stable release. How to install, upgrade and check a download: [docs/install.md](docs/install.md).
 
+## 0.9.1 (beta 2), 2026-10
+
+- A new welcome screen. The ways in (import from YNAB, start a new plan, open a plan) and your recent plans are on the left. On the right is an example month of the Plan screen, with a note on what its colours mean. It used to sit in a narrow column at the left of the window.
+
 ## 0.9.0 (beta 1), 2026-10
 
 The first beta. It has YNAB's web app in full, except what needs YNAB's servers. Testers, start with [docs/beta.md](docs/beta.md).

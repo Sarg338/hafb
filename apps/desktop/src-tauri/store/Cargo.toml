@@ -1,6 +1,6 @@
 [package]
 name = "hafb-store"
-version = "0.9.0"
+version = "0.9.1"
 description = "HAFB plan files: migrations, generic row load/apply, backups (ADR 0002). No Tauri, no network."
 license = "MIT"
 edition = "2024"
