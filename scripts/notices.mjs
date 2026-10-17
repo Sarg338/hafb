@@ -1,6 +1,8 @@
 // Writes THIRD-PARTY-NOTICES.txt (S8.4): every third-party component built into the app, with its
 // license text. Run by `pnpm build` (and `pnpm notices`); the file is committed, so a dependency
-// change shows up in review. Reads Cargo's metadata and node_modules only: no network access.
+// change shows up in review. Reads Cargo's metadata and node_modules only. On a fresh machine Cargo
+// downloads the locked sources of crates only the other target uses (crates.io, checksums from
+// Cargo.lock); nothing else goes over the network.
 //
 // - Rust: crates the app links (normal dependencies of `hafb`, for x64 and ARM64 Windows).
 // - C code those crates compile in: SQLCipher/SQLite, OpenSSL's crypto, Microsoft's WebView2 loader.
@@ -153,7 +155,7 @@ function cargoComponents() {
   const everything = new Map();
   for (const target of TARGETS) {
     const meta = JSON.parse(
-      execFileSync('cargo', ['metadata', '--format-version', '1', '--manifest-path', manifest, '--filter-platform', target, '--locked', '--offline'], { encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 }),
+      execFileSync('cargo', ['metadata', '--format-version', '1', '--manifest-path', manifest, '--filter-platform', target, '--locked'], { encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 }),
     );
     const packages = new Map(meta.packages.map((p) => [p.id, p]));
     for (const p of meta.packages) everything.set(p.name, { name: p.name, version: p.version, dir: dirname(p.manifest_path) });
