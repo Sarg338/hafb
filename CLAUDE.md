@@ -439,6 +439,9 @@ Mark phase status here when it changes:
   - Public release 2026-10-17: the repo is public at `github.com/Sarg338/hafb`, with history authored as Sarg338 (GitHub noreply address).
     - CI builds every push.
     - **v0.9.0 (beta 1)** was built by CI from its tag and published as a pre-release (unsigned; checksums verified, and the portable build launched).
+    - **v0.9.1 (beta 2)**, 2026-10-17: the new welcome screen (DESIGN.md "Welcome", picked by Sarg from three mockups).
+      - 58/58 smoke tests passed.
+      - The CI MSI installed over 0.9.0 on Sarg's PC with every data file byte-identical. It is still unsigned.
     - Sarg applied to SignPath Foundation 2026-10-17 (build system: GitHub Actions). Still needed: their approval, then the `SIGNPATH_*` repository variables and secret, then a signed release.
 
 ---
