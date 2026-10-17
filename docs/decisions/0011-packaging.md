@@ -21,7 +21,7 @@
   - Shipped beside the exe in the MSI and the zip, and in the app: *Help → About HAFB → Show third-party licenses* (loaded on demand as a separate chunk).
 - **HAFB's own license:** `LICENSE` (MIT, "HAFB contributors") added at the repo root; it was claimed in README and Cargo.toml but missing.
 - **ARM64 (nice-to-have):** `pnpm build:arm64` cross-compiles on an x64 PC (`--target aarch64-pc-windows-msvc`), OpenSSL included. It needs the Rust target and Visual Studio's *MSVC ARM64 build tools* component (README). The pinned upgrade code covers both architectures.
-- **Unsigned builds:** SmartScreen behavior and how to get past it are documented in `docs/install.md`; signing stays out of scope (CLAUDE.md §2).
+- **Unsigned builds:** SmartScreen behavior and how to get past it are documented in `docs/install.md`. *Updated 2026-10-17:* releases are built by GitHub Actions and signed through SignPath Foundation's free open-source program once it's approved (README, *Code signing policy*).
 
 ## Consequences
 

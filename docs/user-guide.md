@@ -3,7 +3,7 @@
 HAFB (Here's A Free Budget) is an envelope budget for Windows. You give every dollar you have a job, plan with money you have rather than money you expect, and watch where it goes. It works like YNAB and uses YNAB's words: *Plan*, *Ready to Assign*, *Assigned*, *Activity*, *Available*, *Targets*, *Reflect*. It is free, has no account or subscription, and never connects to the internet.
 
 - Installing, upgrading, uninstalling and the portable version: [install.md](install.md).
-- Coming from YNAB: [migrating-from-ynab.md](migrating-from-ynab.md).
+- Coming from YNAB: [migrating.md](migrating.md).
 - Every keyboard shortcut: [shortcuts.md](shortcuts.md). In the app, press `?` or F1.
 - What HAFB does and doesn't do with your data: [privacy.md](privacy.md).
 
@@ -38,7 +38,7 @@ A plan is one file on your PC (`.hafb`). You choose where it lives: Documents, a
 
 The first time HAFB starts you see **Welcome to HAFB**:
 
-- **Import YNAB export (.zip)…** brings a YNAB plan across ([migrating-from-ynab.md](migrating-from-ynab.md)).
+- **Import YNAB export (.zip)…** brings a YNAB plan across ([migrating.md](migrating.md)).
 - **Open plan…** opens a `.hafb` file. With the installed version you can also double-click one.
 - **Start a new plan…** asks for a **Plan Name**, the **Currency** (with its **Currency Placement**), the **Number Format** and the **Date Format**, then whether to **Start with** **A blank plan** or **A template** (a ready-made set of categories). **Create Plan** then asks where to save the file.
 - **Recent plans** lists what you opened before.

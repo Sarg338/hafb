@@ -34,7 +34,11 @@ This file is the durable source of truth for the project. Read it fully before d
 - **Storage:** SQLite via `tauri-plugin-sql` (sqlx under the hood) **or** `rusqlite` behind Tauri commands. Spike decides. WAL mode. Migrations via numbered SQL files, applied on open, never edited after shipping.
 - **Budget engine:** Pure TypeScript package (`packages/engine`), zero dependencies on Tauri/DOM. It takes a snapshot of data in, returns computed budget state out. This is what gets tested exhaustively, and it is what makes a future Android/web port possible.
 - **Tests:** Vitest for engine + UI logic. A Playwright smoke suite drives the real release app over WebView2's DevTools port (`playwright-core`, ADR 0005; `pnpm smoke`). Rust: `cargo test` for commands.
-- **Packaging:** Tauri bundler → `.msi` and a portable zip (`HAFB.exe` beside a `HAFB Data` folder, which keeps its data there). The MSI's upgrade code is pinned in `tauri.conf.json` and must never change; downgrades are refused; uninstalling keeps the user's data. The version lives in Cargo.toml (`pnpm version:set`). `THIRD-PARTY-NOTICES.txt` is generated on every build (`docs/install.md`, S8.4). Code signing is out of scope for now.
+- **Packaging:** Tauri bundler → `.msi` and a portable zip (`HAFB.exe` beside a `HAFB Data` folder, which keeps its data there). The MSI's upgrade code is pinned in `tauri.conf.json` and must never change; downgrades are refused; uninstalling keeps the user's data. The version lives in Cargo.toml (`pnpm version:set`). `THIRD-PARTY-NOTICES.txt` is generated on every build (`docs/install.md`, S8.4).
+- **CI and releases:** GitHub Actions (`.github/workflows/ci.yml`, public repo `Sarg338/hafb`) lints, tests and builds every push. A version tag also drafts a GitHub release with the installers.
+  - Code signing goes through SignPath Foundation's free open-source program. The workflow signs a tagged build once the repository variables `SIGNPATH_*` and the secret `SIGNPATH_API_TOKEN` exist; the artifact configuration is in `.github/signpath/`.
+  - The code signing policy SignPath requires is in the README. Actions are pinned to full commits, each at least two weeks old when picked.
+  - The README never names YNAB; it says "popular paid budgeting apps" (Sarg, 2026-10-17).
 
 **Rejected alternatives (and why):**
 - Electron — 150 MB+ install, bundled Chromium, feels non-native. Only reconsider if WebView2 proves incapable.
@@ -420,7 +424,7 @@ Mark phase status here when it changes:
   - S8.3b optional plan passwords done in code 2026-10-10 (ADR 0010). Plans are locked with SQLCipher 4 from a new Password section in Plan Settings. Backups follow the password when it changes, restore keeps it, and "Remember on this PC" uses Credential Manager. Tests cover a process killed mid-change, and DB Browser for SQLCipher opens a locked plan. Building now needs Strawberry Perl (README).
   - S8.4 packaging done in code 2026-10-11 (ADR 0011, `docs/install.md`). Version 0.9.0. The MSI has a pinned upgrade code, refuses downgrades and opens `.hafb` files. The portable zip keeps its data in `HAFB Data`. License notices ship with the app and show in Help → About HAFB. Tested by installing 0.0.1, then 0.9.0 and 0.9.1 over it, a refused downgrade, uninstall and reinstall: every data file was byte-identical throughout. ARM64 builds but hasn't been run on ARM hardware.
   - S8.5 docs and the parity audit done in code 2026-10-12:
-    - Guides: `docs/user-guide.md`, `docs/migrating-from-ynab.md` and `docs/beta.md`, plus `CHANGELOG.md`. A test keeps the guides' quoted labels real.
+    - Guides: `docs/user-guide.md`, `docs/migrating.md` and `docs/beta.md`, plus `CHANGELOG.md`. A test keeps the guides' quoted labels real.
     - The final audit is in `docs/parity-audit.md`. It found seven gaps, now built: card payment targets, progress-bar sections, search suggestions, Show Images, learned renaming and Don't rename, and the YNAB import's account-type step (migration 0007). Only S8.6's two rows are open.
     - Still needed: the beta itself, which needs Sarg to find YNAB users.
   - S8.6 optional bank sync done in code 2026-10-12 (ADR 0006 "As built", roadmap notes):

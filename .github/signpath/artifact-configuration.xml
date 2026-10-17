@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  SignPath artifact configuration for HAFB releases (paste into the SignPath project).
+  The CI workflow uploads one artifact holding the MSI installer and the portable zip.
+  Signs hafb.exe inside the MSI, then the MSI itself, and HAFB.exe inside the portable zip.
+-->
+<artifact-configuration xmlns="http://signpath.io/artifact-configuration/v1">
+  <zip-file>
+    <msi-file path="HAFB_*_x64_en-US.msi">
+      <pe-file path="**/hafb.exe">
+        <authenticode-sign/>
+      </pe-file>
+      <authenticode-sign/>
+    </msi-file>
+    <zip-file path="HAFB_*_x64_portable.zip">
+      <pe-file path="HAFB/HAFB.exe">
+        <authenticode-sign/>
+      </pe-file>
+    </zip-file>
+  </zip-file>
+</artifact-configuration>

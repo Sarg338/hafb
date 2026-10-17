@@ -26,7 +26,7 @@ Thank you for trying HAFB before its 1.0 release. HAFB is a free, local-only env
 
 Pick whatever matches how you use YNAB. Each item has the guide section that explains it.
 
-1. **Bring your plan across** ([migrating-from-ynab.md](migrating-from-ynab.md)). Export from YNAB, import into HAFB, check the account types, then compare Ready to Assign, your categories' Available amounts and your account balances with YNAB for this month. *They should match to the cent; if one doesn't, that's the most useful thing you can report.*
+1. **Bring your plan across** ([migrating.md](migrating.md)). Export from YNAB, import into HAFB, check the account types, then compare Ready to Assign, your categories' Available amounts and your account balances with YNAB for this month. *They should match to the cent; if one doesn't, that's the most useful thing you can report.*
 2. **A week of normal use.** Enter or import your transactions in HAFB as well as YNAB, assign money, move money, cover overspending. Compare at the end of the week.
 3. **Credit cards.** Spend on a card, pay it, overspend on it once on purpose, and check the payment category against YNAB.
 4. **Targets.** Re-enter a few targets (**Add targets…** after the import, or **Create Target** on a category) and compare what YNAB and HAFB say you need this month.

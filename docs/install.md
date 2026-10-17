@@ -14,9 +14,11 @@ HAFB comes in two forms. Both are the same app.
 
 Plans are files you keep wherever you choose. Neither form puts them anywhere on its own.
 
+**Where to get it:** the [Releases](https://github.com/Sarg338/hafb/releases) page. Each release is built from its version tag by the repository's GitHub Actions workflow (`.github/workflows/ci.yml`).
+
 ## "Windows protected your PC" (SmartScreen)
 
-HAFB's downloads aren't code-signed yet. Signing needs a paid certificate renewed every year, and is out of scope for now (CLAUDE.md §2). Windows warns about unsigned programs it hasn't seen often:
+HAFB's downloads aren't code-signed yet. Signing is being set up through SignPath Foundation's free program for open-source projects (README, *Code signing policy*). A signed download names *SignPath Foundation* as its publisher instead of *Unknown publisher*, but Windows may still warn about a new release until enough people have downloaded it. Until then, Windows warns about unsigned programs it hasn't seen often:
 
 - **Browser:** Edge may say the file "isn't commonly downloaded". Open the downloads list (Ctrl+J), choose the file's **…** menu, then **Keep**. If Edge asks again, choose **Show more**, then **Keep anyway**.
 - **First run:** a blue window says *Microsoft Defender SmartScreen prevented an unrecognized app from starting*. Choose **More info**, check that the app is **HAFB.exe** or the HAFB `.msi`, then **Run anyway**. The publisher shows as *Unknown publisher*.
@@ -24,7 +26,7 @@ HAFB's downloads aren't code-signed yet. Signing needs a paid certificate renewe
   - The portable zip carries the download's *Mark of the Web*, so HAFB.exe asks on its first run. To avoid that, right-click the zip, choose **Properties**, tick **Unblock**, then unzip it.
 - **Checking a download:** each release comes with `SHA256SUMS_<version>_<arch>.txt`, listing its files' SHA-256. In PowerShell, `Get-FileHash .\HAFB_0.9.0_x64_en-US.msi` should print the same value.
 
-SmartScreen asks only because the file is unsigned and new. HAFB has no network code at all (`docs/privacy.md`).
+SmartScreen asks only because the file is unsigned and new. HAFB makes no network connections unless you link optional bank sync, and then only to SimpleFIN (`docs/privacy.md`).
 
 ## Upgrading
 
@@ -41,11 +43,12 @@ For the portable version, replace `HAFB.exe` and keep the `HAFB Data` folder.
 
 - your plans, wherever you saved them;
 - `%LOCALAPPDATA%\app.hafb.desktop`: backups, the recent plans list, settings, window position and the app's WebView2 profile;
-- passwords saved with *Remember on this PC*: in *Control Panel → Credential Manager → Windows Credentials*, named `HAFB plan password: <plan path>`.
+- passwords saved with *Remember on this PC*: in *Control Panel → Credential Manager → Windows Credentials*, named `HAFB plan password: <plan path>`;
+- a remembered bank sync link, named `HAFB SimpleFIN access` in the same place (Preferences → Bank sync → Unlink removes it).
 
 To remove everything, delete that folder and those credentials too.
 
-The portable version has no uninstaller: delete its folder. It leaves nothing elsewhere on the PC except remembered passwords, which are in Credential Manager as above.
+The portable version has no uninstaller: delete its folder. It leaves nothing elsewhere on the PC except remembered passwords and the bank sync link, which are in Credential Manager as above.
 
 ## Portable mode
 

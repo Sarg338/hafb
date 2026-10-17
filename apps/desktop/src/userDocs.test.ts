@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const ROOT = join(import.meta.dirname, '..', '..', '..');
-const GUIDES = ['docs/user-guide.md', 'docs/migrating-from-ynab.md'];
+const GUIDES = ['docs/user-guide.md', 'docs/migrating.md'];
 /** YNAB's own labels, quoted in the migration guide. */
 const YNAB_LABELS = new Set(['Export Plan']);
 

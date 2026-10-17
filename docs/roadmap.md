@@ -264,7 +264,7 @@ The 2026-10-08 research (YNAB What's New and help center) found that CLAUDE.md w
   - Activity popover: a click or Enter on any Activity amount lists that month's transactions (split lines at their own amount). A payment category adds YNAB's summary: Spending, Returns, Total Spending | Funded Spending, Payments & Returns, Total Activity.
   - Inspector (the mockup's, until S5.1): a payment category shows Available for Payment (cash left over, assigned, funded spending, payments made) and Current Balance (prior, spending and outflows, payments and inflows).
   - Card register: "Overspending (Oct)" and "Payment" pills; **Record Payment** opens a new row pre-filled with min(Available, cleared debt).
-  - Verified: on the trial export, amex and visa match YNAB's popovers, pills and Record Payment amount to the cent (`smoke/trialCards.check.ts`). My first reading of "Payments & Returns" was wrong; YNAB's visa numbers corrected it.
+  - Verified: on the trial export, amex and visa match YNAB's popovers, pills and Record Payment amount to the cent (a one-off check on the local trial export). My first reading of "Payments & Returns" was wrong; YNAB's visa numbers corrected it.
   - Not yet: Credit Card Interest categorization (YNAB has not documented it and it isn't in the trial), and the payoff-target alert (T-12, with targets in S5.2).
   - Exit check: a smoke test in the release app ties the payment row, the Activity popover and the card pills together, then pays the card with Record Payment and sees the payment category drop by that amount.
 
@@ -497,7 +497,7 @@ Progress:
 - **S8.5 done in code (2026-10-12); the beta itself needs testers.**
   - **Guides:**
     - [user-guide.md](user-guide.md): every screen and task, in YNAB's words.
-    - [migrating-from-ynab.md](migrating-from-ynab.md): export, import, the account-type step, what comes across and what doesn't, checking it.
+    - [migrating.md](migrating.md): export, import, the account-type step, what comes across and what doesn't, checking it.
     - [shortcuts.md](shortcuts.md): unchanged, still generated from the shortcut list and tested.
     - Help adds a "Moving from YNAB" topic.
     - `userDocs.test.ts` fails if a bold label in the guides no longer exists in the app.
