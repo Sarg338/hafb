@@ -63,7 +63,12 @@ interface Observed {
 const plainName = (name: string) => name.replace(/^[^\p{L}\p{N}]+/u, '').trim();
 
 describe.skipIf(!present)('golden: Sarg’s YNAB trial plan (local only)', () => {
-  const obs = JSON.parse(readFileSync(join(dir, 'observed.json'), 'utf8')) as Observed;
+  // Vitest still collects a skipped suite, so don't read the missing files (a clean clone, CI).
+  if (!present) {
+    it('needs fixtures/local/ynab-trial', () => undefined);
+    return;
+  }
+  const obs =JSON.parse(readFileSync(join(dir, 'observed.json'), 'utf8')) as Observed;
   const files = present ? readdirSync(exportDir) : [];
   const read = (suffix: string) => readFileSync(join(exportDir, files.find((f) => f.endsWith(suffix)) ?? ''), 'utf8');
   const plan = present ? parseYnabPlan(read('Plan.csv')) : [];
