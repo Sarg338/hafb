@@ -1,4 +1,4 @@
-/* App shell (S3.3): sidebar + content, the welcome screen, and shell dialogs. Tokens only. */
+/* App shell (S3.3): sidebar + content and shell dialogs. Tokens only. The welcome screen is Welcome.module.css. */
 
 .shell {
   display: grid;
@@ -18,148 +18,6 @@
   place-items: center;
   height: 100%;
   color: var(--c-text-muted);
-}
-
-/* ---- welcome ------------------------------------------------------------------------------ */
-
-.welcome {
-  display: grid;
-  height: 100%;
-  overflow: auto;
-  place-items: start center;
-  padding: 48px 24px;
-}
-
-.welcomeInner {
-  display: grid;
-  gap: 20px;
-  width: min(560px, 100%);
-}
-
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-
-.bigMark {
-  display: grid;
-  flex: none;
-  place-items: center;
-  width: 48px;
-  height: 48px;
-  border-radius: var(--s-radius-large);
-  background: var(--c-accent);
-  color: var(--c-text-on-accent);
-  font-family: var(--t-font-display);
-  font-size: var(--t-size-heading);
-  font-weight: 700;
-  letter-spacing: var(--t-display-tracking);
-}
-
-.brand h1 {
-  margin: 0;
-  font-family: var(--t-font-display);
-  font-size: var(--t-size-title);
-  font-weight: var(--t-weight-semibold);
-  letter-spacing: var(--t-display-tracking);
-}
-
-.brand p {
-  margin: 2px 0 0;
-  color: var(--c-text-muted);
-}
-
-.card {
-  display: grid;
-  gap: 12px;
-  padding: 16px 18px;
-  border: var(--s-border-width) solid var(--c-border);
-  border-radius: var(--s-radius-large);
-  background: var(--c-raised);
-}
-
-.card h2 {
-  margin: 0;
-  font-size: var(--t-size-heading);
-  font-weight: var(--t-weight-semibold);
-}
-
-.lede {
-  margin: 0;
-  color: var(--c-text-muted);
-}
-
-.actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.recent {
-  display: grid;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.recent li {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  border-top: var(--s-border-width) solid var(--c-border);
-}
-
-.recent li:first-child {
-  border-top: 0;
-}
-
-.recentOpen {
-  display: grid;
-  flex: 1;
-  gap: 1px;
-  min-width: 0;
-  padding: 8px 6px;
-  border: 0;
-  border-radius: var(--s-radius);
-  background: transparent;
-  color: inherit;
-  text-align: left;
-}
-
-.recentOpen:hover:not(:disabled) {
-  background: var(--c-hover);
-}
-
-.recentOpen:disabled {
-  cursor: default;
-}
-
-.recentOpen strong {
-  font-weight: var(--t-weight-semibold);
-}
-
-.recentOpen span {
-  overflow: hidden;
-  color: var(--c-text-subtle);
-  font-size: var(--t-size-caption);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.missing strong {
-  color: var(--c-text-subtle);
-}
-
-.devLinks {
-  display: flex;
-  gap: 16px;
-  color: var(--c-text-subtle);
-  font-size: var(--t-size-caption);
-}
-
-.devLinks a {
-  color: var(--c-link);
 }
 
 /* ---- dialogs ------------------------------------------------------------------------------ */
@@ -270,12 +128,4 @@
 
 .spacer {
   flex: 1;
-}
-
-/* Windows contrast themes: the theme already paints these with Highlight / HighlightText; stop the
-   forced-colors override from blanking the text on the filled background (S7.4). */
-@media (forced-colors: active) {
-  .bigMark {
-    forced-color-adjust: none;
-  }
 }

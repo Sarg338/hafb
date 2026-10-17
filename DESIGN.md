@@ -527,6 +527,13 @@ Category names get the room. At 1100px and below, Reflect's Spending Breakdown s
    - Breakdown is a donut (340px max) beside a ranked list (34px rows, 48px gap).
    - Income v Expense is a sticky-first-column table at 30px rows with section, group, subtotal and a 2px-ruled Net Income row.
 
+**Welcome** (no plan open, 0.9.1):
+- Spans the window: a 460px `surface` panel on the left, with a hairline edge.
+  - The panel holds the app mark and title, then **Get started**: three command links (a 36px tinted icon square, title, and a muted line saying what it does; Import's square is filled `accent`).
+  - Then **Recent plans**, and three facts at the foot.
+- The rest, on `app`: an inert, aria-hidden example month built from the real Ready to Assign banner, pills and progress bars, with a caption explaining the colours.
+- Below 960px the picture is dropped and the panel is centred.
+
 **Spacing rhythm.** A 2px base with real steps of 2, 4, 6, 8, 10, 12, 14, 16, 20 and 24.
 - Horizontal gutters: 20px on headers, 14px on toolbars and grid cells (10px when narrow), 24px on Reflect.
 - Controls sit 2–8px apart. Cards are 12px apart.

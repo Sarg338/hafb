@@ -36,7 +36,7 @@ In this guide, **bold** words are the names of buttons, menus and fields exactly
 
 A plan is one file on your PC (`.hafb`). You choose where it lives: Documents, a USB stick, or a OneDrive or Syncthing folder if you want it on more than one PC. HAFB never moves, copies or uploads it. It is a standard SQLite file, so any SQLite tool can read it.
 
-The first time HAFB starts you see **Welcome to HAFB**:
+The first time HAFB starts you see **Welcome to HAFB**. On the right is an example month of the Plan screen, showing what its colours mean. On the left:
 
 - **Import YNAB export (.zip)…** brings a YNAB plan across ([migrating.md](migrating.md)).
 - **Open plan…** opens a `.hafb` file. With the installed version you can also double-click one.

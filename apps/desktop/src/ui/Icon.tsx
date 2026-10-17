@@ -54,6 +54,8 @@ import sync16 from '@fluentui/svg-icons/icons/arrow_sync_16_regular.svg?raw';
 import list16 from '@fluentui/svg-icons/icons/document_bullet_list_16_regular.svg?raw';
 import clock16 from '@fluentui/svg-icons/icons/clock_16_regular.svg?raw';
 import link16 from '@fluentui/svg-icons/icons/link_16_regular.svg?raw';
+import document16 from '@fluentui/svg-icons/icons/document_16_regular.svg?raw';
+import folderOpen16 from '@fluentui/svg-icons/icons/folder_open_16_regular.svg?raw';
 import chevronLeft20 from '@fluentui/svg-icons/icons/chevron_left_20_regular.svg?raw';
 import chevronRight20 from '@fluentui/svg-icons/icons/chevron_right_20_regular.svg?raw';
 import chevronDown20 from '@fluentui/svg-icons/icons/chevron_down_20_regular.svg?raw';
@@ -107,6 +109,8 @@ import sync20 from '@fluentui/svg-icons/icons/arrow_sync_20_regular.svg?raw';
 import list20 from '@fluentui/svg-icons/icons/document_bullet_list_20_regular.svg?raw';
 import clock20 from '@fluentui/svg-icons/icons/clock_20_regular.svg?raw';
 import link20 from '@fluentui/svg-icons/icons/link_20_regular.svg?raw';
+import document20 from '@fluentui/svg-icons/icons/document_20_regular.svg?raw';
+import folderOpen20 from '@fluentui/svg-icons/icons/folder_open_20_regular.svg?raw';
 
 const ICONS = {
   chevronLeft: { 16: chevronLeft16, 20: chevronLeft20 },
@@ -162,6 +166,8 @@ const ICONS = {
   list: { 16: list16, 20: list20 },
   clock: { 16: clock16, 20: clock20 },
   link: { 16: link16, 20: link20 },
+  document: { 16: document16, 20: document20 },
+  folderOpen: { 16: folderOpen16, 20: folderOpen20 },
 } satisfies Record<string, Record<16 | 20, string>>;
 
 export type IconName = keyof typeof ICONS;

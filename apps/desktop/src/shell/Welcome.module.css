@@ -1,0 +1,387 @@
+/* Welcome screen (no plan open): the ways in on the left, a still picture of the Plan screen on the
+   right. Tokens only. */
+
+.welcome {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: 460px minmax(0, 1fr);
+  height: 100%;
+  min-height: 0;
+}
+
+/* ---- left: brand, ways in, recent plans ---------------------------------------------------- */
+
+.side {
+  display: grid;
+  /* brand, Get started, Recent plans (takes the slack), facts, dev links */
+  grid-template-rows: auto auto 1fr auto auto;
+  gap: 28px;
+  min-height: 0;
+  padding: 40px 36px 28px;
+  overflow: auto;
+  border-right: var(--s-border-width) solid var(--c-border);
+  background: var(--c-surface);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.bigMark {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--s-radius-large);
+  background: var(--c-accent);
+  color: var(--c-text-on-accent);
+  font-family: var(--t-font-display);
+  font-size: var(--t-size-heading);
+  font-weight: 700;
+  letter-spacing: var(--t-display-tracking);
+}
+
+.brand h1 {
+  margin: 0;
+  font-family: var(--t-font-display);
+  font-size: var(--t-size-title);
+  font-weight: var(--t-weight-semibold);
+  letter-spacing: var(--t-display-tracking);
+}
+
+.brand p {
+  margin: 2px 0 0;
+  color: var(--c-text-muted);
+}
+
+.group {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+}
+
+.group h2 {
+  margin: 0;
+  font-size: var(--t-size-heading);
+  font-weight: var(--t-weight-semibold);
+}
+
+.lede {
+  margin: 0;
+  color: var(--c-text-muted);
+}
+
+/* The ways in: Windows command links, one list with hairlines between, not separate cards. */
+.commands {
+  display: grid;
+  margin: 0 -12px;
+  padding: 0;
+  list-style: none;
+}
+
+.commands li + li {
+  border-top: var(--s-border-width) solid var(--c-border);
+}
+
+.command {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr);
+  align-items: center;
+  column-gap: 12px;
+  width: 100%;
+  padding: 12px;
+  border: 0;
+  border-radius: var(--s-radius);
+  background: transparent;
+  color: var(--c-text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.command:hover:not(:disabled) {
+  background: var(--c-hover);
+}
+
+.command:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.commandIcon {
+  display: grid;
+  grid-row: span 2;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--s-radius-large);
+  background: var(--c-accent-soft);
+  color: var(--c-link);
+}
+
+.command[data-lead='true'] .commandIcon {
+  background: var(--c-accent);
+  color: var(--c-text-on-accent);
+}
+
+.command strong {
+  font-size: var(--t-size-nav);
+  font-weight: var(--t-weight-semibold);
+}
+
+.command > span:last-child {
+  color: var(--c-text-muted);
+  font-size: var(--t-size-small);
+}
+
+.recent {
+  display: grid;
+  margin: 0 -8px;
+  padding: 0;
+  list-style: none;
+}
+
+.recent li {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.recent li + li {
+  border-top: var(--s-border-width) solid var(--c-border);
+}
+
+.recentOpen {
+  display: grid;
+  flex: 1;
+  grid-template-columns: 20px minmax(0, 1fr);
+  align-items: center;
+  column-gap: 10px;
+  min-width: 0;
+  padding: 9px 8px;
+  border: 0;
+  border-radius: var(--s-radius);
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.recentOpen:hover:not(:disabled) {
+  background: var(--c-hover);
+}
+
+.recentOpen:disabled {
+  cursor: default;
+}
+
+.recentIcon {
+  grid-row: span 2;
+  color: var(--c-text-muted);
+}
+
+.recentOpen strong {
+  overflow: hidden;
+  font-weight: var(--t-weight-semibold);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recentPath {
+  grid-column: 2;
+  overflow: hidden;
+  color: var(--c-text-subtle);
+  font-size: var(--t-size-small);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.missing strong {
+  color: var(--c-text-subtle);
+}
+
+.facts {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--c-text-muted);
+  font-size: var(--t-size-small);
+}
+
+.facts li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.facts svg {
+  color: var(--c-accent);
+}
+
+.devLinks {
+  display: flex;
+  gap: 16px;
+  margin: 0;
+  color: var(--c-text-subtle);
+  font-size: var(--t-size-caption);
+}
+
+.devLinks a {
+  color: var(--c-link);
+}
+
+/* ---- right: a still picture of the Plan screen --------------------------------------------- */
+
+.glimpse {
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  padding: 40px;
+  overflow: hidden;
+  user-select: none;
+}
+
+.glimpseInner {
+  display: grid;
+  gap: 18px;
+  width: min(620px, 100%);
+}
+
+.sheet {
+  overflow: hidden;
+  border: var(--s-border-width) solid var(--c-border);
+  border-radius: var(--s-radius-large);
+  background: var(--c-surface);
+}
+
+.sheetHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px 12px;
+  border-bottom: var(--s-border-width) solid var(--c-border);
+}
+
+.month {
+  font-family: var(--t-font-display);
+  font-size: var(--t-size-title);
+  font-weight: var(--t-weight-semibold);
+  letter-spacing: var(--t-display-tracking);
+}
+
+.row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 104px 104px 104px;
+  align-items: center;
+  padding: 0 16px;
+  border-bottom: var(--s-border-width) solid var(--c-border);
+}
+
+.row > span:not(:first-child) {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.header {
+  height: var(--d-row-header);
+  border-bottom-color: var(--c-border-strong);
+  color: var(--c-text-muted);
+  font-size: var(--t-size-micro);
+  font-weight: var(--t-weight-semibold);
+  letter-spacing: var(--t-label-tracking);
+  text-transform: uppercase;
+}
+
+.groupRow {
+  height: var(--d-row-group);
+  background: var(--c-surface-alt);
+  font-weight: var(--t-weight-semibold);
+}
+
+.catRow {
+  height: calc(var(--d-row-plan) + 10px);
+}
+
+.sheet > div:last-child > .catRow:last-child {
+  border-bottom: 0;
+}
+
+.cat {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  row-gap: 3px;
+  column-gap: 10px;
+  min-width: 0;
+  padding-right: 14px;
+}
+
+.message {
+  overflow: hidden;
+  color: var(--c-text-muted);
+  font-size: var(--t-size-micro);
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.warn {
+  color: var(--c-warn-text);
+}
+
+.bad {
+  color: var(--c-bad-text);
+}
+
+.catBar {
+  grid-column: 1 / -1;
+}
+
+.caption {
+  display: grid;
+  gap: 4px;
+  max-width: 46ch;
+}
+
+.caption h2 {
+  margin: 0;
+  font-size: var(--t-size-subtitle);
+  font-weight: var(--t-weight-semibold);
+}
+
+.caption p {
+  margin: 0;
+  color: var(--c-text-muted);
+}
+
+/* A narrow window keeps the ways in and drops the picture. */
+@media (max-width: 960px) {
+  .welcome {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .side {
+    justify-self: center;
+    width: min(560px, 100%);
+    border-right: 0;
+    background: transparent;
+  }
+
+  .glimpse {
+    display: none;
+  }
+}
+
+/* Windows contrast themes: the theme already paints these with Highlight / HighlightText; stop the
+   forced-colors override from blanking the text on the filled background (S7.4). */
+@media (forced-colors: active) {
+  .bigMark,
+  .command[data-lead='true'] .commandIcon {
+    forced-color-adjust: none;
+  }
+}
