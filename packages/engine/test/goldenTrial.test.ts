@@ -69,10 +69,10 @@ describe.skipIf(!present)('golden: Sarg’s YNAB trial plan (local only)', () =>
     return;
   }
   const obs =JSON.parse(readFileSync(join(dir, 'observed.json'), 'utf8')) as Observed;
-  const files = present ? readdirSync(exportDir) : [];
+  const files = readdirSync(exportDir);
   const read = (suffix: string) => readFileSync(join(exportDir, files.find((f) => f.endsWith(suffix)) ?? ''), 'utf8');
-  const plan = present ? parseYnabPlan(read('Plan.csv')) : [];
-  const register = present ? parseYnabRegister(read('Register.csv')) : [];
+  const plan = parseYnabPlan(read('Plan.csv'));
+  const register = parseYnabRegister(read('Register.csv'));
   const today = asISODate(obs.today);
   const imported = ynabExportToSnapshot(plan, register, { today, accountTypes: { house: 'mortgage' } });
   const snapshot = imported.snapshot;
