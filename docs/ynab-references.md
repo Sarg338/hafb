@@ -4,14 +4,14 @@ Pages to consult when designing parity features. Behavior described here is YNAB
 
 | Area | Link | Notes |
 |---|---|---|
-| Direct import | https://support.ynab.com/en_us/how-direct-import-works-H1IGYLgnxl | Bank sync is out of scope (§6.15); useful for file-import duplicate-matching UX. |
+| Direct import | https://support.ynab.com/en_us/how-direct-import-works-H1IGYLgnxl | YNAB's providers are out of scope (§6.16); HAFB's optional bank sync uses SimpleFIN (ADR 0006). Useful for duplicate-matching UX. |
 | App lineup | https://www.ynab.com/our-app-lineup | Which surfaces YNAB ships. |
 | Templates | https://www.ynab.com/whats-new/ynab-templates | In §6 and `ynab-parity.md` (PL-03). |
 | Focused views | https://www.ynab.com/whats-new/introducing-focused-views | In §6 and `ynab-parity.md` (P-22, P-23). |
 | What's new | https://www.ynab.com/whats-new | Changelog; check for features newer than §6. |
 | Goal tracking | https://www.ynab.com/features/goal-tracking | Targets, §5.4. |
 | Debt management | https://www.ynab.com/features/debt-management | Loan accounts / planner, §5.10. |
-| Reports and data | https://www.ynab.com/blog/ynab-reports-and-data | Reflect reports, §6.10. |
+| Reports and data | https://www.ynab.com/blog/ynab-reports-and-data | Reflect reports, §6.11. |
 
 ## YNAB export format (observed 2026-10-08)
 

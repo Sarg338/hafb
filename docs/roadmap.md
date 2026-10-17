@@ -14,7 +14,7 @@
 - **Phase gates:** a phase closes only when every sprint in it is validated. Status is updated in CLAUDE.md §7.
 - **Decisions get ADRs:**
   - `docs/decisions/NNNN-*.md`, one per choice.
-  - Upcoming: undo/command architecture (S2.3), styling approach (S3.2), charting (S6.1), attachment storage (S7.6, ADR 0009).
+  - Written so far: ADR 0001 to 0011, from the stack (0001) to packaging (0011).
 - **Look and feel** (Sarg, 2026-10-08): HAFB presents the plan, transactions and data **in a very similar way to YNAB**: the same screen structure, columns, available pills and progress bars, inspector, register layout and vocabulary (CLAUDE.md §9), so YNAB users feel at home. HAFB keeps its **own visual identity** (colors, logo, illustrations, typography details) and never copies YNAB's branding or artwork.
 
 ## Timed follow-ups
@@ -41,12 +41,12 @@
 | — | ~~Sarg's own YNAB export~~: **Sarg has no YNAB account.** Golden data comes from a public real export kept local-only (`packages/engine/test/fixtures/local/`, git-ignored, never committed), plus optionally a YNAB free-trial scenario (below). |
 | S1.7 (optional) | A **YNAB free-trial scenario**: we write a scripted month of transactions covering splits, targets, credit overspending, future assignments and loans. Sarg enters it in a YNAB trial, exports it, and screenshots the open items (D7, D11, D12). This is the only way to verify those items and to get splits and targets into a golden file; the public sample has neither. |
 | — | ~~Sample bank files from your banks~~: Sarg has none; 50 public sample exports from real banks were accepted instead (2026-10-09). |
-| S8.6 | A SimpleFIN Bridge subscription and a setup token for the Regions accounts. Built and tested against SimpleFIN's demo 2026-10-12; only the real-bank check waits on this. |
+| S8.6 | A SimpleFIN Bridge subscription and a setup token for Sarg's bank accounts. Built and tested against SimpleFIN's demo 2026-10-12; only the real-bank check waits on this. |
 | — | ~~S8.1: a slower (2019-era) laptop, or throttle the CPU~~: throttled instead (2026-10-10). The power plan's maximum processor state at 70% makes this PC's Ryzen 7 5700X about 1.65× slower per thread (measured on the engine recompute), roughly a 2019 Core i5-8265U laptop; the setting was put back afterwards. |
 
 ## Spec changes (approved by Sarg 2026-10-08; applied to CLAUDE.md §4–§7)
 
-The 2026-10-08 research (YNAB What's New and help center) found that CLAUDE.md was out of date in these places. Sarg approved every change, and CLAUDE.md now reflects them. **D7, D11 and D12 still need verification** against Sarg's YNAB data (scheduled in S1.7, S4.3 and S7.2).
+The 2026-10-08 research (YNAB What's New and help center) found that CLAUDE.md was out of date in these places. Sarg approved every change, and CLAUDE.md now reflects them. D7, D11 and D12 were then verified in Sarg's YNAB trial (CLAUDE.md §5, budget-math §12).
 
 | # | CLAUDE.md before | YNAB now (2026) | Adopted rule |
 |---|---|---|---|
@@ -68,7 +68,7 @@ The 2026-10-08 research (YNAB What's New and help center) found that CLAUDE.md w
 
 ## Phase 1: Budget engine (pure TypeScript, tests first)
 
-> **Status: done, signed off by Sarg 2026-10-08.** Tests were run on Sarg's machine. The YNAB-trial check of the §13 rules is pending (`docs/ynab-trial-scenario.md`; predictions frozen).
+> **Status: done, signed off by Sarg 2026-10-08.** Tests were run on Sarg's machine. The YNAB-trial check of the §13 rules followed (`docs/ynab-trial-scenario.md`, budget-math §12); two items wait on YNAB (budget-math §13).
 > - **Tests:** 221 tests (186 engine), and a 400-plan property test of the reconciliation identity.
 > - **Golden test:** 98.4% of YNAB's own values match to the cent, including every regular category. The 95 payment-category values that differ are documented in budget-math §12.
 > - **Performance:** recompute median 14.8 ms against the 50 ms budget.
@@ -96,7 +96,7 @@ The 2026-10-08 research (YNAB What's New and help center) found that CLAUDE.md w
 **Status: done, signed off by Sarg 2026-10-08.** All five sprints were validated on Sarg's PC by driving the release build. Design in ADR 0002, including its §10 amendments:
 - **S2.1:** STRICT schema; the split check is a view rather than a trigger.
 - **S2.2:** a 20k-transaction plan opens and loads in 24 ms (release build).
-- **S2.3:** the undo property test runs 200 random sequences. Zustand wiring moves to S3.3; the dev screen uses a plain external store.
+- **S2.3:** the undo property test runs 200 random sequences. The app uses plain external stores (`useSyncExternalStore`) instead of Zustand.
 - **S2.4:** the trial export matches 34/34 values; the public sample matches 5821/5916, the same as the engine golden.
 - **S2.5:** the Phase 0 SQLite spike is still in the spike screens and is retired with them in S3.3.
 
@@ -104,7 +104,7 @@ The 2026-10-08 research (YNAB What's New and help center) found that CLAUDE.md w
 |---|---|---|
 | **S2.1 Schema v1** | `0001_init.sql` from the amended §4: soft deletes, `approved`/import fields (D4), starred accounts, focused views, payee auto-categorize settings, expected income, the split-sum trigger. Rust migration runner with **automatic pre-migration backup**; WAL; `cargo test` for migrations. | Fresh and migrated files pass the schema tests. |
 | **S2.2 Data access** | Thin, typed Rust commands: a snapshot load (fast path for 20k+ transactions) and batched mutations in one SQLite transaction. TS bindings in `@hafb/shared`. | Snapshot of a 20k-transaction file loads in < 300 ms on Sarg's PC. |
-| **S2.3 Commands & undo** (ADR) | Command objects with inverses; multi-change commands (e.g. auto-assign) as one undo step; session command log persisted; feeds Recent Moves; engine result caching and invalidation; Zustand store wiring. | Property test: any command sequence followed by full undo restores the starting snapshot. |
+| **S2.3 Commands & undo** (ADR) | Command objects with inverses; multi-change commands (e.g. auto-assign) as one undo step; session command log persisted; feeds Recent Moves; engine result caching and invalidation; store wiring (plain external stores, not Zustand). | Property test: any command sequence followed by full undo restores the starting snapshot. |
 | **S2.4 YNAB import** | `pnpm import:ynab <zip> <out.hafb>`: plan history, register, transfers, splits, CC payment categories, flags, cleared state; targets gap documented with a re-entry list. | Imported file reproduces Sarg's YNAB numbers (S1.8 golden). |
 | **S2.5 Budget files** | Create, open and recent files; single-writer lock; auto backups on open (keep N); restore; "save a copy". Retire the Phase 0 SQLite spike. | Sarg opens his imported file from the app on hardware. |
 
@@ -390,7 +390,7 @@ Progress (YNAB used as the reference throughout, 2026-10-09; it was put back as 
 | **S8.3b Plan passwords, optional** (added by Sarg 2026-10-10; before packaging because it changes what the installer ships) | Off by default. A plan can be locked with a password using **SQLCipher 4** (AES-256 page encryption with an HMAC per page, PBKDF2-HMAC-SHA512 at 256,000 iterations): still one SQLite file, never decrypted to disk, photos included, and readable without HAFB in DB Browser for SQLite's SQLCipher edition or the `sqlcipher` command-line tool. Spike first: rusqlite's SQLCipher build (OpenSSL used for ciphers only), installer size, launch time, and DB Browser opening a locked plan. Plan Settings gets a **Password** section (set, change, remove), applied straight away as a file rewrite with the S8.2 atomic swap, outside undo. The open prompt asks for the password, with an optional "Remember on this PC" that keeps the derived key in Windows Credential Manager. A locked file is recognized by its header before the integrity check, so a wrong password never offers backup recovery. Backups are locked with the plan's password at the time. **Changing the password offers to re-lock this plan's backups with the new one** (on by default, so there's only one password to remember): each backup that opens with the old password is rewritten under the new one, one at a time with the same partial-file-then-rename swap, so a killed process leaves every backup under one password or the other, never broken. Backups that don't open with the old password (made under an even earlier one) are listed, and the user can enter that password or leave them as they are. Setting a password the first time offers to lock existing backups the same way, and removing it offers to unlock them. Copies saved elsewhere with *Save a copy* aren't tracked and aren't touched; the dialog says so. Clear warning: a forgotten password can't be recovered. No compression (it hides nothing, and encrypted data doesn't compress). Update CLAUDE.md §1 and `docs/privacy.md`. | A locked plan opens in HAFB and in DB Browser (SQLCipher) with the password, and in neither without it; plain plans are unchanged; set, change and remove survive a killed process, for the plan and its backups; after a change with re-locking, every backup restores with the new password; launch stays inside the §8 budget with "remember" on. |
 | **S8.4 Packaging** | Third-party license notices shipped with the app (found in S8.3); versioning, MSI upgrade path (stable upgrade code), portable-mode data location, uninstall keeps data, ARM64 build (nice-to-have); document SmartScreen behavior for unsigned builds. | Upgrade from the previous build keeps every file intact. |
 | **S8.5 Docs & beta** | User guide, YNAB migration guide, shortcut reference; beta with a few YNAB users; final parity audit against `ynab-parity.md`. | Beta feedback triaged; the parity audit has only S8.6 rows open. |
-| **S8.6 Bank sync, optional** (ADR 0006; the very last item before v1.0) | SimpleFIN Bridge: paste a setup token, claim it, and keep the access URL in Windows Credential Manager (never in the plan). Map SimpleFIN accounts to HAFB accounts (new migration). Sync on open, about every 6 hours while open (random minute), and *Sync now*. Fetch window = last sync minus 5 days, capped at 89 days, in requests of at most 45 days (SimpleFIN's live limits, 2026-10-12). Results feed the S6.5 pipeline (unapproved, auto-match, rename rules, RejectedImport). Unlink deletes the secret. One Rust HTTP client (rustls). | Sarg's Regions accounts sync with zero duplicates across repeated syncs and alongside file imports. A firewall log shows zero connections with sync off and only the SimpleFIN host with it on. Every non-server parity row is `done`; then **v1.0** is tagged. |
+| **S8.6 Bank sync, optional** (ADR 0006; the very last item before v1.0) | SimpleFIN Bridge: paste a setup token, claim it, and keep the access URL in Windows Credential Manager (never in the plan). Map SimpleFIN accounts to HAFB accounts (new migration). Sync on open, about every 6 hours while open (random minute), and *Sync now*. Fetch window = last sync minus 5 days, capped at 89 days, in requests of at most 45 days (SimpleFIN's live limits, 2026-10-12). Results feed the S6.5 pipeline (unapproved, auto-match, rename rules, RejectedImport). Unlink deletes the secret. One Rust HTTP client (rustls). | Sarg's bank accounts sync with zero duplicates across repeated syncs and alongside file imports. A firewall log shows zero connections with sync off and only the SimpleFIN host with it on. Every non-server parity row is `done`; then **v1.0** is tagged. |
 
 Progress:
 - **S8.1 done in code (2026-10-10).** All measurements use the release app with a generated 20,000-transaction plan (`smoke/largePlan.ts`): five years, 100 categories, three cards, two loans, splits, transfers and targets.
@@ -468,7 +468,7 @@ Progress:
     - WebView2's network log.
     - Windows Filtering Platform auditing with administrator rights, covering MSI install, 5 minutes of use and uninstall: the installer made no connections, and the app made none except the OneAuth lookup. The audit setting was restored.
   - **Code audit:**
-    - No network crates in the shipped Rust tree; `tokio` has no `net` feature.
+    - No network crates in the shipped Rust tree; `tokio` has no `net` feature (until S8.6's opt-in SimpleFIN client, `ureq`).
     - No network APIs in the shipped JS.
     - The installer doesn't download WebView2.
   - **CSP:** now also `object-src 'none'; base-uri 'none'; form-action 'none'`. Every form already handles submit in code.
@@ -547,7 +547,7 @@ Progress:
     - The demo re-mints its newest transactions' ids every minute or two, so a later sync brings those again under new ids. That's the demo faking live data; within one answer and across overlapping windows nothing came in twice.
   - **Tests:** 10 store tests, 6 timing tests, 7 Rust tests, and a smoke test that runs the whole flow on a saved SimpleFIN answer (`HAFB_SIMPLEFIN_FIXTURE`, under its own Credential Manager name). The privacy smoke test still sees no connection from `hafb.exe` with nothing linked.
   - **License:** webpki-roots ships Mozilla's root list under CDLA-Permissive-2.0, now on the notices allow-list; its text is in THIRD-PARTY-NOTICES.
-  - **Open (needs Sarg):** sign up for SimpleFIN Bridge, connect Regions, paste a setup token in Preferences, and link the accounts. *Done when* asks for repeated syncs with zero duplicates alongside file imports, and a firewall log on that run.
+  - **Open (needs Sarg):** sign up for SimpleFIN Bridge, connect his bank, paste a setup token in Preferences, and link the accounts. *Done when* asks for repeated syncs with zero duplicates alongside file imports, and a firewall log on that run.
 
 ## Out of scope (wontfix; server-dependent)
 

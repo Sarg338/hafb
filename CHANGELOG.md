@@ -29,7 +29,7 @@ The first beta. It has YNAB's web app in full, except what needs YNAB's servers.
 - Spending Breakdown, Spending Trends, Net Worth, Income v Expense and Age of Money. Each has filters and drill-downs, CSV/TSV and image export, and Share Your Progress.
 
 **Your data**
-- One plan is one SQLite file you keep where you like. HAFB never connects to the internet; [docs/privacy.md](docs/privacy.md) has the evidence.
+- One plan is one SQLite file you keep where you like. HAFB connects to nothing unless you link optional bank sync, and then only to SimpleFIN; [docs/privacy.md](docs/privacy.md) has the evidence.
 - Import from YNAB's export, with every number to the cent. You confirm the account types first, and loans come across as loans. Export back to YNAB's CSV.
 - Backups run on every open and on demand, with restore, Save a copy, templates and Make a Fresh Start.
 - An optional password locks a plan (SQLCipher 4, AES-256). "Remember on this PC" stores it in Windows Credential Manager.
@@ -43,6 +43,6 @@ The first beta. It has YNAB's web app in full, except what needs YNAB's servers.
 **Bank sync (optional)**
 - Sync banks and credit cards through SimpleFIN Bridge, a service you sign up for yourself (about $15 a year, paid to SimpleFIN). Link it in Preferences, then choose each account's bank account in Edit Account.
 - New transactions come in when a plan opens, about every 6 hours while it's open, and on Sync Now. They go through the same steps as bank files: unapproved, matched to your own entries, never twice. Pending transactions stay out.
-- HAFB never sees your bank password. It talks only to SimpleFIN's server, and only once you've linked it. The link is kept in Windows Credential Manager, or until HAFB closes.
+- HAFB never sees your bank password. It talks only to SimpleFIN's server, and only once you've linked it. The link is kept in Windows Credential Manager when you tick *Remember on this PC*, otherwise only in memory until HAFB closes.
 
 **Known limits:** see [docs/beta.md](docs/beta.md#known-limits-of-this-beta).

@@ -41,7 +41,7 @@
      "paired_category_id": null,
      "loan_charges_from": null,
      "bank_sync_id": "ACT-1",
-     "bank_sync_name": "Regions Bank · Checking",
+     "bank_sync_name": "Example Bank · Checking",
      "bank_synced_at": "2026-10-08T12:00:00.000Z",
      "created_at": "2026-10-08T12:00:00.000Z",
      "deleted_at": null

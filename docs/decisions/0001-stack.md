@@ -53,7 +53,7 @@ CLAUDE.md §2 proposed Tauri 2 + React + TypeScript + SQLite "pending spike". On
     - It injects its own caption buttons into `[data-tauri-frame-tb]`. That element is static in `index.html` so it exists before the plugin's script runs.
     - The title bar must be exactly 32 px and the caption buttons 46 px, matched in `lib.rs` and `app.css`. If they drift, the flyout silently stops appearing.
     - The window minimum width is kept at 480 px, since minimums above about 500 px stop snapping.
-  - **Fallback:** the native Windows title bar, which CLAUDE.md §6.14 allows. The spike can switch to it at runtime.
+  - **Fallback:** the native Windows title bar, which CLAUDE.md §6.15 allows. The spike can switch to it at runtime.
 - **WebView2 install mode: `skip`.** The installer never downloads anything (CLAUDE.md §1). WebView2 Evergreen ships with Windows 11 and is installed on supported Windows 10 22H2. The trade-off: a machine without WebView2 gets a non-starting app instead of an auto-install. Revisit if that shows up in practice.
 - **No router library.** The `/spike` screens use a hash route (`#/spike`) with `useSyncExternalStore`, so there's one dependency fewer.
 - **Production CSP blocks the network from the webview:** `default-src 'self'; connect-src ipc: http://ipc.localhost`. In dev the CSP is off so Vite HMR works.
@@ -100,7 +100,7 @@ CLAUDE.md §2 proposed Tauri 2 + React + TypeScript + SQLite "pending spike". On
 
 Everything below is throwaway, to be deleted when Phase 0 closes.
 
-- **Tauri:** `apps/desktop/src/spike/*` and `apps/desktop/src-tauri/src/spike/*`. The screens live behind `#/spike`.
+- **Tauri:** `apps/desktop/src/spike/*` and `apps/desktop/src-tauri/src/spike/*`. The screens lived behind `#/spike` and were removed in S3.3.
   - **(a) SQLite:** opens `spike.sqlite` in `%LOCALAPPDATA%\app.hafb.desktop\` with WAL, writes 50,000 rows in one transaction, and reads them all back over IPC. It then checks that the integer sum is identical in Rust, SQL and JS.
   - **(b) Grid:** 50,000 synthetic rows at 30 px, built with TanStack Table 9 + Virtual. It has three frame-timing benchmarks: steady 3000 px/s for 10 s, top-to-bottom fling in 5 s, and 10 s of manual scrolling. Each reports median/p95/p99/max frame time and missed vsyncs against an idle-measured refresh interval.
   - **(c) Title bar:** custom vs native, switchable (the app restarts), with a checklist.

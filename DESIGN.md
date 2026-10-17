@@ -740,9 +740,9 @@ An inverted capsule, bottom-centre, 18px up.
 
 ## Open items
 - **App mark.** The "HAFB" lettering in a 32px accent square is a placeholder. No logo exists yet (PRODUCT.md), and it is not a brand rule.
-- **Production components.** These are built (S3.2) in `src/ui/`. The `#/design` mockups still use their own S3.1 CSS, now on the same tokens; Phase 4 rebuilds those screens from the library.
+- **Production components.** These are built (S3.2) in `src/ui/`. The `#/design` mockups still use their own S3.1 CSS, now on the same tokens. Phase 4 rebuilt the real screens from the library (`src/screens`); the mockups stay as the look reference.
 - **Raw-value scan.** In place since S3.2 (`sourceScan.test.ts`). It forbids raw colours, font families, radii and rule styles everywhere in `src/ui` and `src/design`, plus literal sizes and durations in `src/ui`.
-- **Date keys.** The keys are Quicken-style: + and − for a day; T, M, H, Y and R for today and month/year start and end; PageUp and PageDown for a month. Weeks start on Sunday. YNAB's exact key set is still to be verified.
-- **Title bar.** The 32px custom title bar still comes from the Phase 0 shell (`app.css`, with a fallback to legacy variables). The production shell lands in S3.3.
-- **Mockup-only controls.** Display options, the theme segmented control and the "Sample data" labels are review scaffolding for the `#/design` mockups, not shipped settings UI. The real settings arrive in Phase 7.
-- **Accent hue.** It may be revisited after Sarg reviews the mockups. Changing it means editing the token values only.
+- **Date keys.** The keys are Quicken-style: + and − for a day; T for today; M / Shift+M and Y / Shift+Y for the start and end of the month and year; PageUp and PageDown for a month (`packages/shared/src/dateInput.ts`, `docs/shortcuts.md`). Weeks start on Sunday.
+- **Title bar.** Shipped with the production shell in S3.3: a 32px custom title bar with Snap Layouts, and the native title bar as a tested fallback.
+- **Mockup-only controls.** Display options, the theme segmented control and the "Sample data" labels are review scaffolding for the `#/design` mockups, not shipped settings UI. The real settings shipped in S7.1 (Preferences and Plan Settings).
+- **Accent hue.** Approved with the look (S7.7 sign-off). Changing it means editing the token values only.

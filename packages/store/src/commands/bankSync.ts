@@ -27,7 +27,7 @@ export interface SimplefinTransaction {
 
 export interface SimplefinAccount {
   id: string;
-  /** With the bank's name: "Regions Bank · Checking". */
+  /** With the bank's name: "Example Bank · Checking". */
   name: string;
   currency: string;
   balance: string;

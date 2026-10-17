@@ -57,7 +57,7 @@ Constraints carried over:
 
 ## 4. The wire contract (TS ↔ Rust)
 
-Defined in `packages/store/src/codec.ts` and mirrored by `apps/desktop/src-tauri/src/store/`.
+Defined in `packages/store/src/codec.ts` and mirrored by `apps/desktop/src-tauri/store/src/wire.rs`.
 
 ```ts
 type SqlValue = string | number | null;                    // never REAL; booleans are 0/1

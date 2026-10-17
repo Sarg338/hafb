@@ -29,9 +29,9 @@ This file is the durable source of truth for the project. Read it fully before d
 
 **Default stack:**
 - **Shell:** Tauri 2 (Rust core, WebView2 renderer — WebView2 ships with Windows 11 and is an evergreen runtime on Windows 10). Small binary, real native window, no bundled Chromium.
-- **UI:** React 19 + TypeScript (strict). State via Zustand. Styling: **CSS Modules over theme custom properties** (decided S3.2, ADR 0004). Every colour, font, size, radius, rule style and duration comes from a theme token, enforced by `src/theme/sourceScan.test.ts`. No Tailwind (density matters; utility classes fight tabular UI). Components live in `apps/desktop/src/ui/`, with a dev gallery at `#/gallery`.
+- **UI:** React 19 + TypeScript (strict). State in plain external stores read with `useSyncExternalStore` (Zustand turned out unnecessary). Styling: **CSS Modules over theme custom properties** (decided S3.2, ADR 0004). Every colour, font, size, radius, rule style and duration comes from a theme token, enforced by `src/theme/sourceScan.test.ts`. No Tailwind (density matters; utility classes fight tabular UI). Components live in `apps/desktop/src/ui/`, with a dev gallery at `#/gallery`.
 - **Grid:** TanStack Table for the register and budget sheet. Virtualized. Must handle 50k+ transactions without jank.
-- **Storage:** SQLite via `tauri-plugin-sql` (sqlx under the hood) **or** `rusqlite` behind Tauri commands. Spike decides. WAL mode. Migrations via numbered SQL files, applied on open, never edited after shipping.
+- **Storage:** SQLite via `rusqlite` (bundled SQLCipher) behind Tauri commands. WAL mode. Migrations via numbered SQL files, applied on open, never edited after shipping.
 - **Budget engine:** Pure TypeScript package (`packages/engine`), zero dependencies on Tauri/DOM. It takes a snapshot of data in, returns computed budget state out. This is what gets tested exhaustively, and it is what makes a future Android/web port possible.
 - **Tests:** Vitest for engine + UI logic. A Playwright smoke suite drives the real release app over WebView2's DevTools port (`playwright-core`, ADR 0005; `pnpm smoke`). Rust: `cargo test` for commands.
 - **Packaging:** Tauri bundler → `.msi` and a portable zip (`HAFB.exe` beside a `HAFB Data` folder, which keeps its data there). The MSI's upgrade code is pinned in `tauri.conf.json` and must never change; downgrades are refused; uninstalling keeps the user's data. The version lives in Cargo.toml (`pnpm version:set`). `THIRD-PARTY-NOTICES.txt` is generated on every build (`docs/install.md`, S8.4).
@@ -64,14 +64,16 @@ hafb/
     engine/                  ← pure TS budget engine (no I/O, no DOM, no Tauri)
       src/
       test/
-        fixtures/            ← YNAB export CSVs + expected outputs (golden tests)
-    shared/                  ← types shared between engine, UI, and Rust bindings
+        fixtures/local/      ← real YNAB exports for the golden tests (git-ignored; those suites skip without it)
+    shared/                  ← types shared between engine, store and UI (the Rust side mirrors them by hand in store/src/wire.rs)
     store/                   ← pure TS: PlanData records, row codec, commands, undo, YNAB import (ADR 0002)
   apps/
     desktop/                 ← Tauri app
       src/                   ← React UI
-      src-tauri/             ← Rust: window, generic SQLite store + `hafb-store` CLI, file dialogs
+      smoke/                 ← end-to-end smoke tests on the release app (`pnpm smoke`)
+      src-tauri/             ← Rust: window, generic SQLite store + `hafb-store` CLI, file dialogs, bank sync
         migrations/          ← 0001_init.sql, 0002_... never edited after merge
+  .github/                   ← CI workflow, SignPath artifact configuration
   scripts/
     import-ynab.ts           ← YNAB export → HAFB SQLite (also exposed in-app)
 ```
@@ -123,7 +125,7 @@ Entities (table ≈ TS type ≈ Rust struct; keep them in lockstep via `packages
 - **MonthCategory:** (month, category) → `assigned` minor units.
   - This is the only user-entered budget number.
   - `activity` and `available` are always derived, never stored as authoritative. They may be cached with an invalidation key.
-- **MoneyMove:** a durable log of assignment changes (timestamp, month, from, to, amount, kind: move / auto-assign / assign-from-RTA / return-to-RTA / category-deleted / plan-reset).
+- **MoneyMove:** a durable log of assignment changes (timestamp, month, from, to, amount, kind: `move` / `autoAssign` / `assign` / `categoryDeleted` / `planReset`; a return to Ready to Assign is a `move` to it).
   - Feeds *Recent Moves* (34 days) and per-category assigned history (3 months).
 - **MonthNote**, **CategoryNote:** free text.
 - **Reconciliation:** account, date, statement (cleared) balance, adjustment transaction id.
@@ -267,7 +269,7 @@ Enter statement balance → engine computes the difference between the **cleared
 - On-budget ↔ on-budget: no category on either leg; no budget impact.
 - On-budget → tracking (e.g. paying a mortgage from checking): the on-budget leg **does** get a category (it's spending from the budget's perspective); the tracking leg has none.
 - Tracking → on-budget: the on-budget leg is an inflow to RTA (or any category).
-- Both legs share a `transfer_group`; editing amount/date on one leg updates the other. Deleting one deletes both.
+- The legs point at each other (`transfer_transaction_id`); editing amount/date on one leg updates the other. Deleting one deletes both.
 
 ### 5.10 Loan accounts
 Loans are their own off-budget account group.
@@ -311,7 +313,7 @@ Loans are their own off-budget account group.
 ### 5.14 Fresh Start
 - Archives the current plan: the file is kept, stamped *Archived* with today's date and renamed "<plan> (Archived on YYYY-MM-DD)". *Corrected 2026-10-09:* this said the archived plan opens read-only; YNAB keeps it editable (the trial's archived plan took a template import and a currency change), so HAFB does too.
 - Creates a new plan that keeps the category structure, scheduled transactions, targets, expected income, notes and payees.
-- Every account restarts with a **$0** "Starting Balance" transaction dated today (unlinked accounts in YNAB; HAFB never links banks). The user then enters today's balance. Verified on YNAB (trial, 2026-10-08).
+- Every account restarts with a **$0** "Starting Balance" transaction dated today (YNAB unlinks its bank connections; HAFB's SimpleFIN links carry over, ADR 0006). The user then enters today's balance. Verified on YNAB (trial, 2026-10-08).
 
 ---
 
@@ -396,11 +398,11 @@ The full sprint plan with exit criteria is in `docs/roadmap.md`. Phases were ren
 - **Phase 8, Release:** performance at scale, reliability, privacy audit, packaging, docs and beta, then optional SimpleFIN bank sync as the very last item (S8.6) → **v1.0**.
 
 Mark phase status here when it changes:
-- Phase 0: done. Validated on Sarg's machine 2026-10-08 (ADR 0001 §7). The spike screens (`apps/desktop/src/spike/`, `src-tauri/src/spike/`) stay until S3.3 replaces them.
+- Phase 0: done. Validated on Sarg's machine 2026-10-08 (ADR 0001 §7). The spike screens (`apps/desktop/src/spike/`, `src-tauri/src/spike/`) were retired in S3.3.
 - Phase 1: done, signed off by Sarg 2026-10-08. Verified against two real YNAB sources (budget-math §12): the public export (98.4% exact, every regular category exact) and Sarg's YNAB trial plan (every value YNAB showed matches after 9 rule corrections; the mortgage simulator's interest matches to the cent since 2026-10-09). Age of Money and the weekly-target rule were confirmed by follow-up checks. Fresh Start was confirmed too. Checked in the trial 2026-10-12: twice-a-month dates and Enter Now's dating; loan charges start the month after a loan is added; the converted card is legacy, because YNAB can no longer change an account's type. Two items are still open in budget-math §13: the date and amount of YNAB's first posted mortgage interest (Nov 2026), and Credit Card Interest (still rolling out).
 - Phase 2: done, signed off by Sarg 2026-10-08 (ADR 0002). Tests: 537 TS + 25 Rust. Validated by driving the release build on Sarg's PC: import, edit, undo/redo, reopen, second-window lock, backup restore, save a copy, new plan; the empty `-wal` left after quitting was found and fixed. Carried into Phase 3: replace the browser `confirm()` box with an in-app dialog.
 - Phase 3: done, signed off by Sarg 2026-10-08. S3.1 design direction (approved look; DESIGN.md; themes as data, ADR 0003). S3.2 component library in `src/ui` with gallery `#/gallery` (ADR 0004). S3.3 app shell in `src/shell` (spike and Phase 2 screens retired). S3.4 `DataGrid` (50k-row benchmark: 0 missed frames in WebView2; cells exposed to Narrator via UIA). S3.5 shortcut registry, `?` overlay, error surfacing, `pnpm smoke` (9 tests, ADR 0005). Launch to first paint 812 ms.
-- Phase 4: in progress. S4.1 Plan screen, S4.2 Plan editing, S4.3 Moving money, S4.4 Accounts, S4.5 Register core, S4.6 Register power and S4.7 Credit cards done 2026-10-08 (S4.7 still needs the real-card check during M1) (ADR 0007: production screens in `src/screens` from the component library; the S3.1 mockups stay as the look reference).
+- Phase 4: done in code. S4.1 Plan screen, S4.2 Plan editing, S4.3 Moving money, S4.4 Accounts, S4.5 Register core, S4.6 Register power and S4.7 Credit cards done 2026-10-08 (S4.7 still needs the real-card check during M1) (ADR 0007: production screens in `src/screens` from the component library; the S3.1 mockups stay as the look reference). S4.8 undo covers every action. **M1** (two weeks alongside YNAB) needs Sarg, so the phase isn't signed off.
 - Phase 5: done in code 2026-10-08 (roadmap Phase 5 progress notes): S5.1 inspector, S5.2 targets, S5.3 Focused Views / scoped Auto-Assign / Plan Reset, S5.4 scheduled transactions, S5.5 Manage Payees (migration 0002 adds `payees.hidden`), S5.6 reconciliation, S5.7 Recent Moves. Smoke tests cover each in the release app. **M2** (a month on real data with YNAB closed) needs Sarg, so the phase isn't signed off.
 - Phase 6: done, signed off by Sarg 2026-10-09 (roadmap Phase 6 progress notes): S6.1 Reflect framework (ADR 0008), S6.2 Spending Breakdown & Trends, S6.3 Net Worth, Income v Expense, Age of Money and Share Your Progress, S6.4 Loans & loan planner (the payoff simulator matches YNAB to the cent), S6.5 Bank file import (migration 0003; 50 public sample exports from real banks), S6.6 Export & backups (cell-exact in OpenOffice Calc). Smoke tests cover each in the release app. Optional SimpleFIN bank sync (was S6.7) moved by Sarg to **S8.6, the very last item before v1.0**.
 - Phase 7: done, signed off by Sarg 2026-10-09 (roadmap Phase 7 progress notes):
@@ -420,12 +422,12 @@ Mark phase status here when it changes:
     - A damaged file was opened, and its backups rotated the good ones out.
   - Every open runs `quick_check`. A damaged plan is refused untouched, and the app offers its newest good backup.
   - Tests: upgrades from every older schema, a writer killed mid-commit, backup-restore drills, engine property tests, and plans of 100k transactions and 721 MB of photos (`store/tests/safety.rs`; roadmap notes).
-  - S8.3 privacy audit done in code 2026-10-10 (`docs/privacy.md`). HAFB has no network code. WebView2's experiment-config and component-update fetches are cut off by a closed proxy, its crash dumps stay local, and the installer made no connections in a Windows firewall audit. The OneAuth account lookup is documented.
+  - S8.3 privacy audit done in code 2026-10-10 (`docs/privacy.md`). HAFB had no network code (until S8.6's opt-in SimpleFIN client). WebView2's experiment-config and component-update fetches are cut off by a closed proxy, its crash dumps stay local, and the installer made no connections in a Windows firewall audit. The OneAuth account lookup is documented.
   - S8.3b optional plan passwords done in code 2026-10-10 (ADR 0010). Plans are locked with SQLCipher 4 from a new Password section in Plan Settings. Backups follow the password when it changes, restore keeps it, and "Remember on this PC" uses Credential Manager. Tests cover a process killed mid-change, and DB Browser for SQLCipher opens a locked plan. Building now needs Strawberry Perl (README).
   - S8.4 packaging done in code 2026-10-11 (ADR 0011, `docs/install.md`). Version 0.9.0. The MSI has a pinned upgrade code, refuses downgrades and opens `.hafb` files. The portable zip keeps its data in `HAFB Data`. License notices ship with the app and show in Help → About HAFB. Tested by installing 0.0.1, then 0.9.0 and 0.9.1 over it, a refused downgrade, uninstall and reinstall: every data file was byte-identical throughout. ARM64 builds but hasn't been run on ARM hardware.
   - S8.5 docs and the parity audit done in code 2026-10-12:
     - Guides: `docs/user-guide.md`, `docs/migrating.md` and `docs/beta.md`, plus `CHANGELOG.md`. A test keeps the guides' quoted labels real.
-    - The final audit is in `docs/parity-audit.md`. It found seven gaps, now built: card payment targets, progress-bar sections, search suggestions, Show Images, learned renaming and Don't rename, and the YNAB import's account-type step (migration 0007). Only S8.6's two rows are open.
+    - The final audit is in `docs/parity-audit.md`. It found seven gaps, now built: card payment targets, progress-bar sections, search suggestions, Show Images, learned renaming and Don't rename, and the YNAB import's account-type step (migration 0007). Only S8.6's two rows were left open, and S8.6 built both.
     - Still needed: the beta itself, which needs Sarg to find YNAB users.
   - S8.6 optional bank sync done in code 2026-10-12 (ADR 0006 "As built", roadmap notes):
     - SimpleFIN Bridge, linked in Preferences → Bank sync. Each account chooses its SimpleFIN account in Edit Account. Sync Now is in the register.
@@ -446,7 +448,7 @@ pnpm test             # vitest, all packages
 pnpm test:engine      # engine only, fast — run before every commit
 pnpm lint             # eslint + tsc --noEmit + cargo clippy
 pnpm build            # tauri build → apps/desktop/src-tauri/target/release/bundle/
-pnpm import:ynab <zip> <out.hafb>   # YNAB export → plan file (--today, --name, --account-type "Name=type", --force)
+pnpm import:ynab <zip> <out.hafb>   # YNAB export → plan file (--today, --name, --account-type "Name=type", --currency, --force)
 pnpm test:rust        # cargo tests: store crate + app
 pnpm smoke            # end-to-end smoke tests on the release app (run pnpm build first; or pnpm smoke:build)
 ```
@@ -466,8 +468,8 @@ pnpm smoke            # end-to-end smoke tests on the release app (run pnpm buil
 ## 9. Conventions
 
 - TypeScript `strict`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`. No `any`. No `as` casts outside of test fixtures and the DB boundary.
-- Money type: `type Minor = number & { readonly __brand: 'Minor' }` with `add/sub/mul/divRound` helpers in `packages/shared/money.ts`. Formatting lives in one place and respects the budget's currency settings.
-- Dates: `type ISODate = \`${number}-${number}-${number}\``; `type Month = \`${number}-${number}\``. Helpers in `packages/shared/dates.ts`. Never `new Date()` on these strings (time zone bugs).
+- Money type: `type Minor = number & { readonly __brand: 'Minor' }` with `add/sub/mul/divRound` helpers in `packages/shared/src/money.ts`. Formatting lives in one place and respects the budget's currency settings.
+- Dates: `type ISODate = \`${number}-${number}-${number}\``; `type Month = \`${number}-${number}\``. Helpers in `packages/shared/src/dates.ts`. Never `new Date()` on these strings (time zone bugs).
 - Engine API shape: `computeBudget(snapshot: BudgetSnapshot, opts: { today: ISODate }): BudgetState` where `BudgetState` is fully serializable. UI reads from `BudgetState`, never recomputes.
 - Rust: thin. Commands do I/O and return plain JSON. No business logic in Rust.
 - UI density: match YNAB's budget sheet row height (~34 px) and register row height (~30 px). Tabular numerals everywhere money is shown.

@@ -1,7 +1,7 @@
 # ADR 0006 — Optional bank sync through SimpleFIN Bridge
 
 - **Status:** Accepted (2026-10-08) by Sarg. Built in S8.6, the very last item before v1.0 (moved from S6.7 by Sarg, 2026-10-09). **Built 2026-10-12** and tested against SimpleFIN's live demo; the check with Sarg's own banks waits on his sign-up.
-- **Context:** CLAUDE.md §1 forbade all network calls, so bank sync was wontfix. Sarg asked for "live" transactions from his bank (Regions), with these conditions: completely optional, done through an existing API or framework, and the app never sees or stores bank credentials.
+- **Context:** CLAUDE.md §1 forbade all network calls, so bank sync was wontfix. Sarg asked for "live" transactions from his bank, with these conditions: completely optional, done through an existing API or framework, and the app never sees or stores bank credentials.
 
 ## Why SimpleFIN Bridge
 
@@ -11,7 +11,7 @@
   - Each user pays SimpleFIN directly: $1.50/month or $15/year, covering up to 25 institutions and 25 apps.
   - Developers need no sign-up and pay nothing.
   - HAFB gets a read-only, revocable link that never contains the bank password.
-- **Coverage:** Regions is on SimpleFIN's supported list (Bank, Mortgage, OnePass, Business Credit Card).
+- **Coverage:** Sarg's bank is on SimpleFIN's supported list, with its cards and mortgage.
 - **Rejected alternatives:**
   - **Plaid:** needs a client secret, so either a server or each user brings their own developer keys.
   - **Teller:** needs a client certificate per app, which has the same problem.
@@ -20,7 +20,7 @@
 
 ## Decision
 
-1. **Off by default, opt-in.** No network code runs until the user links SimpleFIN for a plan. With it off, the app makes zero connections; this is checked in S8.3.
+1. **Off by default, opt-in.** No network code runs until the user links SimpleFIN (one link per Windows user, see *As built*). With it off, the app makes zero connections; S8.3 checked that, and S8.6's connection watcher saw only the SimpleFIN host with it on.
 2. **One host, Rust only.**
    - Requests go only to the SimpleFIN host named in the user's access URL, over HTTPS.
    - They're made from the Rust side; the webview's CSP stays closed to the network.

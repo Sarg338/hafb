@@ -35,7 +35,7 @@ interface Tx {
 function answer(accounts: { id: string; name: string; currency?: string; txs: Tx[] }[], errlist: { code: string; msg: string }[] = []) {
   return {
     errlist,
-    connections: [{ conn_id: 'CON-1', name: 'Regions', org_id: 'regions', org_name: 'Regions Bank', sfin_url: 'https://beta-bridge.simplefin.org/simplefin' }],
+    connections: [{ conn_id: 'CON-1', name: 'Example', org_id: 'example', org_name: 'Example Bank', sfin_url: 'https://beta-bridge.simplefin.org/simplefin' }],
     accounts: accounts.map((a) => ({
       id: a.id,
       name: a.name,
@@ -70,14 +70,14 @@ describe('reading SimpleFIN’s answer (S8.6, ADR 0006)', () => {
           ],
         },
       ],
-      [{ code: 'con.auth', msg: 'Regions needs you to log in again.' }],
+      [{ code: 'con.auth', msg: 'Example needs you to log in again.' }],
     );
     // A transaction without an id, and a non-object, are skipped.
     raw.accounts[0]?.transactions.push({ posted: 1, amount: '1.00', description: 'no id' } as never, 'junk' as never);
-    const got = readSimplefin({ ...raw, errors: ['Regions needs you to log in again.', 'You are close to the daily limit.'] });
-    expect(got.messages).toEqual(['Regions needs you to log in again.', 'You are close to the daily limit.']);
+    const got = readSimplefin({ ...raw, errors: ['Example needs you to log in again.', 'You are close to the daily limit.'] });
+    expect(got.messages).toEqual(['Example needs you to log in again.', 'You are close to the daily limit.']);
     expect(got.accounts).toHaveLength(1);
-    expect(got.accounts[0]).toMatchObject({ id: 'ACT-1', name: 'Regions Bank · Checking', currency: 'USD' });
+    expect(got.accounts[0]).toMatchObject({ id: 'ACT-1', name: 'Example Bank · Checking', currency: 'USD' });
     expect(got.accounts[0]?.transactions.map((t) => [t.id, t.payee, t.description, t.pending])).toEqual([
       ['T1', 'Grocery store', 'LOCAL GROCER STORE #1133', false],
       ['T2', undefined, 'COFFEE shop', true],
@@ -148,13 +148,13 @@ describe('linking accounts', () => {
 
   it('links one SimpleFIN account to one account, and unlinks', () => {
     const { ctx, b, checking, savings } = setup();
-    b.run(linkBankAccount(b.plan, ctx, { accountId: checking, link: { id: 'ACT-1', name: 'Regions Bank · Checking' } }));
-    expect(linkedAccounts(b.plan).map((a) => [a.name, a.bankLink])).toEqual([['Checking', { id: 'ACT-1', name: 'Regions Bank · Checking' }]]);
+    b.run(linkBankAccount(b.plan, ctx, { accountId: checking, link: { id: 'ACT-1', name: 'Example Bank · Checking' } }));
+    expect(linkedAccounts(b.plan).map((a) => [a.name, a.bankLink])).toEqual([['Checking', { id: 'ACT-1', name: 'Example Bank · Checking' }]]);
     expect(() => linkBankAccount(b.plan, ctx, { accountId: savings, link: { id: 'ACT-1', name: 'x' } })).toThrow('already linked to Checking');
     b.run(linkBankAccount(b.plan, ctx, { accountId: checking, link: null }));
     expect(linkedAccounts(b.plan)).toEqual([]);
     // Now free for another account.
-    b.run(linkBankAccount(b.plan, ctx, { accountId: savings, link: { id: 'ACT-1', name: 'Regions Bank · Checking' } }));
+    b.run(linkBankAccount(b.plan, ctx, { accountId: savings, link: { id: 'ACT-1', name: 'Example Bank · Checking' } }));
     expect(linkedAccounts(b.plan).map((a) => a.name)).toEqual(['Savings']);
   });
 });
@@ -166,8 +166,8 @@ describe('syncing (S8.6): the bank file pipeline, one undo step, nothing twice',
     const checking = b.run(createAccount(b.plan, ctx, { name: 'Checking', type: 'checking', startingBalance: usd(1000), date: '2026-10-01' })).accountId;
     const visa = b.run(createAccount(b.plan, ctx, { name: 'Visa', type: 'creditCard', startingBalance: usd(0), date: '2026-10-01' })).accountId;
     const cash = b.run(createAccount(b.plan, ctx, { name: 'Wallet', type: 'cash', startingBalance: usd(50), date: '2026-10-01' })).accountId;
-    b.run(linkBankAccount(b.plan, ctx, { accountId: checking, link: { id: 'CHK', name: 'Regions Bank · Checking' } }));
-    b.run(linkBankAccount(b.plan, ctx, { accountId: visa, link: { id: 'CARD', name: 'Regions Bank · Visa' } }));
+    b.run(linkBankAccount(b.plan, ctx, { accountId: checking, link: { id: 'CHK', name: 'Example Bank · Checking' } }));
+    b.run(linkBankAccount(b.plan, ctx, { accountId: visa, link: { id: 'CARD', name: 'Example Bank · Visa' } }));
     return { ctx, b, checking, visa, cash };
   };
   const imported = (b: Bench, accountId: string) => b.plan.transactions.filter((t) => t.accountId === accountId && t.deletedAt === undefined && t.importId !== undefined);
@@ -247,13 +247,13 @@ describe('syncing (S8.6): the bank file pipeline, one undo step, nothing twice',
 
   it('says which linked accounts it couldn’t sync, and passes SimpleFIN’s messages on', () => {
     const { ctx, b, visa } = setup();
-    const raw = answer([{ id: 'CHK', name: 'Checking', currency: 'CAD', txs: [{ id: 'C1', date: '2026-10-03', amount: '-1.00', description: 'x' }] }], [{ code: 'con.auth', msg: 'Regions needs you to log in again.' }]);
+    const raw = answer([{ id: 'CHK', name: 'Checking', currency: 'CAD', txs: [{ id: 'C1', date: '2026-10-03', amount: '-1.00', description: 'x' }] }], [{ code: 'con.auth', msg: 'Example needs you to log in again.' }]);
     const { command, report } = syncBankAccounts(b.plan, ctx, { answer: readSimplefin(raw), dateOf });
     expect(command).toBeNull();
     expect(report.messages).toEqual([
-      'Regions needs you to log in again.',
+      'Example needs you to log in again.',
       'Checking wasn’t synced: SimpleFIN sends it in CAD, and this plan uses USD.',
-      'SimpleFIN didn’t send Visa (Regions Bank · Visa). Check the connection on SimpleFIN’s site, or link the account again in Edit Account.',
+      'SimpleFIN didn’t send Visa (Example Bank · Visa). Check the connection on SimpleFIN’s site, or link the account again in Edit Account.',
     ]);
     expect(imported(b, visa)).toEqual([]);
   });

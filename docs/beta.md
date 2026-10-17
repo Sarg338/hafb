@@ -19,7 +19,7 @@ Thank you for trying HAFB before its 1.0 release. HAFB is a free, local-only env
 ## Before you start
 
 - **Keep using YNAB.** Run HAFB alongside it during the beta; don't cancel anything because of HAFB yet.
-- **Your data stays on your PC.** HAFB never connects to the internet ([privacy.md](privacy.md)). Nothing you do in the beta reaches the developer unless you send it.
+- **Your data stays on your PC.** HAFB connects to nothing unless you link optional bank sync, and then only to SimpleFIN ([privacy.md](privacy.md)). Nothing you do in the beta reaches the developer unless you send it.
 - **Backups happen by themselves** every time you open a plan, but keep your YNAB export zip too.
 
 ## What to try
@@ -79,7 +79,7 @@ Every report gets an entry in the triage log below, usually within a few days, w
 | **Can't reproduce** | Needs more detail; we'll ask. |
 | **Won't fix** | Out of scope (needs a server, or YNAB doesn't do it either), with the reason. |
 
-The beta ends, and 1.0 follows, when every blocker and bug is fixed or explained, testers' numbers match YNAB, and the parity checklist has nothing open except optional bank sync.
+The beta ends, and 1.0 follows, when every blocker and bug is fixed or explained, testers' numbers match YNAB, and the parity checklist has nothing open.
 
 ### Triage log
 

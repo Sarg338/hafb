@@ -26,6 +26,7 @@ S8.6, 2026-10-12).
   in-process IPC. It also forbids plugins, `<base>` changes and form submissions.
 - **The installer downloads nothing.** It doesn't fetch the WebView2 runtime
   (`webviewInstallMode: skip`); WebView2 is part of Windows 11 and up-to-date Windows 10.
+
 ## Bank sync (optional, off until you link it)
 
 Bank sync through SimpleFIN Bridge (S8.6, ADR 0006) is the one time HAFB itself goes online, and
@@ -129,8 +130,8 @@ These belong to Windows and follow your Windows settings, as they do for every p
 ## Licenses
 
 Everything HAFB ships is under licenses compatible with HAFB's MIT license:
-- **Rust crates (228 for x64 and ARM64):** MIT and/or Apache-2.0, BSD-3-Clause, Zlib and
-  Unicode-3.0. Five MPL-2.0 crates (`cssparser`, `selectors`, `dtoa-short`, `option-ext`,
+- **Rust crates (245 for x64 and ARM64):** MIT and/or Apache-2.0, BSD-3-Clause, ISC, Zlib,
+  Unicode-3.0 and CDLA-Permissive-2.0 (Mozilla's root certificate list, for bank sync). Five MPL-2.0 crates (`cssparser`, `selectors`, `dtoa-short`, `option-ext`,
   `cssparser-macros`) are used unmodified; their source is on crates.io.
 - **Compiled in:** SQLCipher (BSD-3-Clause, Zetetic) with SQLite (public domain), OpenSSL's crypto
   library (Apache-2.0), and Microsoft's WebView2 loader (BSD-3-Clause, from the WebView2 SDK).

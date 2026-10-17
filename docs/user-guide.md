@@ -1,6 +1,6 @@
 # HAFB user guide
 
-HAFB (Here's A Free Budget) is an envelope budget for Windows. You give every dollar you have a job, plan with money you have rather than money you expect, and watch where it goes. It works like YNAB and uses YNAB's words: *Plan*, *Ready to Assign*, *Assigned*, *Activity*, *Available*, *Targets*, *Reflect*. It is free, has no account or subscription, and never connects to the internet.
+HAFB (Here's A Free Budget) is an envelope budget for Windows. You give every dollar you have a job, plan with money you have rather than money you expect, and watch where it goes. It works like YNAB and uses YNAB's words: *Plan*, *Ready to Assign*, *Assigned*, *Activity*, *Available*, *Targets*, *Reflect*. It is free, has no account or subscription, and connects to nothing unless you link optional bank sync (§10).
 
 - Installing, upgrading, uninstalling and the portable version: [install.md](install.md).
 - Coming from YNAB: [migrating.md](migrating.md).

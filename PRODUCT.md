@@ -74,7 +74,7 @@ Success means a YNAB user imports their export, sees their plan reproduced to th
 
 1. **The numbers are sacred.** Exact, integer, YNAB-identical math. The UI never computes or rounds money on its own.
 2. **Familiar to YNAB users.** Same structure and words, so muscle memory transfers.
-3. **Yours, offline, forever.** No accounts, no network, one file, automatic backups.
+3. **Yours, offline, forever.** No accounts, no network (bank sync is opt-in), one file, automatic backups.
 4. **Fast and keyboard-first.** Dense screens that respect daily use.
 5. **Encouraging, never anxious.** Money is stressful; the app helps the user feel in control.
 

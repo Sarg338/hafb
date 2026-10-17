@@ -24,5 +24,5 @@
 ## Consequences
 
 - Class names are scoped per module. Shared visual grammar lives in tokens, not in global class names.
-- The S3.1 mockup stylesheets (`src/design/*.css`) were moved onto the same tokens, with identical values. Phase 4 rebuilds those screens from the component library.
+- The S3.1 mockup stylesheets (`src/design/*.css`) were moved onto the same tokens, with identical values. Phase 4 rebuilt those screens from the component library (`src/screens`, ADR 0007).
 - Type safety for class names: CSS Modules types are `string | undefined` under `noUncheckedIndexedAccess`. The `cx()` helper accepts `undefined`, so no casts are needed.
