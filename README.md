@@ -4,7 +4,7 @@
 
 A free, open-source envelope-budgeting app for Windows. It does what the popular paid budgeting apps do, giving every dollar a job, without a subscription, an account or a server. Your budget is one SQLite file on your PC that you own. MIT licensed.
 
-**Status: beta (0.9.0).** Everything is built; it's in testing before 1.0. Bug reports are welcome in [Issues](https://github.com/Sarg338/hafb/issues).
+**Status: beta (0.9.1).** Everything is built; it's in testing before 1.0. Bug reports are welcome in [Issues](https://github.com/Sarg338/hafb/issues).
 
 ## Download
 
@@ -68,19 +68,6 @@ packages/shared     types shared by engine and UI (Minor money, ISODate/Month)
 apps/desktop        Tauri 2 app: React UI in src/, Rust in src-tauri/
 docs/decisions      architecture decision records
 ```
-
-## Code signing policy
-
-Windows releases are built from this repository by [GitHub Actions](.github/workflows/ci.yml) and signed through SignPath Foundation's free program for open-source projects. Until the first signed release, downloads are unsigned and Windows SmartScreen warns about them ([docs/install.md](docs/install.md)).
-
-Free code signing provided by [SignPath.io](https://about.signpath.io/), certificate by [SignPath Foundation](https://signpath.org/).
-
-- Committers and reviewers: [Sarg338](https://github.com/Sarg338)
-- Approvers: [Sarg338](https://github.com/Sarg338)
-
-Every signing request is approved by hand, and only builds made by this repository's workflow from a version tag are signed.
-
-**Privacy:** this program will not transfer any information to other networked systems unless specifically requested by the user or the person installing or operating it. The only such request is optional bank sync, which the user turns on by linking their own SimpleFIN account; HAFB then talks only to SimpleFIN's server ([docs/privacy.md](docs/privacy.md)).
 
 ## License
 

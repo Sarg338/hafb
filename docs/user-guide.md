@@ -239,7 +239,7 @@ Pick the dates, categories and accounts at the top; they're remembered per plan.
 
 ## 18. When something goes wrong
 
-- **"Windows protected your PC"** when installing: see [install.md](install.md). HAFB's downloads aren't code-signed yet.
+- **"Windows protected your PC"** when installing: see [install.md](install.md). HAFB's downloads aren't code-signed.
 - *A plan is damaged* (a disk fault, a sync conflict): HAFB checks every plan as it opens and won't open a damaged one. It offers its newest good backup instead, and keeps the damaged file in the backups folder.
 - **"This plan was saved by a newer version of the app"**: install the newer HAFB, or restore a backup made before it was upgraded.
 - *The plan is open in another window:* switch to that window, or close it first.

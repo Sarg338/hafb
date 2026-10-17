@@ -18,7 +18,7 @@ Plans are files you keep wherever you choose. Neither form puts them anywhere on
 
 ## "Windows protected your PC" (SmartScreen)
 
-HAFB's downloads aren't code-signed yet. Signing is being set up through SignPath Foundation's free program for open-source projects (README, *Code signing policy*). A signed download names *SignPath Foundation* as its publisher instead of *Unknown publisher*, but Windows may still warn about a new release until enough people have downloaded it. Until then, Windows warns about unsigned programs it hasn't seen often:
+HAFB's downloads aren't code-signed, and Windows warns about unsigned programs it hasn't seen often:
 
 - **Browser:** Edge may say the file "isn't commonly downloaded". Open the downloads list (Ctrl+J), choose the file's **…** menu, then **Keep**. If Edge asks again, choose **Show more**, then **Keep anyway**.
 - **First run:** a blue window says *Microsoft Defender SmartScreen prevented an unrecognized app from starting*. Choose **More info**, check that the app is **HAFB.exe** or the HAFB `.msi`, then **Run anyway**. The publisher shows as *Unknown publisher*.

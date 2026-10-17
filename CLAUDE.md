@@ -36,8 +36,7 @@ This file is the durable source of truth for the project. Read it fully before d
 - **Tests:** Vitest for engine + UI logic. A Playwright smoke suite drives the real release app over WebView2's DevTools port (`playwright-core`, ADR 0005; `pnpm smoke`). Rust: `cargo test` for commands.
 - **Packaging:** Tauri bundler → `.msi` and a portable zip (`HAFB.exe` beside a `HAFB Data` folder, which keeps its data there). The MSI's upgrade code is pinned in `tauri.conf.json` and must never change; downgrades are refused; uninstalling keeps the user's data. The version lives in Cargo.toml (`pnpm version:set`). `THIRD-PARTY-NOTICES.txt` is generated on every build (`docs/install.md`, S8.4).
 - **CI and releases:** GitHub Actions (`.github/workflows/ci.yml`, public repo `Sarg338/hafb`) lints, tests and builds every push. A version tag also drafts a GitHub release with the installers.
-  - Code signing goes through SignPath Foundation's free open-source program. The workflow signs a tagged build once the repository variables `SIGNPATH_*` and the secret `SIGNPATH_API_TOKEN` exist; the artifact configuration is in `.github/signpath/`.
-  - The code signing policy SignPath requires is in the README. Actions are pinned to full commits, each at least two weeks old when picked.
+  - Releases aren't code signed. Actions are pinned to full commits, each at least two weeks old when picked.
   - The README never names YNAB; it says "popular paid budgeting apps" (Sarg, 2026-10-17).
 
 **Rejected alternatives (and why):**
@@ -73,7 +72,7 @@ hafb/
       smoke/                 ← end-to-end smoke tests on the release app (`pnpm smoke`)
       src-tauri/             ← Rust: window, generic SQLite store + `hafb-store` CLI, file dialogs, bank sync
         migrations/          ← 0001_init.sql, 0002_... never edited after merge
-  .github/                   ← CI workflow, SignPath artifact configuration
+  .github/                   ← CI workflow
   scripts/
     import-ynab.ts           ← YNAB export → HAFB SQLite (also exposed in-app)
 ```
@@ -438,11 +437,10 @@ Mark phase status here when it changes:
     - Still needed: Sarg's SimpleFIN sign-up, to check his real banks.
   - Public release 2026-10-17: the repo is public at `github.com/Sarg338/hafb`, with history authored as Sarg338 (GitHub noreply address).
     - CI builds every push.
-    - **v0.9.0 (beta 1)** was built by CI from its tag and published as a pre-release (unsigned; checksums verified, and the portable build launched).
+    - **v0.9.0 (beta 1)** was built by CI from its tag and published as a pre-release (checksums verified, and the portable build launched).
     - **v0.9.1 (beta 2)**, 2026-10-17: the new welcome screen (DESIGN.md "Welcome", picked by Sarg from three mockups).
       - 58/58 smoke tests passed.
-      - The CI MSI installed over 0.9.0 on Sarg's PC with every data file byte-identical. It is still unsigned.
-    - Sarg applied to SignPath Foundation 2026-10-17 (build system: GitHub Actions). Still needed: their approval, then the `SIGNPATH_*` repository variables and secret, then a signed release.
+      - The CI MSI installed over 0.9.0 on Sarg's PC with every data file byte-identical.
 
 ---
 
