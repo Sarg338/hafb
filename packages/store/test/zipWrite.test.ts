@@ -30,5 +30,5 @@ describe('writeZip', () => {
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
-  });
+  }, 60_000); // a cold PowerShell start (Expand-Archive's module) took over 5 s on a CI runner
 });
